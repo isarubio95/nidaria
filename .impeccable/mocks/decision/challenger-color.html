@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Un Solo Color</title>
+<style>
+*{box-sizing:border-box;margin:0}
+body{width:390px;height:844px;overflow:hidden;position:relative;background:#5B2EFF;color:#fff;font-family:"Avenir Next","Century Gothic",Futura,Arial,sans-serif}
+.logo{position:absolute;left:14px;top:18px;font-family:"Brush Script MT","Segoe Script","Snell Roundhand",cursive;font-size:68px;transform:rotate(-8deg);transform-origin:left top;line-height:1}
+.star{position:absolute;left:228px;top:22px;width:34px;height:34px;background:#fff;clip-path:polygon(50% 0,61% 35%,100% 50%,61% 65%,50% 100%,39% 65%,0 50%,39% 35%)}
+.shop{position:absolute;right:16px;top:26px;background:#fff;color:#5B2EFF;font-weight:800;font-size:22px;padding:10px 20px;border-radius:999px}
+.coins{position:absolute;right:16px;top:86px;font-size:26px;font-weight:800}
+.pet{position:absolute;left:85px;top:200px;width:220px;height:232px;border-radius:48% 52% 46% 54%/56% 54% 46% 44%;background:#7A55FF;box-shadow:inset -26px -30px 0 #4A1FE0,0 40px 0 -18px #4A1FE0}
+.pet:after{content:"";position:absolute;left:34px;top:26px;width:70px;height:36px;border-radius:50%;background:rgba(255,255,255,.75);transform:rotate(-24deg)}
+.pet i{position:absolute;top:96px;width:26px;height:36px;border-radius:50%;background:#fff}
+.pet b{position:absolute;top:-30px;left:84px;width:50px;height:60px;border-radius:50% 50% 0 0;background:#7A55FF}
+.fam{position:absolute;left:0;right:0;top:470px;text-align:center;font-size:30px;font-weight:800;letter-spacing:.02em}
+.bars{position:absolute;left:20px;right:20px;top:536px;display:grid;gap:12px}
+.b{display:flex;align-items:center;gap:12px}
+.b span{width:78px;font-weight:700;font-size:15px}
+.b div{flex:1;height:14px;border-radius:999px;background:#4A1FE0}
+.b u{display:block;height:14px;border-radius:999px;background:#fff}
+.pills{position:absolute;left:14px;right:14px;bottom:22px;display:flex;justify-content:space-between}
+.pills div{padding:14px 13px;border-radius:999px;background:#7A55FF;font-weight:800;font-size:14px;box-shadow:inset 0 2px 0 rgba(255,255,255,.35)}
+.pills .on{background:#fff;color:#5B2EFF}
+</style></head><body>
+<div class="logo">Nidaria</div><div class="star"></div>
+<div class="shop">Tienda</div><div class="coins">1.240</div>
+<div class="pet"><b></b><i style="left:64px"></i><i style="left:130px"></i></div>
+<div class="fam">Familia Violeta</div>
+<div class="bars">
+ <div class="b"><span>Hambre</span><div><u style="width:66%"></u></div></div>
+ <div class="b"><span>Sueño</span><div><u style="width:42%"></u></div></div>
+ <div class="b"><span>Higiene</span><div><u style="width:83%"></u></div></div>
+ <div class="b"><span>Juego</span><div><u style="width:25%"></u></div></div>
+ <div class="b"><span>Salud</span><div><u style="width:92%"></u></div></div>
+</div>
+<div class="pills"><div class="on">Comer</div><div>Dormir</div><div>Baño</div><div>Jugar</div><div>Curar</div></div>
+</body></html>

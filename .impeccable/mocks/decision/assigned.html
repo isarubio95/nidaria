@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>La Incubadora</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=Doto:wght@900&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0}
+body{width:390px;height:844px;overflow:hidden;position:relative;font-family:"Arial Narrow","Helvetica Neue",Arial,sans-serif;color:#1D1A5E;
+ background:radial-gradient(120% 60% at 50% 0,#FF9A45 0,#F25C1F 55%,#D9480F 100%)}
+.dots{color:#1D1A5E;font-weight:900;font-family:"Doto","Courier New",monospace;letter-spacing:.02em}
+.top{position:absolute;inset:14px 16px auto;display:flex;align-items:center;justify-content:space-between}
+.mark{font-size:30px}
+.tag{background:#1D1A5E;color:#F7F4EE;font-weight:800;font-size:24px;letter-spacing:.06em;padding:8px 16px 8px 30px;border-radius:4px;position:relative}
+.tag:before{content:"";position:absolute;left:10px;top:50%;width:10px;height:10px;margin-top:-5px;border-radius:50%;background:#F25C1F}
+.coins{position:absolute;top:66px;left:16px;font-size:26px}
+.code{position:absolute;top:118px;left:-6px;right:-6px;text-align:center;font-size:96px;line-height:.82}
+.tray{position:absolute;left:-30px;right:-30px;top:330px;height:250px;background:#1F6F6A;border-radius:44px 44px 0 0;box-shadow:inset 0 14px 0 #2E8F88}
+.cup{position:absolute;width:104px;height:104px;border-radius:50%;background:#17544F;box-shadow:inset 0 12px 18px rgba(0,0,0,.35),0 4px 0 #2E8F88}
+.egg{position:absolute;width:58px;height:74px;border-radius:50% 50% 48% 48%/60% 60% 40% 40%;background:#F7F4EE;box-shadow:inset -8px -10px 0 rgba(29,26,94,.14)}
+.pet{position:absolute;left:115px;top:236px;width:160px;height:170px;border-radius:48% 52% 46% 54%/56% 54% 46% 44%;background:#FFC53D;box-shadow:inset -18px -22px 0 rgba(217,72,15,.45)}
+.pet i{position:absolute;top:66px;width:20px;height:28px;border-radius:50%;background:#1D1A5E}
+.pet b{position:absolute;top:-22px;left:62px;width:36px;height:44px;border-radius:50% 50% 0 0;background:#FFC53D}
+.lip{position:absolute;left:0;right:0;top:560px;bottom:0;background:#1F6F6A;box-shadow:inset 0 10px 0 #2E8F88;padding:26px 18px 0}
+.row{display:flex;align-items:center;gap:10px;height:30px}
+.row span{width:86px;font-weight:800;font-size:15px;letter-spacing:.08em;color:#F7F4EE}
+.g{flex:1;height:16px;background:radial-gradient(circle,#F7F4EE 44%,transparent 48%) 0 0/23.5px 16px}
+.g u{display:block;height:100%;background:radial-gradient(circle,#1D1A5E 44%,transparent 48%) 0 0/23.5px 16px}
+.acts{position:absolute;left:14px;right:14px;bottom:16px;display:flex;justify-content:space-between}
+.acts div{width:64px;height:64px;border-radius:50%;background:#17544F;box-shadow:inset 0 8px 12px rgba(0,0,0,.35),0 3px 0 #2E8F88;display:grid;place-items:center;color:#F7F4EE;font-weight:800;font-size:12px}
+.acts .on{background:#1D1A5E}
+</style></head><body>
+<div class="top"><div class="mark dots">NIDARIA</div><div class="tag">TIENDA</div></div>
+<div class="coins dots">◉ 1.240</div>
+<div class="code dots">N3·ES<br>4471K</div>
+<div class="tray">
+ <div class="cup" style="left:36px;top:26px"><div class="egg" style="left:23px;top:8px"></div></div>
+ <div class="cup" style="left:173px;top:26px"></div>
+ <div class="cup" style="left:310px;top:26px"><div class="egg" style="left:23px;top:8px;background:#BFE3DD"></div></div>
+ <div class="cup" style="left:-32px;top:140px"></div><div class="cup" style="left:378px;top:140px"></div>
+</div>
+<div class="pet"><b></b><i style="left:48px"></i><i style="left:96px"></i></div>
+<div class="lip">
+ <div class="row"><span>HAMBRE</span><div class="g"><u style="width:66.6%"></u></div></div>
+ <div class="row"><span>SUEÑO</span><div class="g"><u style="width:41.6%"></u></div></div>
+ <div class="row"><span>HIGIENE</span><div class="g"><u style="width:83.3%"></u></div></div>
+ <div class="row"><span>JUEGO</span><div class="g"><u style="width:25%"></u></div></div>
+ <div class="row"><span>SALUD</span><div class="g"><u style="width:91.6%"></u></div></div>
+</div>
+<div class="acts"><div class="on">COMER</div><div>LUZ</div><div>BAÑO</div><div>JUGAR</div><div>CURAR</div></div>
+</body></html>

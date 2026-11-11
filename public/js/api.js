@@ -1,0 +1,55 @@
+// Cliente de la API. Cada llamada devuelve { state, events, result }
+// o lanza un ApiError con un mensaje listo para enseñar.
+
+export class ApiError extends Error {
+  constructor(message, status) {
+    super(message);
+    this.status = status;
+  }
+}
+
+async function call(method, url, body) {
+  let response;
+  try {
+    response = await fetch(`/api${url}`, {
+      method,
+      headers: body ? { 'content-type': 'application/json' } : undefined,
+      body: body ? JSON.stringify(body) : undefined,
+      credentials: 'same-origin',
+    });
+  } catch {
+    throw new ApiError('No hay conexión con el servidor. Comprueba tu red e inténtalo de nuevo.', 0);
+  }
+  let data = null;
+  try {
+    data = await response.json();
+  } catch {
+    data = null;
+  }
+  if (!response.ok) throw new ApiError(data?.error ?? 'Algo ha fallado. Inténtalo de nuevo.', response.status);
+  return data;
+}
+
+const post = (url) => (body) => call('POST', url, body ?? {});
+
+export const api = {
+  state: () => call('GET', '/state'),
+  register: post('/auth/register'),
+  login: post('/auth/login'),
+  logout: post('/auth/logout'),
+  pickEgg: post('/egg/pick'),
+  warmEgg: post('/egg/warm'),
+  feed: post('/creature/feed'),
+  sleep: post('/creature/sleep'),
+  bathe: post('/creature/bathe'),
+  heal: post('/creature/heal'),
+  pet: post('/creature/pet'),
+  toy: post('/creature/toy'),
+  rename: post('/creature/rename'),
+  equip: post('/creature/equip'),
+  buy: post('/shop/buy'),
+  collect: post('/income/collect'),
+  startGame: post('/games/start'),
+  finishGame: post('/games/finish'),
+  devSkip: post('/dev/skip'),
+};

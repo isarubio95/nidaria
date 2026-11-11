@@ -1,0 +1,10 @@
+/* Orden de apilado, de abajo arriba. Un solo sitio para todos los z-index. */
+#stage { z-index: 0; }
+#app { z-index: 1; }
+.scrim { z-index: 10; }
+.sheet { z-index: 11; }
+.game { z-index: 20; }
+.scrim[data-layer="dialog"] { z-index: 29; }
+.dialog-wrap { z-index: 30; }
+#toasts { z-index: 40; }
+.game-cover { z-index: 1; }

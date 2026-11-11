@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Lámina de Campo</title>
+<style>
+*{box-sizing:border-box;margin:0}
+body{width:390px;height:844px;overflow:hidden;position:relative;background:#1F4D3A;color:#16201B;font-family:Georgia,"Times New Roman",serif}
+.top{position:absolute;inset:16px 18px auto;display:flex;justify-content:space-between;align-items:baseline;color:#EDE6D3}
+.top b{font-size:26px;letter-spacing:.18em;font-weight:400}
+.top a{font-size:22px;font-style:italic;border-bottom:2px solid #A8321F;padding-bottom:2px}
+.plate{position:absolute;left:18px;right:18px;top:70px;height:500px;background:#EDE6D3;box-shadow:0 0 0 1px #16201B inset,0 0 0 7px #EDE6D3 inset,0 0 0 8px #16201B inset}
+.num{position:absolute;left:24px;top:22px;font-size:24px;color:#A8321F;font-style:italic}
+.fam{position:absolute;right:24px;top:24px;font-size:14px;letter-spacing:.2em}
+.pet{position:absolute;left:97px;top:120px;width:160px;height:170px;border-radius:48% 52% 46% 54%/56% 54% 46% 44%;background:#A8321F;box-shadow:inset -18px -22px 0 rgba(22,32,27,.28)}
+.pet i{position:absolute;top:66px;width:18px;height:26px;border-radius:50%;background:#16201B}
+.pet b{position:absolute;top:-24px;left:60px;width:38px;height:46px;border-radius:50% 50% 0 0;background:#A8321F}
+.m{position:absolute;border-top:1px solid #16201B}
+.m:before,.m:after{content:"";position:absolute;top:-5px;height:9px;border-left:1px solid #16201B}
+.m:after{right:0}
+.name{position:absolute;left:0;right:0;top:340px;text-align:center;font-size:38px;font-style:italic;line-height:1}
+.sub{position:absolute;left:0;right:0;top:386px;text-align:center;font-size:13px;letter-spacing:.24em}
+.tree{position:absolute;left:44px;right:44px;top:424px;height:44px;border:1px solid #16201B;border-bottom:0;border-radius:0}
+.tree:before{content:"";position:absolute;left:50%;top:-14px;height:14px;border-left:1px solid #16201B}
+.tree i{position:absolute;bottom:-10px;width:18px;height:18px;border-radius:50%;border:1px solid #16201B;background:#EDE6D3}
+.notes{position:absolute;left:18px;right:18px;top:592px;color:#EDE6D3}
+.n{display:flex;align-items:center;gap:12px;height:32px;border-bottom:1px solid rgba(237,230,211,.3)}
+.n span{width:90px;font-style:italic;font-size:17px}
+.n div{flex:1;height:3px;background:rgba(237,230,211,.3)}
+.n u{display:block;height:3px;background:#EDE6D3}
+.acts{position:absolute;left:18px;right:18px;bottom:20px;display:flex;justify-content:space-between;color:#EDE6D3;font-size:15px;font-style:italic}
+.acts div{border:1px solid #EDE6D3;padding:9px 10px}
+.acts .on{background:#A8321F;border-color:#A8321F}
+</style></head><body>
+<div class="top"><b>NIDARIA</b><a>Tienda</a></div>
+<div class="plate">
+ <div class="num">Lám. XXIV</div><div class="fam">FAM. III</div>
+ <div class="pet"><b></b><i style="left:48px"></i><i style="left:94px"></i></div>
+ <div class="m" style="left:86px;width:182px;top:306px"></div>
+ <div class="name">Nidaria glotona</div>
+ <div class="sub">ESPÉCIMEN 4471 · DÍA 12</div>
+ <div class="tree"><i style="left:-9px"></i><i style="left:calc(50% - 9px);background:#A8321F"></i><i style="right:-9px"></i></div>
+</div>
+<div class="notes">
+ <div class="n"><span>Hambre</span><div><u style="width:66%"></u></div></div>
+ <div class="n"><span>Sueño</span><div><u style="width:42%"></u></div></div>
+ <div class="n"><span>Higiene</span><div><u style="width:83%"></u></div></div>
+ <div class="n"><span>Juego</span><div><u style="width:25%"></u></div></div>
+ <div class="n"><span>Salud</span><div><u style="width:92%"></u></div></div>
+</div>
+<div class="acts"><div class="on">Comer</div><div>Dormir</div><div>Baño</div><div>Jugar</div><div>Curar</div></div>
+</body></html>

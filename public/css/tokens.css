@@ -1,0 +1,171 @@
+/* Tokens de diseño de Nidaria. El resto de estilos solo usa estas variables. */
+
+@font-face {
+  font-family: "Zen Maru Gothic";
+  font-weight: 500;
+  font-display: swap;
+  src: url("/vendor/fonts/zen-maru-gothic-latin-500-normal.woff2") format("woff2");
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: "Zen Maru Gothic";
+  font-weight: 700;
+  font-display: swap;
+  src: url("/vendor/fonts/zen-maru-gothic-latin-700-normal.woff2") format("woff2");
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: "Zen Maru Gothic";
+  font-weight: 900;
+  font-display: swap;
+  src: url("/vendor/fonts/zen-maru-gothic-latin-900-normal.woff2") format("woff2");
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: "Zen Maru Gothic";
+  font-weight: 500;
+  font-display: swap;
+  src: url("/vendor/fonts/zen-maru-gothic-latin-ext-500-normal.woff2") format("woff2");
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+@font-face {
+  font-family: "Zen Maru Gothic";
+  font-weight: 700;
+  font-display: swap;
+  src: url("/vendor/fonts/zen-maru-gothic-latin-ext-700-normal.woff2") format("woff2");
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+@font-face {
+  font-family: "Zen Maru Gothic";
+  font-weight: 900;
+  font-display: swap;
+  src: url("/vendor/fonts/zen-maru-gothic-latin-ext-900-normal.woff2") format("woff2");
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+
+:root {
+  /* Color: la habitación */
+  --sky: #bfe3ff;
+  --sky-deep: #9fcff5;
+  --cream: #fff8ec;
+  --cream-deep: #f3e7d3;
+  --paper: #fffdf8;
+
+  /* Color: tinta. Cacao, nunca negro. */
+  --ink: #5b3a29;
+  --ink-soft: #84644f;
+  --ink-faint: #b89f8c;
+  --line: #eadfce;
+
+  /* Color: caramelos. Cada uno con su canto más oscuro. */
+  --pink: #ff8fb1;
+  --pink-edge: #e2648b;
+  --pink-wash: #ffe3ec;
+  --mint: #7ed6a5;
+  --mint-edge: #4fae7c;
+  --mint-wash: #dff5e8;
+  --sun: #ffd166;
+  --sun-edge: #e0a038;
+  --sun-wash: #fff1cc;
+
+  /* Color: una necesidad, un color fijo. */
+  --need-hunger: #ffb45c;
+  --need-hunger-edge: #e08f2e;
+  --need-energy: #9db7ff;
+  --need-energy-edge: #6f8de6;
+  --need-hygiene: #7ed6a5;
+  --need-hygiene-edge: #4fae7c;
+  --need-fun: #ff8fb1;
+  --need-fun-edge: #e2648b;
+  --need-health: #ff7a7a;
+  --need-health-edge: #df5252;
+  --track: #f0e6d6;
+
+  --danger: #c2403f;
+  --danger-wash: #ffe4e1;
+  --scrim: rgb(91 58 41 / 0.34);
+
+  /* Tipografía */
+  --font: "Zen Maru Gothic", ui-rounded, "Hiragino Maru Gothic ProN", "Arial Rounded MT Bold", system-ui, sans-serif;
+  --text-xs: 0.75rem;
+  --text-sm: 0.875rem;
+  --text-md: 1rem;
+  --text-lg: 1.25rem;
+  --text-xl: 1.625rem;
+  --text-2xl: 2.25rem;
+
+  /* Espacio */
+  --s1: 4px;
+  --s2: 8px;
+  --s3: 12px;
+  --s4: 16px;
+  --s5: 20px;
+  --s6: 24px;
+  --s8: 32px;
+  --s10: 40px;
+  --gutter: 16px;
+
+  /* Radios: el exterior es el interior más el relleno. */
+  --r-sm: 12px;
+  --r-md: 16px;
+  --r-lg: 28px;
+  --r-pill: 999px;
+
+  /* Sombra: marrón, con desplazamiento y difuminado. */
+  --shadow-sm: 0 2px 4px rgb(91 58 41 / 0.1), 0 6px 14px -6px rgb(91 58 41 / 0.22);
+  --shadow-md: 0 3px 6px rgb(91 58 41 / 0.1), 0 14px 28px -10px rgb(91 58 41 / 0.3);
+  --shadow-lg: 0 6px 12px rgb(91 58 41 / 0.1), 0 28px 56px -16px rgb(91 58 41 / 0.36);
+
+  /* Movimiento: escala de transitions.dev */
+  --duration-stagger: 40ms;
+  --duration-micro: 80ms;
+  --duration-quick: 150ms;
+  --duration-fast: 250ms;
+  --duration-medium: 350ms;
+  --duration-slow: 400ms;
+  --duration-very-slow: 500ms;
+  --ease-smooth-out: cubic-bezier(0.22, 1, 0.36, 1);
+
+  /* Panel reveal: las hojas */
+  --panel-open-dur: 400ms;
+  --panel-close-dur: 350ms;
+  --panel-translate-y: 72px;
+  --panel-blur: 2px;
+  --panel-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  /* Modal */
+  --modal-open-dur: 250ms;
+  --modal-close-dur: 150ms;
+  --modal-scale: 0.96;
+  --modal-scale-close: 0.96;
+  --modal-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  /* Toast */
+  --toast-open: 350ms;
+  --toast-close: 250ms;
+  --toast-distance: 16px;
+  --toast-blur: 2px;
+  --toast-scale: 0.97;
+  --toast-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  /* Tabs sliding */
+  --tabs-dur: 250ms;
+  --tabs-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --tabs-text-muted: var(--ink-soft);
+  --tabs-text-active: var(--ink);
+  --tabs-bar-bg: var(--track);
+  --tabs-pill-bg: var(--paper);
+  /* Number subtle change */
+  --subtle-dur: 455ms;
+  --subtle-distance: 0.14em;
+  --subtle-blur: 0.042em;
+  --subtle-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  /* Error state shake */
+  --shake-distance: 6px;
+  --shake-overshoot: 4px;
+  --shake-dur-a: 80ms;
+  --shake-dur-b: 60ms;
+  --shake-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --revert-hold: 3000ms;
+  --revert-dur: 280ms;
+
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+}

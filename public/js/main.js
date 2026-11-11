@@ -1,0 +1,177 @@
+// Arranque: crea la escena 3D, pide el estado al servidor y decide qué
+// pantalla toca (entrada, huevos, despedida o la principal).
+
+import { gsap } from 'gsap';
+import { h, reducedMotion } from './dom.js';
+import { api, ApiError } from './api.js';
+import { store } from './store.js';
+import { createRoom } from './scene/room.js';
+import { creatureThumb } from './scene/thumbs.js';
+import { getForm, BRANCH_INFO } from '/shared/forms.js';
+import { FAMILY_INFO } from '/shared/dna.js';
+import { mountAuth } from './ui/auth.js';
+import { mountEggs } from './ui/eggs.js';
+import { mountHome } from './ui/home.js';
+import { mountFarewell } from './ui/farewell.js';
+import { dialog } from './ui/dialog.js';
+import { toast } from './ui/toast.js';
+import { closeSheet } from './ui/sheet.js';
+import { line } from './ui/speech.js';
+
+const app = document.getElementById('app');
+const canvas = document.getElementById('stage');
+
+function message(title, text, action) {
+  app.replaceChildren(h('section', { class: 'card-screen' },
+    h('h1', {}, title),
+    h('p', { class: 'lead' }, text),
+    action ?? null,
+  ));
+}
+
+let room = null;
+try {
+  room = createRoom(canvas);
+} catch (error) {
+  console.error(error);
+  message('No se puede dibujar la escena', 'Tu navegador no tiene activados los gráficos 3D (WebGL). Actívalos o prueba con otro navegador.');
+}
+
+let screen = null;
+let screenName = '';
+let animating = false;
+let queue = Promise.resolve();
+const seenFarewell = new Set();
+
+function show(name, mount) {
+  screen?.destroy();
+  screen = mount();
+  screenName = name;
+  refocus(false);
+}
+
+// La escena se centra en el hueco que deja libre la tarjeta inferior.
+function refocus(animate = true) {
+  if (!screen?.focusTop) return;
+  room.setFocus(16, screen.focusTop() - 8, animate);
+}
+window.addEventListener('resize', () => refocus(false));
+
+function enter() {
+  if (reducedMotion()) return;
+  gsap.from('.dock > *, .acts > *', { y: 18, autoAlpha: 0, duration: 0.5, ease: 'power3.out', stagger: 0.04, clearProps: 'all' });
+  gsap.from('.hud-top, .plate', { y: -12, autoAlpha: 0, duration: 0.45, ease: 'power3.out', stagger: 0.06, clearProps: 'all' });
+}
+
+function announce(creature, first) {
+  const form = getForm(creature.formId);
+  const art = creatureThumb(creature.formId, creature.genes);
+  if (first.from === 'huevo' && form.stage === 'cria') {
+    return dialog({
+      title: `¡${creature.name} ha nacido!`,
+      text: `Es ${form.name}, de la familia ${FAMILY_INFO[form.family].name}. Según cómo la cuides, crecerá por una rama u otra.`,
+      art,
+      actions: [{ label: 'Conocerla', value: true, tone: 'pink' }],
+    });
+  }
+  return dialog({
+    title: `¡${creature.name} ha evolucionado!`,
+    text: `Ahora es ${form.name}. La has criado ${BRANCH_INFO[form.branch].name.toLowerCase()} y por eso ha seguido esa rama.`,
+    art,
+    actions: [{ label: 'Verla', value: true, tone: 'pink' }],
+  });
+}
+
+function route(state, payload = {}) {
+  if (!room) return;
+  const events = payload.events ?? [];
+
+  if (!state) {
+    closeSheet();
+    room.setNight(false);
+    room.showDemo();
+    show('auth', () => mountAuth(app));
+    return;
+  }
+
+  const creature = state.creature;
+  if (!creature || (!creature.alive && seenFarewell.has(creature.id))) {
+    if (screenName !== 'eggs') {
+      closeSheet();
+      room.setNight(false);
+      show('eggs', () => mountEggs(app, room, state));
+    }
+    return;
+  }
+
+  if (!creature.alive) {
+    if (screenName === 'farewell' || animating) return;
+    const wasHome = screenName === 'home';
+    animating = true;
+    queue = queue.then(async () => {
+      await closeSheet();
+      screen?.destroy();
+      screen = null;
+      screenName = 'farewell';
+      app.replaceChildren();
+      room.setNight(false);
+      if (wasHome && events.some((event) => event.type === 'died')) await room.farewell();
+      animating = false;
+      show('farewell', () => mountFarewell(app, state, () => {
+        seenFarewell.add(creature.id);
+        route(store.state);
+      }));
+    });
+    return;
+  }
+
+  const fresh = screenName !== 'home';
+  if (fresh) {
+    // La entrada animada solo al llegar desde otra pantalla, no al recargar.
+    const arriving = screenName !== '';
+    show('home', () => mountHome(app, room));
+    if (arriving) enter();
+  } else {
+    screen.update(state);
+  }
+
+  const evolved = events.filter((event) => event.type === 'evolved');
+  if (evolved.length && !fresh && !animating) {
+    animating = true;
+    queue = queue.then(async () => {
+      await closeSheet();
+      if (evolved[0].from === 'huevo') await room.hatch(creature);
+      else await room.evolve(creature);
+      animating = false;
+      room.showCreature(store.state.creature ?? creature);
+      await announce(creature, evolved[0]);
+      screen?.say?.(line('nace'));
+    });
+  } else if (!animating) {
+    room.showCreature(creature);
+  }
+
+  for (const event of events) {
+    if (event.type === 'sick') toast(`${creature.name} se ha puesto enferma. Dale medicina.`, 'error', 4200);
+    else if (event.type === 'collapsed') toast(`${creature.name} se ha dormido de puro cansancio.`, 'info', 3600);
+    else if (event.type === 'woke') toast(`${creature.name} se ha despertado.`);
+  }
+}
+
+store.onChange((state, payload) => route(state, payload));
+
+async function boot() {
+  if (!room) return;
+  try {
+    store.apply(await api.state());
+  } catch (error) {
+    if (error instanceof ApiError && error.status === 401) {
+      route(null);
+      return;
+    }
+    room.showDemo();
+    message('No hay conexión', error.message, h('button', { class: 'btn btn-pink btn-wide', type: 'button', onclick: boot }, 'Reintentar'));
+  }
+}
+
+boot();

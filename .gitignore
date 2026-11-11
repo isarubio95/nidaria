@@ -1,0 +1,6 @@
+node_modules/
+data/
+.impeccable/review/
+.impeccable/questions/
+.impeccable/hook.cache.json
+*.log
