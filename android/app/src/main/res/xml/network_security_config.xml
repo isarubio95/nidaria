@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  El servidor de Nidaria corre por ahora en la red de casa, sin HTTPS, así
+  que la app admite HTTP sin cifrar. Cuando el servidor esté publicado
+  con HTTPS, cambia cleartextTrafficPermitted a false.
+-->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="true" />
+</network-security-config>
