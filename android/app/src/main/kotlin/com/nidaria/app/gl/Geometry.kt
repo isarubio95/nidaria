@@ -17,7 +17,6 @@ class GpuGeometry(val vao: Int, val buffers: IntArray, val context: Int)
 // Lo que hay que borrar de la tarjeta gráfica en el próximo fotograma.
 object GpuTrash {
     val geometries = ArrayList<GpuGeometry>()
-    val textures = ArrayList<Int>()
 }
 
 class Geometry(

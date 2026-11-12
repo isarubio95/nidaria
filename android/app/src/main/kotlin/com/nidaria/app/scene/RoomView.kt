@@ -84,7 +84,23 @@ class RoomView(context: Context) : GLSurfaceView(context), GLSurfaceView.Rendere
     override fun onSurfaceChanged(gl: GL10?, width: Int, height: Int) {
         widthPx = width
         heightPx = height
-        room.resize(width / density, height / density)
+        // El búfer puede ser más pequeño que la vista (ver onSizeChanged);
+        // la escena se encuadra con el tamaño de la vista, en dp.
+        room.resize(this.width / density, this.height / density)
+    }
+
+    // Como la web, que no pasa de dos píxeles por punto: en pantallas más
+    // densas el 3D se dibuja a 2× y el sistema lo amplía. Se nota poco y
+    // ahorra mucho trabajo a la tarjeta gráfica.
+    override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
+        super.onSizeChanged(w, h, oldw, oldh)
+        if (w <= 0 || h <= 0) return
+        if (density > MAX_PIXEL_RATIO) {
+            val scale = MAX_PIXEL_RATIO / density
+            holder.setFixedSize((w * scale).toInt(), (h * scale).toInt())
+        } else {
+            holder.setSizeFromLayout()
+        }
     }
 
     override fun onDrawFrame(gl: GL10?) {
@@ -187,5 +203,6 @@ class RoomView(context: Context) : GLSurfaceView(context), GLSurfaceView.Rendere
 
     companion object {
         private const val THUMBS_PER_FRAME = 2
+        private const val MAX_PIXEL_RATIO = 2f
     }
 }

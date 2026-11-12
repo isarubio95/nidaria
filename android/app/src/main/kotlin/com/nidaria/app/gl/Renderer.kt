@@ -73,7 +73,6 @@ class Renderer {
         resolve.fbo = 0
         msaaOk = true
         GpuTrash.geometries.clear()
-        GpuTrash.textures.clear()
         val extensions = GLES30.glGetString(GLES30.GL_EXTENSIONS) ?: ""
         anisotropy = 0f
         if (extensions.contains("GL_EXT_texture_filter_anisotropic")) {
@@ -269,11 +268,6 @@ class Renderer {
             GLES30.glDeleteBuffers(gpu.buffers.size, gpu.buffers, 0)
         }
         GpuTrash.geometries.clear()
-        if (GpuTrash.textures.isNotEmpty()) {
-            val ids = GpuTrash.textures.toIntArray()
-            GLES30.glDeleteTextures(ids.size, ids, 0)
-            GpuTrash.textures.clear()
-        }
     }
 
     private fun collect(node: Object3D, camera: PerspectiveCamera) {
