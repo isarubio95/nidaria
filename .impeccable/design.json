@@ -1,0 +1,599 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-11-12T08:42:41Z",
+  "title": "Design System: Nidaria",
+  "extensions": {
+    "colorMeta": {
+      "sky": {
+        "role": "neutral",
+        "displayName": "Cielo",
+        "canonical": "oklch(89.9% 0.054 242)",
+        "tonalRamp": [
+          "oklch(15% 0.018 242)",
+          "oklch(26% 0.031 242)",
+          "oklch(38% 0.045 242)",
+          "oklch(49% 0.054 242)",
+          "oklch(61% 0.054 242)",
+          "oklch(72% 0.054 242)",
+          "oklch(84% 0.048 242)",
+          "oklch(95% 0.034 242)"
+        ]
+      },
+      "cream": {
+        "role": "neutral",
+        "displayName": "Crema",
+        "canonical": "oklch(98.1% 0.018 81)",
+        "tonalRamp": [
+          "oklch(15% 0.006 81)",
+          "oklch(26% 0.010 81)",
+          "oklch(38% 0.014 81)",
+          "oklch(49% 0.018 81)",
+          "oklch(61% 0.018 81)",
+          "oklch(72% 0.018 81)",
+          "oklch(84% 0.015 81)",
+          "oklch(95% 0.011 81)"
+        ]
+      },
+      "cream-deep": {
+        "role": "neutral",
+        "displayName": "Crema oscura",
+        "canonical": "oklch(93.2% 0.030 81)",
+        "tonalRamp": [
+          "oklch(15% 0.010 81)",
+          "oklch(26% 0.017 81)",
+          "oklch(38% 0.024 81)",
+          "oklch(49% 0.030 81)",
+          "oklch(61% 0.030 81)",
+          "oklch(72% 0.030 81)",
+          "oklch(84% 0.026 81)",
+          "oklch(95% 0.019 81)"
+        ]
+      },
+      "paper": {
+        "role": "neutral",
+        "displayName": "Papel",
+        "canonical": "oklch(99.4% 0.007 89)",
+        "tonalRamp": [
+          "oklch(15% 0.004 89)",
+          "oklch(26% 0.004 89)",
+          "oklch(38% 0.006 89)",
+          "oklch(49% 0.007 89)",
+          "oklch(61% 0.007 89)",
+          "oklch(72% 0.007 89)",
+          "oklch(84% 0.006 89)",
+          "oklch(95% 0.004 89)"
+        ]
+      },
+      "ink": {
+        "role": "neutral",
+        "displayName": "Cacao",
+        "canonical": "oklch(38.3% 0.054 48)",
+        "tonalRamp": [
+          "oklch(15% 0.018 48)",
+          "oklch(26% 0.031 48)",
+          "oklch(38% 0.045 48)",
+          "oklch(49% 0.054 48)",
+          "oklch(61% 0.054 48)",
+          "oklch(72% 0.054 48)",
+          "oklch(84% 0.048 48)",
+          "oklch(95% 0.034 48)"
+        ]
+      },
+      "ink-soft": {
+        "role": "neutral",
+        "displayName": "Cacao suave",
+        "canonical": "oklch(53.0% 0.052 55)",
+        "tonalRamp": [
+          "oklch(15% 0.017 55)",
+          "oklch(26% 0.030 55)",
+          "oklch(38% 0.043 55)",
+          "oklch(49% 0.052 55)",
+          "oklch(61% 0.052 55)",
+          "oklch(72% 0.052 55)",
+          "oklch(84% 0.046 55)",
+          "oklch(95% 0.033 55)"
+        ]
+      },
+      "ink-faint": {
+        "role": "neutral",
+        "displayName": "Cacao apagado",
+        "canonical": "oklch(71.9% 0.040 59)",
+        "tonalRamp": [
+          "oklch(15% 0.013 59)",
+          "oklch(26% 0.023 59)",
+          "oklch(38% 0.033 59)",
+          "oklch(49% 0.040 59)",
+          "oklch(61% 0.040 59)",
+          "oklch(72% 0.040 59)",
+          "oklch(84% 0.035 59)",
+          "oklch(95% 0.025 59)"
+        ]
+      },
+      "line": {
+        "role": "neutral",
+        "displayName": "Línea",
+        "canonical": "oklch(90.8% 0.026 79)",
+        "tonalRamp": [
+          "oklch(15% 0.008 79)",
+          "oklch(26% 0.015 79)",
+          "oklch(38% 0.021 79)",
+          "oklch(49% 0.026 79)",
+          "oklch(61% 0.026 79)",
+          "oklch(72% 0.026 79)",
+          "oklch(84% 0.023 79)",
+          "oklch(95% 0.016 79)"
+        ]
+      },
+      "track": {
+        "role": "neutral",
+        "displayName": "Carril",
+        "canonical": "oklch(92.9% 0.024 80)",
+        "tonalRamp": [
+          "oklch(15% 0.008 80)",
+          "oklch(26% 0.014 80)",
+          "oklch(38% 0.020 80)",
+          "oklch(49% 0.024 80)",
+          "oklch(61% 0.024 80)",
+          "oklch(72% 0.024 80)",
+          "oklch(84% 0.021 80)",
+          "oklch(95% 0.015 80)"
+        ]
+      },
+      "pink": {
+        "role": "primary",
+        "displayName": "Rosa caramelo",
+        "canonical": "oklch(77.9% 0.139 1)",
+        "tonalRamp": [
+          "oklch(15% 0.046 1)",
+          "oklch(26% 0.080 1)",
+          "oklch(38% 0.115 1)",
+          "oklch(49% 0.139 1)",
+          "oklch(61% 0.139 1)",
+          "oklch(72% 0.139 1)",
+          "oklch(84% 0.123 1)",
+          "oklch(95% 0.088 1)"
+        ]
+      },
+      "pink-edge": {
+        "role": "primary",
+        "displayName": "Canto rosa",
+        "canonical": "oklch(66.8% 0.161 3)",
+        "tonalRamp": [
+          "oklch(15% 0.053 3)",
+          "oklch(26% 0.093 3)",
+          "oklch(38% 0.133 3)",
+          "oklch(49% 0.161 3)",
+          "oklch(61% 0.161 3)",
+          "oklch(72% 0.161 3)",
+          "oklch(84% 0.142 3)",
+          "oklch(95% 0.102 3)"
+        ]
+      },
+      "pink-wash": {
+        "role": "primary",
+        "displayName": "Lavado rosa",
+        "canonical": "oklch(94.1% 0.033 356)",
+        "tonalRamp": [
+          "oklch(15% 0.011 356)",
+          "oklch(26% 0.019 356)",
+          "oklch(38% 0.027 356)",
+          "oklch(49% 0.033 356)",
+          "oklch(61% 0.033 356)",
+          "oklch(72% 0.033 356)",
+          "oklch(84% 0.029 356)",
+          "oklch(95% 0.021 356)"
+        ]
+      },
+      "mint": {
+        "role": "secondary",
+        "displayName": "Menta",
+        "canonical": "oklch(80.7% 0.111 158)",
+        "tonalRamp": [
+          "oklch(15% 0.036 158)",
+          "oklch(26% 0.064 158)",
+          "oklch(38% 0.091 158)",
+          "oklch(49% 0.111 158)",
+          "oklch(61% 0.111 158)",
+          "oklch(72% 0.111 158)",
+          "oklch(84% 0.098 158)",
+          "oklch(95% 0.070 158)"
+        ]
+      },
+      "mint-edge": {
+        "role": "secondary",
+        "displayName": "Canto menta",
+        "canonical": "oklch(68.0% 0.118 158)",
+        "tonalRamp": [
+          "oklch(15% 0.038 158)",
+          "oklch(26% 0.068 158)",
+          "oklch(38% 0.097 158)",
+          "oklch(49% 0.118 158)",
+          "oklch(61% 0.118 158)",
+          "oklch(72% 0.118 158)",
+          "oklch(84% 0.104 158)",
+          "oklch(95% 0.074 158)"
+        ]
+      },
+      "mint-wash": {
+        "role": "secondary",
+        "displayName": "Lavado menta",
+        "canonical": "oklch(95.0% 0.029 160)",
+        "tonalRamp": [
+          "oklch(15% 0.009 160)",
+          "oklch(26% 0.017 160)",
+          "oklch(38% 0.024 160)",
+          "oklch(49% 0.029 160)",
+          "oklch(61% 0.029 160)",
+          "oklch(72% 0.029 160)",
+          "oklch(84% 0.025 160)",
+          "oklch(95% 0.018 160)"
+        ]
+      },
+      "sun": {
+        "role": "secondary",
+        "displayName": "Sol",
+        "canonical": "oklch(88.0% 0.135 86)",
+        "tonalRamp": [
+          "oklch(15% 0.044 86)",
+          "oklch(26% 0.078 86)",
+          "oklch(38% 0.111 86)",
+          "oklch(49% 0.135 86)",
+          "oklch(61% 0.135 86)",
+          "oklch(72% 0.135 86)",
+          "oklch(84% 0.119 86)",
+          "oklch(95% 0.085 86)"
+        ]
+      },
+      "sun-edge": {
+        "role": "secondary",
+        "displayName": "Canto sol",
+        "canonical": "oklch(75.0% 0.138 75)",
+        "tonalRamp": [
+          "oklch(15% 0.045 75)",
+          "oklch(26% 0.079 75)",
+          "oklch(38% 0.114 75)",
+          "oklch(49% 0.138 75)",
+          "oklch(61% 0.138 75)",
+          "oklch(72% 0.138 75)",
+          "oklch(84% 0.121 75)",
+          "oklch(95% 0.087 75)"
+        ]
+      },
+      "sun-wash": {
+        "role": "secondary",
+        "displayName": "Lavado sol",
+        "canonical": "oklch(96.0% 0.050 90)",
+        "tonalRamp": [
+          "oklch(15% 0.016 90)",
+          "oklch(26% 0.029 90)",
+          "oklch(38% 0.042 90)",
+          "oklch(49% 0.050 90)",
+          "oklch(61% 0.050 90)",
+          "oklch(72% 0.050 90)",
+          "oklch(84% 0.044 90)",
+          "oklch(95% 0.032 90)"
+        ]
+      },
+      "need-hunger": {
+        "role": "tertiary",
+        "displayName": "Naranja comida",
+        "canonical": "oklch(82.5% 0.136 68)",
+        "tonalRamp": [
+          "oklch(15% 0.044 68)",
+          "oklch(26% 0.078 68)",
+          "oklch(38% 0.112 68)",
+          "oklch(49% 0.136 68)",
+          "oklch(61% 0.136 68)",
+          "oklch(72% 0.136 68)",
+          "oklch(84% 0.119 68)",
+          "oklch(95% 0.086 68)"
+        ]
+      },
+      "need-hunger-edge": {
+        "role": "tertiary",
+        "displayName": "Canto comida",
+        "canonical": "oklch(71.8% 0.144 66)",
+        "tonalRamp": [
+          "oklch(15% 0.047 66)",
+          "oklch(26% 0.083 66)",
+          "oklch(38% 0.119 66)",
+          "oklch(49% 0.144 66)",
+          "oklch(61% 0.144 66)",
+          "oklch(72% 0.144 66)",
+          "oklch(84% 0.127 66)",
+          "oklch(95% 0.091 66)"
+        ]
+      },
+      "need-energy": {
+        "role": "tertiary",
+        "displayName": "Azul energía",
+        "canonical": "oklch(78.7% 0.107 269)",
+        "tonalRamp": [
+          "oklch(15% 0.035 269)",
+          "oklch(26% 0.062 269)",
+          "oklch(38% 0.088 269)",
+          "oklch(49% 0.107 269)",
+          "oklch(61% 0.107 269)",
+          "oklch(72% 0.107 269)",
+          "oklch(84% 0.094 269)",
+          "oklch(95% 0.068 269)"
+        ]
+      },
+      "need-energy-edge": {
+        "role": "tertiary",
+        "displayName": "Canto energía",
+        "canonical": "oklch(66.0% 0.137 268)",
+        "tonalRamp": [
+          "oklch(15% 0.045 268)",
+          "oklch(26% 0.079 268)",
+          "oklch(38% 0.113 268)",
+          "oklch(49% 0.137 268)",
+          "oklch(61% 0.137 268)",
+          "oklch(72% 0.137 268)",
+          "oklch(84% 0.121 268)",
+          "oklch(95% 0.087 268)"
+        ]
+      },
+      "need-health": {
+        "role": "tertiary",
+        "displayName": "Coral salud",
+        "canonical": "oklch(73.5% 0.163 22)",
+        "tonalRamp": [
+          "oklch(15% 0.053 22)",
+          "oklch(26% 0.094 22)",
+          "oklch(38% 0.134 22)",
+          "oklch(49% 0.163 22)",
+          "oklch(61% 0.163 22)",
+          "oklch(72% 0.163 22)",
+          "oklch(84% 0.143 22)",
+          "oklch(95% 0.103 22)"
+        ]
+      },
+      "need-health-edge": {
+        "role": "tertiary",
+        "displayName": "Canto salud",
+        "canonical": "oklch(62.8% 0.177 24)",
+        "tonalRamp": [
+          "oklch(15% 0.058 24)",
+          "oklch(26% 0.102 24)",
+          "oklch(38% 0.146 24)",
+          "oklch(49% 0.177 24)",
+          "oklch(61% 0.177 24)",
+          "oklch(72% 0.177 24)",
+          "oklch(84% 0.155 24)",
+          "oklch(95% 0.111 24)"
+        ]
+      },
+      "danger": {
+        "role": "neutral",
+        "displayName": "Peligro",
+        "canonical": "oklch(55.7% 0.166 25)",
+        "tonalRamp": [
+          "oklch(15% 0.054 25)",
+          "oklch(26% 0.096 25)",
+          "oklch(38% 0.137 25)",
+          "oklch(49% 0.166 25)",
+          "oklch(61% 0.166 25)",
+          "oklch(72% 0.166 25)",
+          "oklch(84% 0.147 25)",
+          "oklch(95% 0.105 25)"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "wordmark": {
+        "displayName": "Wordmark",
+        "purpose": "El nombre del juego en la pantalla de entrada."
+      },
+      "title": {
+        "displayName": "Title",
+        "purpose": "Título de hojas, diálogos y tarjetas."
+      },
+      "heading": {
+        "displayName": "Heading",
+        "purpose": "Nombre de la criatura, artículo elegido y títulos de sección."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "Texto corrido."
+      },
+      "label": {
+        "displayName": "Label",
+        "purpose": "Nombres de necesidades, textos de apoyo, pestañas y casillas."
+      },
+      "caption": {
+        "displayName": "Caption",
+        "purpose": "Etiquetas de acción, fichas de efecto y contadores."
+      }
+    },
+    "shadows": [
+      {
+        "name": "shadow-sm",
+        "value": "0 2px 4px rgb(91 58 41 / 0.1), 0 6px 14px -6px rgb(91 58 41 / 0.22)",
+        "purpose": "Píldoras, casillas y botones."
+      },
+      {
+        "name": "shadow-md",
+        "value": "0 3px 6px rgb(91 58 41 / 0.1), 0 14px 28px -10px rgb(91 58 41 / 0.3)",
+        "purpose": "Tarjeta de necesidades y avisos."
+      },
+      {
+        "name": "shadow-lg",
+        "value": "0 6px 12px rgb(91 58 41 / 0.1), 0 28px 56px -16px rgb(91 58 41 / 0.36)",
+        "purpose": "Hojas, diálogos y tarjetas de pantalla."
+      },
+      {
+        "name": "canto",
+        "value": "inset 0 -4px 0 var(--pink-edge)",
+        "purpose": "Canto inferior de lo pulsable, del color -edge que corresponda."
+      }
+    ],
+    "motion": [
+      {
+        "name": "duration-quick",
+        "value": "150ms",
+        "purpose": "Respuesta al pulsar y cierre de diálogos."
+      },
+      {
+        "name": "duration-fast",
+        "value": "250ms",
+        "purpose": "Apertura de diálogos, pestañas y bocadillo de la criatura."
+      },
+      {
+        "name": "duration-slow",
+        "value": "400ms",
+        "purpose": "Apertura de hojas y cambio de las barras."
+      },
+      {
+        "name": "ease-smooth-out",
+        "value": "cubic-bezier(0.22, 1, 0.36, 1)",
+        "purpose": "Curva única de la interfaz: sale rápido y frena suave."
+      },
+      {
+        "name": "criatura",
+        "value": "elastic.out(1, 0.5)",
+        "purpose": "Aplastar y estirar de la criatura (GSAP). El rebote es solo suyo."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "pantalla-baja",
+        "value": "(max-height: 700px)"
+      },
+      {
+        "name": "hoja-flotante",
+        "value": "(min-width: 600px)"
+      }
+    ]
+  },
+  "components": [
+    {
+      "name": "Botón principal",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "La acción principal de una pantalla u hoja: comprar, jugar, entrar.",
+      "html": "<button class=\"ds-btn\">Comprar</button>",
+      "css": ".ds-btn { font-family: \"Zen Maru Gothic\", ui-rounded, system-ui, sans-serif; font-weight: 900; font-size: 1rem; line-height: 1.1; color: var(--ink); background: var(--pink); border: 0; border-radius: 999px; min-height: 48px; padding: 11px 22px 15px; cursor: pointer; box-shadow: inset 0 -4px 0 var(--pink-edge), 0 2px 4px rgb(91 58 41 / 0.1), 0 6px 14px -6px rgb(91 58 41 / 0.22); transition: transform 150ms cubic-bezier(0.22, 1, 0.36, 1), box-shadow 150ms cubic-bezier(0.22, 1, 0.36, 1); } .ds-btn:hover { filter: brightness(1.04) saturate(1.05); } .ds-btn:active { transform: scale(0.96) translateY(2px); box-shadow: inset 0 -1px 0 var(--pink-edge), 0 1px 2px rgb(91 58 41 / 0.16); } .ds-btn:focus-visible { outline: 3px solid var(--ink); outline-offset: 3px; }"
+    },
+    {
+      "name": "Botón de premio",
+      "kind": "button",
+      "refersTo": "button-reward",
+      "description": "Recoger monedas o un premio.",
+      "html": "<button class=\"ds-btn-sun\">Recoger</button>",
+      "css": ".ds-btn-sun { font-family: \"Zen Maru Gothic\", ui-rounded, system-ui, sans-serif; font-weight: 900; font-size: 1rem; line-height: 1.1; color: var(--ink); background: var(--sun); border: 0; border-radius: 999px; min-height: 48px; padding: 11px 22px 15px; cursor: pointer; box-shadow: inset 0 -4px 0 var(--sun-edge), 0 2px 4px rgb(91 58 41 / 0.1), 0 6px 14px -6px rgb(91 58 41 / 0.22); transition: transform 150ms cubic-bezier(0.22, 1, 0.36, 1), box-shadow 150ms cubic-bezier(0.22, 1, 0.36, 1); } .ds-btn-sun:hover { filter: brightness(1.04) saturate(1.05); } .ds-btn-sun:active { transform: scale(0.96) translateY(2px); box-shadow: inset 0 -1px 0 var(--sun-edge), 0 1px 2px rgb(91 58 41 / 0.16); } .ds-btn-sun:focus-visible { outline: 3px solid var(--ink); outline-offset: 3px; }"
+    },
+    {
+      "name": "Botón callado",
+      "kind": "button",
+      "refersTo": "button-quiet",
+      "description": "La salida secundaria de una hoja.",
+      "html": "<button class=\"ds-btn-quiet\">Comprar más comida</button>",
+      "css": ".ds-btn-quiet { font-family: \"Zen Maru Gothic\", ui-rounded, system-ui, sans-serif; font-weight: 700; font-size: 1rem; line-height: 1.1; color: var(--ink); background: var(--paper); border: 0; border-radius: 999px; min-height: 48px; padding: 13px 20px; cursor: pointer; box-shadow: inset 0 0 0 2px var(--line); transition: transform 150ms cubic-bezier(0.22, 1, 0.36, 1), box-shadow 150ms cubic-bezier(0.22, 1, 0.36, 1); } .ds-btn-quiet:hover { box-shadow: inset 0 0 0 2px var(--ink-faint); } .ds-btn-quiet:active { transform: scale(0.96); } .ds-btn-quiet:focus-visible { outline: 3px solid var(--ink); outline-offset: 3px; }"
+    },
+    {
+      "name": "Botón de acción",
+      "kind": "button",
+      "refersTo": "action-disc",
+      "description": "Un cuidado de la criatura. Disco del color de su necesidad con su nombre debajo.",
+      "html": "<button class=\"ds-act\"><span class=\"ds-act-disc\"><svg viewBox=\"0 0 24 24\" width=\"28\" height=\"28\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M3.5 11.5h17a8.5 8.5 0 0 1-17 0z\"/><path d=\"M9 8c0-1.6 1.2-1.6 1.2-3.2M14 8c0-1.6 1.2-1.6 1.2-3.2\"/></svg></span><span class=\"ds-act-label\">Comer</span></button>",
+      "css": ".ds-act { font-family: \"Zen Maru Gothic\", ui-rounded, system-ui, sans-serif; display: inline-grid; justify-items: center; gap: 5px; border: 0; background: none; padding: 2px 0; color: var(--ink); font-size: 0.75rem; font-weight: 900; line-height: 1; cursor: pointer; border-radius: 16px; } .ds-act-disc { display: grid; place-items: center; width: 60px; height: 60px; padding-bottom: 4px; border-radius: 50%; background: var(--need-hunger); box-shadow: inset 0 -5px 0 var(--need-hunger-edge), 0 2px 4px rgb(91 58 41 / 0.1), 0 6px 14px -6px rgb(91 58 41 / 0.22); transition: transform 150ms cubic-bezier(0.22, 1, 0.36, 1), box-shadow 150ms cubic-bezier(0.22, 1, 0.36, 1); } .ds-act-label { padding: 3px 8px 4px; border-radius: 999px; background: var(--paper); box-shadow: 0 2px 4px rgb(91 58 41 / 0.1), 0 6px 14px -6px rgb(91 58 41 / 0.22); } .ds-act:active .ds-act-disc { transform: scale(0.96) translateY(3px); box-shadow: inset 0 -1px 0 var(--need-hunger-edge), 0 1px 2px rgb(91 58 41 / 0.16); } .ds-act:focus-visible { outline: 3px solid var(--ink); outline-offset: 3px; }"
+    },
+    {
+      "name": "Píldora de monedas",
+      "kind": "custom",
+      "refersTo": "panel",
+      "description": "El dinero del jugador, siempre visible arriba a la izquierda.",
+      "html": "<div class=\"ds-coins\"><span class=\"ds-coin\"><svg viewBox=\"0 0 24 24\" width=\"15\" height=\"15\" fill=\"currentColor\" aria-hidden=\"true\"><path d=\"M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.800L12 16.900l-5.200 2.700 1-5.800-4.300-4.100 5.900-.900L12 3.500z\"/></svg></span>1.240</div>",
+      "css": ".ds-coins { font-family: \"Zen Maru Gothic\", ui-rounded, system-ui, sans-serif; display: inline-flex; align-items: center; gap: 8px; min-height: 48px; padding: 6px 18px 6px 8px; border-radius: 999px; background: var(--paper); color: var(--ink); font-weight: 900; font-size: 1.25rem; line-height: 1; font-variant-numeric: tabular-nums; box-shadow: 0 2px 4px rgb(91 58 41 / 0.1), 0 6px 14px -6px rgb(91 58 41 / 0.22); } .ds-coin { display: grid; place-items: center; width: 32px; height: 32px; border-radius: 50%; background: var(--sun); box-shadow: inset 0 -3px 0 var(--sun-edge); }"
+    },
+    {
+      "name": "Barra de necesidad",
+      "kind": "custom",
+      "refersTo": "need-bar",
+      "description": "Cuánto le queda de una necesidad. El color es fijo para cada una.",
+      "html": "<div class=\"ds-need\"><span>Comida</span><div class=\"ds-bar\" role=\"meter\" aria-valuemin=\"0\" aria-valuemax=\"100\" aria-valuenow=\"66\" aria-label=\"Comida\"><div class=\"ds-bar-fill\"></div></div></div>",
+      "css": ".ds-need { font-family: \"Zen Maru Gothic\", ui-rounded, system-ui, sans-serif; display: grid; grid-template-columns: 76px 220px; align-items: center; gap: 8px; color: var(--ink); font-size: 0.875rem; font-weight: 700; line-height: 1; } .ds-bar { position: relative; height: 14px; border-radius: 999px; background: var(--track); overflow: hidden; } .ds-bar-fill { position: absolute; inset: 0 auto 0 0; width: 66%; border-radius: 999px; background: var(--need-hunger); box-shadow: inset 0 -4px 0 var(--need-hunger-edge); transition: width 400ms cubic-bezier(0.22, 1, 0.36, 1); }"
+    },
+    {
+      "name": "Ficha de efecto",
+      "kind": "chip",
+      "refersTo": "chip",
+      "description": "Dice lo que hace un artículo. No se pulsa.",
+      "html": "<span class=\"ds-chip\">+14 comida</span>",
+      "css": ".ds-chip { font-family: \"Zen Maru Gothic\", ui-rounded, system-ui, sans-serif; display: inline-flex; align-items: center; gap: 4px; padding: 3px 9px 4px; border-radius: 999px; background: var(--track); color: var(--ink); font-size: 0.75rem; font-weight: 900; line-height: 1.2; white-space: nowrap; }"
+    },
+    {
+      "name": "Campo de texto",
+      "kind": "input",
+      "refersTo": "input",
+      "description": "Nombre de la criatura, nombre de usuario y contraseña.",
+      "html": "<label class=\"ds-field\">Nombre<input class=\"ds-input\" type=\"text\" placeholder=\"Mota, Trasto, Nube…\"></label>",
+      "css": ".ds-field { font-family: \"Zen Maru Gothic\", ui-rounded, system-ui, sans-serif; display: grid; gap: 6px; color: var(--ink); font-size: 0.875rem; font-weight: 900; } .ds-input { font-family: \"Zen Maru Gothic\", ui-rounded, system-ui, sans-serif; width: 240px; min-height: 48px; padding: 10px 14px 12px; border: 2px solid var(--line); border-radius: 16px; background: var(--cream); color: var(--ink); font-size: 1rem; font-weight: 700; outline: none; caret-color: var(--pink-edge); transition: border-color 150ms ease-out; } .ds-input::placeholder { color: var(--ink-soft); opacity: 1; } .ds-input:focus { border-color: var(--ink); }"
+    }
+  ],
+  "narrative": {
+    "northStar": "El cuarto de juguetes",
+    "overview": "**Creative North Star: \"El cuarto de juguetes\"**\n\nNidaria se ve como el género manda: una habitación acogedora en tonos pastel, botones redondos de caramelo y barras de colores. Es una decisión del usuario, que eligió el estándar del género con Animal Crossing como listón de acabado. El sistema no busca sorprender; busca que todo se sienta blando, claro y bien hecho.\n\nLa criatura es la pantalla. Vive en una escena 3D a sangre y la interfaz es un marco callado a su alrededor: una píldora de monedas, un botón de tienda, una tarjeta con cinco barras y cinco botones redondos al alcance del pulgar. Todo lo demás espera en hojas que suben desde abajo.",
+    "keyCharacteristics": [
+      "Una escena 3D de materiales mates de juguete ocupa todo el fondo; la interfaz flota encima en paneles blancos.",
+      "Todo lo pulsable lleva un canto más oscuro por abajo y se hunde en él al tocarlo.",
+      "Una sola tinta, marrón cacao, para todo el texto y todos los iconos.",
+      "Cada necesidad tiene un color fijo que comparten su barra, su icono y su botón.",
+      "Letra gótica redondeada en tres pesos, sin mayúsculas forzadas ni adornos."
+    ],
+    "rules": [
+      {
+        "name": "La regla de la tinta única",
+        "body": "Todo el texto y todos los iconos van en cacao. Nunca negro, nunca gris. Sobre un color, el texto sigue siendo cacao, no blanco.",
+        "section": "colors"
+      },
+      {
+        "name": "La regla de una necesidad, un color",
+        "body": "Comida es naranja, energía es azul, higiene es menta, diversión es rosa y salud es coral, en la barra, en el icono y en el botón. Esos colores no se usan para otra cosa dentro de la pantalla de juego.",
+        "section": "colors"
+      },
+      {
+        "name": "La regla del canto",
+        "body": "Cada color pulsable tiene una versión más oscura (`-edge`) que solo aparece como canto inferior. Un color sin canto no es un botón.",
+        "section": "colors"
+      },
+      {
+        "name": "La regla de las cifras quietas",
+        "body": "Todo número que cambia (monedas, precios, tiempo, puntuación) usa cifras tabulares para que no baile el texto de al lado.",
+        "section": "typography"
+      },
+      {
+        "name": "La regla de la sombra cacao",
+        "body": "Las sombras son marrones y translúcidas, siempre con desplazamiento y difuminado. Nunca un halo de color ni un bloque duro sin difuminar.",
+        "section": "elevation"
+      },
+      {
+        "name": "La regla del hundimiento",
+        "body": "Al pulsar, el elemento encoge a 0.96, baja 2 o 3px y su canto se reduce a 1px. Es la única respuesta al toque; no hay brillos ni ondas.",
+        "section": "elevation"
+      },
+      {
+        "name": "La regla de los radios concéntricos",
+        "body": "Un elemento dentro de otro lleva el radio del exterior menos el relleno que los separa: panel de 28px con relleno de 12px contiene piezas de 16px.",
+        "section": "shapes"
+      }
+    ],
+    "dos": [
+      "**Do** dejar que la criatura mande: nada en la pantalla de juego puede taparla en reposo.",
+      "**Do** usar el canto en todo lo que se pulsa y solo en eso.",
+      "**Do** escribir en cacao sobre cualquier fondo, también sobre rosa, menta y sol.",
+      "**Do** llevar cada tarea secundaria a una hoja y cerrar con una sola acción principal rosa.",
+      "**Do** dibujar los artículos y las formas con sus modelos 3D reales, nunca con un icono genérico.",
+      "**Do** acompañar un estado crítico con texto y contorno, no solo con color o movimiento."
+    ],
+    "donts": [
+      "**Don't** añadir banners, ofertas emergentes, globos de aviso ni filas de monedas: el ruido del género es lo que este sistema rechaza.",
+      "**Don't** usar negro, gris neutro ni texto blanco sobre color.",
+      "**Don't** usar los colores de las necesidades para decorar otra cosa en la pantalla de juego.",
+      "**Don't** poner sombras duras sin difuminar ni halos de color.",
+      "**Don't** usar emojis ni glifos como iconos.",
+      "**Don't** animar con rebote lo que se usa a cada momento; el rebote se reserva a la criatura."
+    ]
+  }
+}

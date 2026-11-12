@@ -46,7 +46,6 @@
 :root {
   /* Color: la habitación */
   --sky: #bfe3ff;
-  --sky-deep: #9fcff5;
   --cream: #fff8ec;
   --cream-deep: #f3e7d3;
   --paper: #fffdf8;
@@ -82,7 +81,6 @@
   --track: #f0e6d6;
 
   --danger: #c2403f;
-  --danger-wash: #ffe4e1;
   --scrim: rgb(91 58 41 / 0.34);
 
   /* Tipografía */

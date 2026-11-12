@@ -118,14 +118,35 @@ export async function launchGame(gameId, difficulty, { room, say }) {
     if (sure) close(0, true);
   });
 
+  // El botón responde desde el primer momento: si el juego aún se está
+  // cargando, recuerda el toque y empieza en cuanto esté listo.
+  let ready = false;
+  let wanted = false;
+  const begin = () => {
+    cover.hidden = true;
+    instance.start();
+  };
+  startButton.addEventListener('click', () => {
+    if (ready) {
+      begin();
+      return;
+    }
+    wanted = true;
+    startButton.disabled = true;
+    startButton.textContent = 'Cargando…';
+  });
+  startButton.focus({ preventScroll: true });
+
   const [module, avatar] = await Promise.all([
     MODULES[gameId](),
     loadImage(creatureThumb(creature.formId, creature.genes)),
   ]);
-  instance = await module.create({ area, level, avatar, hud, onEnd: (score) => close(score) });
-  startButton.addEventListener('click', () => {
-    cover.hidden = true;
-    instance.start();
-  });
-  startButton.focus({ preventScroll: true });
+  const created = await module.create({ area, level, avatar, hud, onEnd: (score) => close(score) });
+  if (closed) {
+    created.destroy();
+    return;
+  }
+  instance = created;
+  ready = true;
+  if (wanted) begin();
 }

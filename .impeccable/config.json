@@ -1,0 +1,26 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "side-tab",
+        "value": "*",
+        "files": [
+          "public/css/games.css"
+        ],
+        "createdAt": "2026-11-12T08:36:41.052Z",
+        "reason": "Claude: el borde inferior de .pair-back es el canto de botón del mundo elegido (contrato de dirección: los botones se hunden en su canto); la carta es un botón pulsable, no una tarjeta con franja decorativa"
+      },
+      {
+        "rule": "design-system-color",
+        "value": "*",
+        "files": [
+          "public/js/scene/*.js"
+        ],
+        "createdAt": "2026-11-12T08:44:42.956Z",
+        "reason": "Claude: son colores de materiales de la escena 3D (rasgos de la criatura, muebles, artículos), no tokens de interfaz; el color de cada criatura sale de su ADN. DESIGN.md documenta la interfaz"
+      }
+    ]
+  }
+}

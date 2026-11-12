@@ -184,8 +184,11 @@ export function mountHome(app, room) {
     const plateBox = plate.getBoundingClientRect();
     const dockBox = dock.getBoundingClientRect();
     // Con una hoja abierta la criatura sube al hueco que queda encima.
+    // Si la hoja es tan alta que no deja hueco, el encuadre no se toca:
+    // la criatura queda detrás en vez de encogerse hasta desaparecer.
     const sheet = sheetTop();
-    const bottom = sheet === null ? dockBox.top : Math.min(dockBox.top, sheet);
+    const fits = sheet !== null && sheet - plateBox.bottom >= 200;
+    const bottom = fits ? Math.min(dockBox.top, sheet) : dockBox.top;
     room.setFocus(plateBox.bottom + 6, bottom - 8);
   }
 
