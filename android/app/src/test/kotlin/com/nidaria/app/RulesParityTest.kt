@@ -15,6 +15,7 @@ import com.nidaria.app.rules.hashString
 import com.nidaria.app.rules.hintFor
 import com.nidaria.app.rules.mix
 import com.nidaria.app.rules.moodOf
+import com.nidaria.app.rules.nextFormId
 import com.nidaria.app.rules.pendingIncome
 import com.nidaria.app.rules.roll
 import com.nidaria.app.rules.simulate
@@ -89,6 +90,10 @@ class RulesParityTest {
             assertEquals(o.getValue("id").jsonPrimitive.content, form.id)
             assertEquals(o.getValue("name").jsonPrimitive.content, form.name)
             assertEquals(o.getValue("stage").jsonPrimitive.content, form.stage)
+            val secret = o.getValue("secret").let { if (it is JsonNull) null else it.jsonPrimitive.content }
+            assertEquals(form.id, secret, form.secret)
+            val origin = o.getValue("origin").let { if (it is JsonNull) null else it.jsonPrimitive.content }
+            assertEquals(form.id, origin, form.origin)
             if (form.stage != "huevo") assertEquals(o.getValue("hint").jsonPrimitive.content, hintFor(form.id))
         }
     }
@@ -121,9 +126,23 @@ class RulesParityTest {
             assertEquals(where, expected.care.mistakes, got.care.mistakes, 1e-9)
             assertEquals(where, expected.care.sumFun, got.care.sumFun, 1e-6)
             assertEquals(where, expected.lifeCare.sum, got.lifeCare.sum, 1e-6)
+            assertEquals(where, expected.lifeCare.mistakes, got.lifeCare.mistakes, 1e-9)
+            assertEquals(where, expected.bond, got.bond, 1e-9)
+            assertEquals(where, expected.diedAt ?: -1.0, got.diedAt ?: -1.0, 1e-3)
             val events = o.getValue("events").jsonArray
             assertEquals(where, events.map { it.jsonObject.getValue("type").jsonPrimitive.content }, result.events.map { it.type })
             assertEquals(where, o.getValue("mood").jsonPrimitive.content, moodOf(got))
+        }
+    }
+
+    @Test
+    fun secretsMatch() {
+        val cases = list("secrets")
+        assertTrue(cases.size > 20)
+        for ((index, entry) in cases.withIndex()) {
+            val o = entry.jsonObject
+            val creature = json.decodeFromJsonElement<Creature>(o.getValue("creature"))
+            assertEquals("caso $index", o.getValue("next").jsonPrimitive.content, nextFormId(creature))
         }
     }
 

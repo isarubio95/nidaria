@@ -6,6 +6,7 @@ import { api } from '../api.js';
 import { store, run } from '../store.js';
 import { NEED_INFO, CRITICAL, LOW, moodOf, nextStageAt, stageDuration } from '/shared/needs.js';
 import { STAGE_INFO } from '/shared/forms.js';
+import { TRICKS, TRICK_LINES, TRICK_CHANCE, TRICK_GAP_MS, bondOf, bondLevel } from '/shared/bond.js';
 import { subtleNumber } from './widgets.js';
 import { sheetOpen, sheetTop, onSheetChange } from './sheet.js';
 import { dialog } from './dialog.js';
@@ -33,6 +34,7 @@ export function mountHome(app, room) {
   let lastSync = Date.now();
   let lastPet = 0;
   let petLine = 0;
+  let lastTrick = 0;
   let eggTaps = 0;
   let eggTimer = null;
   let bubbleTimer = null;
@@ -169,10 +171,23 @@ export function mountHome(app, room) {
       say(line('caricia'), 1.6);
     }
   });
+  // Con confianza, al tocarla a veces enseña un truco.
+  function trick() {
+    const level = Math.min(3, bondLevel(bondOf(live)));
+    const known = TRICKS[level];
+    const now = Date.now();
+    if (!known || now - lastTrick < TRICK_GAP_MS || Math.random() >= TRICK_CHANCE) return false;
+    lastTrick = now;
+    room.trick(known[Math.floor(Math.random() * known.length)]);
+    say(TRICK_LINES[Math.floor(Math.random() * TRICK_LINES.length)], 1.8);
+    return true;
+  }
+
   room.on('tap', () => {
     if (!live || !live.alive) return;
     if (live.asleep) return say('Zzz…', 1.4);
-    say(idleLine(live, moodOf(live)));
+    if (live.stage !== 'huevo' && trick()) return;
+    say(idleLine(live, moodOf(live), store.state.user.name));
   });
   room.on('eggTap', () => {
     eggTaps += 1;
@@ -277,7 +292,7 @@ export function mountHome(app, room) {
     const overdue = Date.now() - lastSync > 45000;
     if (result.events.length || overdue) sync();
     if (Date.now() > chatterAt && !sheetOpen() && live.alive && !live.asleep && live.stage !== 'huevo' && !document.hidden) {
-      say(idleLine(live, moodOf(live)));
+      say(idleLine(live, moodOf(live), store.state.user.name));
     }
   }, 1000);
 

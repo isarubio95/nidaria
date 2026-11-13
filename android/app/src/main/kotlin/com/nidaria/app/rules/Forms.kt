@@ -45,6 +45,58 @@ private val ADULT_EPITHETS = mapOf(
     "gota" to mapOf("gloton" to "Orondo", "jugueton" to "Saltaolas", "tranquilo" to "Manso", "arisco" to "Bravío"),
 )
 
+// Formas ocultas: adultas fuera de las cuatro ramas, para crianzas raras.
+// Se comprueban en este orden al pasar de joven a adulta; la primera que
+// se cumple gana. Las mestizas son una por cada pareja de familias.
+val SECRETS = listOf("radiante", "sibarita", "lunar", "mestiza")
+
+class SecretInfo(val name: String, val hint: String, val reason: String)
+
+val SECRET_INFO = mapOf(
+    "radiante" to SecretInfo(
+        "Radiante",
+        "Solo aparece con una crianza perfecta: ni un descuido en toda su vida y siempre bien atendida.",
+        "La has criado sin un solo descuido.",
+    ),
+    "sibarita" to SecretInfo(
+        "Sibarita",
+        "Dicen que de joven no quería comer nada más que una cosa: la que más le gusta.",
+        "De joven solo ha comido su comida favorita.",
+    ),
+    "lunar" to SecretInfo(
+        "Lunar",
+        "Nace de un huevo elegido de madrugada y crece en calma.",
+        "Nació de madrugada y la has criado tranquila.",
+    ),
+    "mestiza" to SecretInfo(
+        "Mestiza",
+        "Sale de un huevo heredero que cambió de familia, si se la cuida bien.",
+        "Lleva sangre de dos familias y la has cuidado bien.",
+    ),
+)
+
+private val SECRET_NAMES = mapOf(
+    "pelusa" to mapOf("radiante" to "Nimbo Radiante", "sibarita" to "Merengue Sibarita", "lunar" to "Plumón Lunar"),
+    "hoja" to mapOf("radiante" to "Girasol Radiante", "sibarita" to "Higo Sibarita", "lunar" to "Helecho Lunar"),
+    "gota" to mapOf("radiante" to "Rocío Radiante", "sibarita" to "Almíbar Sibarita", "lunar" to "Marea Lunar"),
+)
+
+// Familia de la criatura y familia de la que viene.
+private val MIXED_NAMES = mapOf(
+    "pelusa" to mapOf("hoja" to "Musgopelo", "gota" to "Espumón"),
+    "hoja" to mapOf("pelusa" to "Cardolana", "gota" to "Nenúfar"),
+    "gota" to mapOf("pelusa" to "Nubarrón", "hoja" to "Alguita"),
+)
+
+// Hora local (0-23) a la que hay que elegir el huevo para que cuente como
+// nacida de madrugada. La decide el servidor; aquí solo por coherencia.
+val NIGHT_HOURS = 0 until 6
+
+// Calidad mínima de la crianza (media de las necesidades, de 0 a 1).
+private const val RADIANT_QUALITY = 0.7
+private const val MIXED_QUALITY = 0.6
+private const val GOURMET_FEEDS = 8.0
+
 class Form(
     val id: String,
     val stage: String,
@@ -53,6 +105,8 @@ class Form(
     val branch: String?,
     val path: List<String>,
     val name: String,
+    val secret: String? = null,
+    val origin: String? = null,
 )
 
 private fun buildForms(): LinkedHashMap<String, Form> {
@@ -75,6 +129,15 @@ private fun buildForms(): LinkedHashMap<String, Form> {
                 )
             }
         }
+        // Las ocultas cuelgan de la cría: pueden salir de cualquier joven.
+        fun secret(id: String, kind: String, name: String, origin: String? = null) =
+            add(Form(id, "adulto", family, babyId, null, emptyList(), name, kind, origin))
+        for (kind in listOf("radiante", "sibarita", "lunar")) {
+            secret("oculta-$family-$kind", kind, SECRET_NAMES.getValue(family).getValue(kind))
+        }
+        for (origin in FAMILIES.filter { it != family }) {
+            secret("oculta-$family-$origin", "mestiza", MIXED_NAMES.getValue(family).getValue(origin), origin)
+        }
     }
     return forms
 }
@@ -84,7 +147,10 @@ val FORM_LIST: List<Form> = FORMS.values.toList()
 
 fun getForm(id: String): Form = FORMS[id] ?: throw IllegalArgumentException("Forma desconocida: $id")
 
-fun childrenOf(id: String): List<Form> = FORM_LIST.filter { it.parent == id }
+// Hijas dentro del árbol normal: las ocultas van aparte.
+fun childrenOf(id: String): List<Form> = FORM_LIST.filter { it.parent == id && it.secret == null }
+
+fun secretsOf(family: String): List<Form> = FORM_LIST.filter { it.family == family && it.secret != null }
 
 @Serializable
 data class Care(
@@ -100,6 +166,7 @@ data class Care(
     var baths: Double = 0.0,
     var heals: Double = 0.0,
     var mistakes: Double = 0.0,
+    var favs: Double = 0.0,
 )
 
 class CareAverages(val hunger: Double, val energy: Double, val hygiene: Double, val fun_: Double)
@@ -141,13 +208,42 @@ fun chooseBranch(care: Care, genes: Genes?): String {
     return best
 }
 
+// Calidad de toda la vida hasta ahora (crías y jóvenes), de 0 a 1.
+private fun lifeQuality(creature: Creature): Double {
+    val care = creature.care
+    val life = creature.lifeCare
+    val hours = max(life.hours + care.hours, 0.0001)
+    val sum = life.sum + care.sumHunger + care.sumEnergy + care.sumHygiene + care.sumFun
+    return sum / hours / 400
+}
+
+// Forma oculta que le toca al dejar de ser joven, o null. `branch` es la
+// rama normal que seguiría.
+fun secretFor(creature: Creature, branch: String): String? {
+    val care = creature.care
+    val genes = creature.genes
+    val family = genes.family
+    val mistakes = creature.lifeCare.mistakes + care.mistakes
+    if (mistakes == 0.0 && lifeQuality(creature) >= RADIANT_QUALITY) return "oculta-$family-radiante"
+    if (care.feeds >= GOURMET_FEEDS && care.favs == care.feeds) return "oculta-$family-sibarita"
+    if (creature.bornNight && branch == "tranquilo") return "oculta-$family-lunar"
+    val origin = genes.origin
+    if (origin != null && origin != family && lifeQuality(creature) >= MIXED_QUALITY) return "oculta-$family-$origin"
+    return null
+}
+
 // Forma siguiente a partir de la actual, la crianza y el ADN.
-fun nextFormId(formId: String, care: Care, genes: Genes): String? {
-    val form = getForm(formId)
+fun nextFormId(creature: Creature): String? {
+    val care = creature.care
+    val genes = creature.genes
+    val form = getForm(creature.formId)
     return when (form.stage) {
         "huevo" -> "cria-${genes.family}"
         "cria" -> "joven-${form.family}-${chooseBranch(care, genes)}"
-        "joven" -> "adulto-${form.family}-${form.path[0]}-${chooseBranch(care, genes)}"
+        "joven" -> {
+            val branch = chooseBranch(care, genes)
+            secretFor(creature, branch) ?: "adulto-${form.family}-${form.path[0]}-$branch"
+        }
         else -> null
     }
 }
@@ -156,6 +252,7 @@ fun nextFormId(formId: String, care: Care, genes: Genes): String? {
 fun hintFor(formId: String): String {
     val form = getForm(formId)
     if (form.stage == "cria") return "Nace de un huevo de la familia ${form.family}."
+    form.secret?.let { return SECRET_INFO.getValue(it).hint }
     val branch = form.branch ?: return ""
     return BRANCH_INFO.getValue(branch).hint
 }

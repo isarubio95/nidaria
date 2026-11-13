@@ -1,7 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createGenes, inheritGenes, dnaCode, FAMILIES } from '../shared/dna.js';
-import { FORM_LIST, getForm, chooseBranch, nextFormId, emptyCare } from '../shared/forms.js';
+import {
+  FORM_LIST, getForm, chooseBranch, nextFormId, emptyCare, childrenOf, secretsOf, hintFor,
+} from '../shared/forms.js';
+import { gainBond, bondLevel, lifeEnd, BOND_DAILY_CAP, BOND_LIFE_MS } from '../shared/bond.js';
 import { simulate, newCreature, moodOf } from '../shared/needs.js';
 import * as actions from '../shared/actions.js';
 import {
@@ -39,11 +42,20 @@ test('el huevo heredero conserva un rasgo y casi siempre la familia', () => {
   assert.ok(sameFamily > 140 && sameFamily < 200, `misma familia: ${sameFamily}`);
 });
 
-test('el árbol tiene 64 formas con nombres únicos', () => {
-  assert.equal(FORM_LIST.length, 1 + 3 + 12 + 48);
+test('el árbol tiene 64 formas y 15 ocultas, con nombres únicos', () => {
+  assert.equal(FORM_LIST.length, 1 + 3 + 12 + 48 + 15);
   assert.equal(new Set(FORM_LIST.map((form) => form.name)).size, FORM_LIST.length);
   for (const form of FORM_LIST) {
     if (form.parent) assert.ok(getForm(form.parent));
+  }
+  for (const family of FAMILIES) {
+    assert.equal(childrenOf(`cria-${family}`).length, 4);
+    const secrets = secretsOf(family);
+    assert.equal(secrets.length, 5);
+    for (const form of secrets) {
+      assert.equal(form.stage, 'adulto');
+      assert.ok(hintFor(form.id).length > 10);
+    }
   }
 });
 
@@ -54,8 +66,103 @@ test('la crianza decide la rama', () => {
   assert.equal(chooseBranch({ ...base, plays: 9, feeds: 5 }, genes), 'jugueton');
   assert.equal(chooseBranch({ ...base, pets: 20, baths: 4, feeds: 5 }, genes), 'tranquilo');
   assert.equal(chooseBranch({ ...base, mistakes: 6, feeds: 3 }, genes), 'arisco');
-  assert.equal(nextFormId('huevo', base, { family: 'hoja' }), 'cria-hoja');
-  assert.equal(nextFormId('joven-gota-arisco', { ...base, plays: 9 }, genes), 'adulto-gota-arisco-jugueton');
+  const at = (formId, care, g = { ...genes, family: 'gota' }) => ({
+    formId, care, genes: g, lifeCare: { hours: 1, sum: 160, mistakes: 1 },
+  });
+  assert.equal(nextFormId(at('huevo', base, { family: 'hoja' })), 'cria-hoja');
+  assert.equal(nextFormId(at('joven-gota-arisco', { ...base, plays: 9 })), 'adulto-gota-arisco-jugueton');
+});
+
+// Una joven de 24 horas a punto de hacerse adulta.
+function youngAt(care, { genes: geneChanges, ...extra } = {}) {
+  const genes = { ...createGenes(5, 'hoja'), traits: ['fuerte', 'timido'], ...geneChanges };
+  return {
+    formId: 'joven-hoja-gloton',
+    genes,
+    bornNight: false,
+    lifeCare: { hours: 1, sum: 240, mistakes: 0 },
+    ...extra,
+    care: {
+      ...emptyCare(), hours: 24, sumHunger: 60 * 24, sumEnergy: 60 * 24, sumHygiene: 60 * 24, sumFun: 60 * 24,
+      feeds: 5, mistakes: 2, ...care,
+    },
+  };
+}
+
+test('una crianza rara lleva a una forma oculta', () => {
+  assert.equal(nextFormId(youngAt({})), 'adulto-hoja-gloton-arisco');
+  // Radiante: ni un descuido en toda la vida y bien atendida.
+  const perfect = { mistakes: 0, sumHunger: 80 * 24, sumEnergy: 80 * 24, sumHygiene: 80 * 24, sumFun: 80 * 24 };
+  assert.equal(nextFormId(youngAt(perfect)), 'oculta-hoja-radiante');
+  assert.notEqual(nextFormId(youngAt(perfect, { lifeCare: { hours: 1, sum: 240, mistakes: 1 } })), 'oculta-hoja-radiante');
+  // Sibarita: de joven, al menos ocho comidas y todas su favorita.
+  assert.equal(nextFormId(youngAt({ feeds: 9, favs: 9 })), 'oculta-hoja-sibarita');
+  assert.notEqual(nextFormId(youngAt({ feeds: 9, favs: 8 })), 'oculta-hoja-sibarita');
+  assert.notEqual(nextFormId(youngAt({ feeds: 4, favs: 4 })), 'oculta-hoja-sibarita');
+  // Lunar: nacida de madrugada y criada tranquila.
+  const calm = { pets: 20, baths: 4, mistakes: 0 };
+  assert.equal(nextFormId(youngAt(calm, { bornNight: true })), 'oculta-hoja-lunar');
+  assert.equal(nextFormId(youngAt(calm)), 'adulto-hoja-gloton-tranquilo');
+  assert.equal(nextFormId(youngAt({ plays: 9, mistakes: 0 }, { bornNight: true })), 'adulto-hoja-gloton-jugueton');
+  // Mestiza: heredera que cambió de familia, bien cuidada.
+  const cared = { sumHunger: 70 * 24, sumEnergy: 70 * 24, sumHygiene: 70 * 24, sumFun: 70 * 24 };
+  assert.equal(nextFormId(youngAt(cared, { genes: { origin: 'gota' } })), 'oculta-hoja-gota');
+  const poor = { sumHunger: 40 * 24, sumEnergy: 40 * 24, sumHygiene: 40 * 24, sumFun: 40 * 24 };
+  assert.equal(nextFormId(youngAt(poor, { genes: { origin: 'gota' } })), 'adulto-hoja-gloton-arisco');
+  for (const id of ['oculta-hoja-radiante', 'oculta-hoja-sibarita', 'oculta-hoja-lunar', 'oculta-hoja-gota']) {
+    assert.equal(getForm(id).family, 'hoja');
+  }
+});
+
+test('el huevo heredero recuerda su familia de origen si cambia', () => {
+  const parent = createGenes(99, 'gota');
+  let changed = 0;
+  for (let seed = 1; seed <= 200; seed++) {
+    const child = inheritGenes(parent, seed);
+    if (child.family === 'gota') assert.equal(child.origin, undefined);
+    else {
+      assert.equal(child.origin, 'gota');
+      changed++;
+    }
+  }
+  assert.ok(changed > 0);
+});
+
+test('el vínculo sube con los cuidados, con tope por día, y baja con descuidos', () => {
+  const creature = hatched(7, 'pelusa');
+  creature.genes = { ...creature.genes, traits: ['fuerte', 'curioso'] };
+  const now = creature.tickAt;
+  for (let i = 0; i < 60; i++) actions.pet(creature, now + i * 31000);
+  assert.equal(creature.bond, BOND_DAILY_CAP);
+  assert.equal(bondLevel(creature.bond), 1);
+  // Al día siguiente de su vida vuelve a poder subir.
+  const tomorrow = creature.bornAt + 25 * HOUR;
+  gainBond(creature, 5, tomorrow);
+  assert.equal(creature.bond, BOND_DAILY_CAP + 5);
+  // A una tímida le cuesta el doble.
+  const shy = hatched(7, 'pelusa');
+  shy.genes = { ...shy.genes, traits: ['timido', 'fuerte'] };
+  gainBond(shy, 4, shy.tickAt);
+  assert.equal(shy.bond, 2);
+  // Dejarla sola un día entero le hace perder la confianza.
+  creature.hunger = 20;
+  creature.fun = 20;
+  const later = simulate(creature, tomorrow + 12 * HOUR).creature;
+  assert.ok(later.bond < creature.bond, `${later.bond} frente a ${creature.bond}`);
+});
+
+test('el vínculo alarga la vida adulta', () => {
+  const creature = hatched(11, 'gota');
+  Object.assign(creature, {
+    formId: 'adulto-gota-tranquilo-tranquilo', stage: 'adulto', stageAt: creature.tickAt,
+    lifeEndsAt: creature.tickAt + 2 * HOUR, hunger: 100, energy: 100, hygiene: 100, fun: 100,
+  });
+  assert.equal(lifeEnd({ ...creature, bond: 100 }), creature.lifeEndsAt + BOND_LIFE_MS);
+  const lonely = simulate({ ...creature, bond: 0 }, creature.tickAt + 3 * HOUR).creature;
+  assert.equal(lonely.alive, false);
+  assert.equal(lonely.deathCause, 'vejez');
+  const loved = simulate({ ...creature, bond: 100 }, creature.tickAt + 3 * HOUR).creature;
+  assert.equal(loved.alive, true);
 });
 
 test('el huevo eclosiona y la cría evoluciona a la hora', () => {

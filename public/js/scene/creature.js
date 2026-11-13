@@ -45,6 +45,10 @@ function makeMaterials(genes, plan) {
     line: new THREE.MeshStandardMaterial({ color: '#4a2d20', roughness: 0.7 }),
     bubble: new THREE.MeshPhysicalMaterial({ color: light, roughness: 0.1, clearcoat: 1, transparent: true, opacity: 0.72 }),
     center: new THREE.MeshStandardMaterial({ color: '#ffd166', roughness: 0.6 }),
+    // Sin luces: la aureola y la luna parecen brillar con luz propia.
+    glow: new THREE.MeshBasicMaterial({ color: '#ffd76e' }),
+    moon: new THREE.MeshBasicMaterial({ color: '#fff0b8' }),
+    cherry: new THREE.MeshPhysicalMaterial({ color: '#e5465e', roughness: 0.25, clearcoat: 0.8, clearcoatRoughness: 0.1 }),
   };
 }
 
@@ -364,6 +368,21 @@ export function buildCreature(formId, genes) {
     const drop = shaped(dropGeometry(0.1 * ts, 0.3 * ts), mats.accent);
     drop.position.y = -0.03 * ts;
     top.add(drop);
+  } else if (plan.top.type === 'cherry') {
+    const cream = shaped(dropGeometry(0.12 * ts, 0.17 * ts), mats.ivory);
+    cream.position.y = -0.02 * ts;
+    const berry = ball(mats.cherry, 0.072 * ts, 0.068 * ts, 0.072 * ts, true);
+    berry.position.y = 0.19 * ts;
+    const stem = shaped(new THREE.CylinderGeometry(0.008 * ts, 0.011 * ts, 0.13 * ts, 6), mats.line);
+    stem.position.set(0.03 * ts, 0.29 * ts, 0);
+    stem.rotation.z = -0.4;
+    top.add(cream, berry, stem);
+  } else if (plan.top.type === 'moon') {
+    // Media luna de pie, con las puntas hacia arriba y un poco de lado.
+    const moon = shaped(new THREE.TorusGeometry(0.12 * ts, 0.042 * ts, 10, 28, Math.PI * 1.2), mats.moon);
+    moon.rotation.z = Math.PI * 1.15;
+    moon.position.y = 0.15 * ts;
+    top.add(moon);
   } else {
     for (const [x, tilt, len] of [[-0.15, 0.5, 0.2], [0, 0, 0.3], [0.15, -0.5, 0.2]]) {
       const spike = cone(mats.accent, 0.07 * ts, len * ts);
@@ -446,7 +465,17 @@ export function buildCreature(formId, genes) {
 
   // Pieza de adulta
   const wings = [];
-  if (plan.extra === 'mane') {
+  let halo = null;
+  if (plan.extra === 'halo') {
+    halo = shaped(new THREE.TorusGeometry(0.22 * unit, 0.024 * unit, 10, 36), mats.glow);
+    halo.castShadow = false;
+    halo.rotation.set(Math.PI / 2 - 0.22, 0, 0.1);
+    // Por encima del remate de la cabeza; el brote de las hojas es más alto.
+    const lift = plan.top.type === 'sprout' ? 0.46 : 0.32;
+    halo.position.set(0, host.center.y + host.ry + lift * unit, -0.03 * unit);
+    halo.userData.y = halo.position.y;
+    headPivot.add(halo);
+  } else if (plan.extra === 'mane') {
     const neckY = h * 0.9;
     const count = 11;
     for (let i = 0; i < count; i++) {
@@ -540,7 +569,7 @@ export function buildCreature(formId, genes) {
     plan,
     height,
     anchors,
-    rig: { root, bounce, squash, headPivot, eyes, mouths, mouth, cheeks, ears, arms, feet, tail, wings, top },
+    rig: { root, bounce, squash, headPivot, eyes, mouths, mouth, cheeks, ears, arms, feet, tail, wings, top, halo },
     dispose() {
       root.traverse((node) => {
         if (node.geometry && !node.geometry.userData.shared) node.geometry.dispose();
@@ -660,6 +689,7 @@ export class Actor {
     rig.tail.rotation.y = Math.sin(t * (happy ? 7 : 2.2)) * (asleep ? 0.03 : happy ? 0.5 : 0.18);
     for (const wing of rig.wings) wing.pivot.rotation.z = wing.rest + wing.side * Math.sin(t * (happy ? 9 : 2.6)) * (asleep ? 0.03 : 0.22);
     for (const arm of rig.arms) arm.pivot.rotation.z = arm.rest + arm.side * Math.sin(t * 1.9 + arm.side) * 0.07;
+    if (rig.halo) rig.halo.position.y = rig.halo.userData.y + Math.sin(t * 1.6) * 0.012;
 
     if (this.shiver > 0 || mood === 'enferma') {
       this.shiver = Math.max(0, this.shiver - dt);

@@ -7,6 +7,7 @@ import {
   STAGE_INFO, ADULT_LIFE_MS, ADULT_LIFE_BONUS_MS,
   emptyCare, nextFormId, getForm,
 } from './forms.js';
+import { loseBond, lifeEnd } from './bond.js';
 
 export const NEEDS = ['hunger', 'energy', 'hygiene', 'fun'];
 
@@ -83,13 +84,14 @@ export function moodOf(creature) {
 
 function evolve(creature, at, scale, events) {
   const from = creature.formId;
-  const to = nextFormId(creature.formId, creature.care, creature.genes);
+  const to = nextFormId(creature);
   if (!to) return;
   const form = getForm(to);
   if (creature.stage === 'huevo') Object.assign(creature, HATCH_NEEDS);
   creature.lifeCare.hours += creature.care.hours;
   creature.lifeCare.sum += creature.care.sumHunger + creature.care.sumEnergy
     + creature.care.sumHygiene + creature.care.sumFun;
+  creature.lifeCare.mistakes = (creature.lifeCare.mistakes ?? 0) + creature.care.mistakes;
   creature.formId = to;
   creature.stage = form.stage;
   creature.stageAt = at;
@@ -134,11 +136,15 @@ function step(creature, from, to, scale, events) {
   creature.care.sumFun += creature.fun * hours;
 
   const critical = criticalNeeds(creature);
-  if (critical.length > before) creature.care.mistakes += critical.length - before;
+  if (critical.length > before) {
+    creature.care.mistakes += critical.length - before;
+    loseBond(creature, critical.length - before);
+  }
 
   if (!creature.asleep && creature.energy <= 0) {
     creature.asleep = true;
     creature.care.mistakes += 1;
+    loseBond(creature, 1);
     events.push({ type: 'collapsed', at: to });
   } else if (creature.asleep && creature.energy >= 100) {
     creature.asleep = false;
@@ -185,18 +191,21 @@ export function simulate(original, now, { scale = 1 } = {}) {
     let end = Math.min(now, t + stepMs);
     const evolveAt = nextStageAt(creature, scale);
     if (evolveAt !== null && evolveAt > t && evolveAt < end) end = evolveAt;
-    if (creature.lifeEndsAt && creature.lifeEndsAt > t && creature.lifeEndsAt < end) end = creature.lifeEndsAt;
+    // El final depende del vínculo, que puede bajar en este tramo.
+    const endsAt = lifeEnd(creature, scale);
+    if (endsAt && endsAt > t && endsAt < end) end = endsAt;
     step(creature, t, end, scale, events);
     t = end;
     if (!creature.alive) break;
     if (evolveAt !== null && t >= evolveAt) evolve(creature, t, scale, events);
-    if (creature.lifeEndsAt && t >= creature.lifeEndsAt) die(creature, t, 'vejez', events);
+    const ends = lifeEnd(creature, scale);
+    if (ends && t >= ends) die(creature, t, 'vejez', events);
   }
   creature.tickAt = now;
   return { creature, events };
 }
 
-export function newCreature({ id, name, genes, now, generation = 1, parentId = null }) {
+export function newCreature({ id, name, genes, now, generation = 1, parentId = null, bornNight = false }) {
   return {
     id, name, genes,
     formId: 'huevo', stage: 'huevo',
@@ -206,11 +215,13 @@ export function newCreature({ id, name, genes, now, generation = 1, parentId = n
     alive: true, diedAt: null, deathCause: null,
     tickAt: now,
     care: emptyCare(),
-    lifeCare: { hours: 0, sum: 0 },
+    lifeCare: { hours: 0, sum: 0, mistakes: 0 },
     equipped: { cabeza: null, cara: null, cuello: null },
     cooldowns: {},
     history: ['huevo'],
     generation, parentId,
     pets: 0, lastPetAt: 0,
+    bond: 0, bondDay: 0, bondToday: 0,
+    bornNight,
   };
 }

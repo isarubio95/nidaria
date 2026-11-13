@@ -5,7 +5,8 @@
 import crypto from 'node:crypto';
 import { HttpError } from '../auth.js';
 import { createGenes, inheritGenes, dnaCode, FAMILIES } from '../../shared/dna.js';
-import { getForm, STAGE_INFO, chooseBranch } from '../../shared/forms.js';
+import { getForm, STAGE_INFO, chooseBranch, NIGHT_HOURS } from '../../shared/forms.js';
+import { bondOf, bondLevel } from '../../shared/bond.js';
 import { simulate, newCreature, nextStageAt, moodOf } from '../../shared/needs.js';
 import * as actions from '../../shared/actions.js';
 import { getItem, MAX_STACK } from '../../shared/catalog.js';
@@ -16,7 +17,7 @@ import {
 import { hashString } from '../../shared/rng.js';
 import {
   rollMissions, trackMissions, getMission, streakBonus, currentStreak, nextStreak,
-  localDay, nextDayAt, dayAfter, isTimeZone, DEFAULT_TIME_ZONE,
+  localDay, localHour, nextDayAt, dayAfter, isTimeZone, DEFAULT_TIME_ZONE,
 } from '../../shared/daily.js';
 
 const randomSeed = () => crypto.randomBytes(4).readUInt32BE(0);
@@ -207,6 +208,29 @@ export function createGame(db, config, push = null) {
     };
   }
 
+  // Ficha de una criatura que ya se fue, para los recuerdos.
+  function memory(creature, heirs) {
+    const form = getForm(creature.formId);
+    const heir = heirs.get(creature.id);
+    return {
+      id: creature.id,
+      name: creature.name,
+      genes: creature.genes,
+      formId: creature.formId,
+      formName: form.name,
+      stage: creature.stage,
+      secret: form.secret ?? null,
+      history: creature.history,
+      generation: creature.generation,
+      bornAt: creature.bornAt,
+      diedAt: creature.diedAt,
+      lived: Math.max(0, (creature.diedAt - creature.bornAt) * scale),
+      cause: creature.deathCause,
+      bond: Math.round(bondOf(creature)),
+      heir: heir ? heir.name : null,
+    };
+  }
+
   // Envoltorio común: `fn` recibe el contexto y puede modificar la
   // criatura y el usuario; lo que devuelva viaja como `result`.
   // `ctx.track(tipo)` suma progreso a las misiones del día.
@@ -221,7 +245,13 @@ export function createGame(db, config, push = null) {
         now, user, creature, events, daily,
         track: (kind, amount = 1) => trackMissions(daily.missions, kind, amount),
       };
+      const bondBefore = creature?.alive ? bondLevel(bondOf(creature)) : null;
       const result = fn ? await fn(ctx) : null;
+      // Subir de nivel de vínculo solo pasa al cuidarla, nunca por el reloj.
+      if (bondBefore !== null && ctx.creature === creature && creature.alive) {
+        const level = bondLevel(bondOf(creature));
+        if (level > bondBefore) ctx.events.push({ type: 'bond', level, at: now });
+      }
       if (ctx.events.some((event) => event.type === 'woke')) ctx.track('woke');
       if (ctx.creature?.alive && moodOf(ctx.creature) === 'feliz') ctx.track('happy');
       if (ctx.creature) await saveCreature(userId, ctx.creature, now);
@@ -250,6 +280,7 @@ export function createGame(db, config, push = null) {
       const egg = offer[index];
       if (!egg) throw new HttpError(400, 'Ese huevo no está.');
       const previous = ctx.creature;
+      const hour = localHour(ctx.now, ctx.user.time_zone ?? DEFAULT_TIME_ZONE);
       const creature = newCreature({
         id: crypto.randomUUID(),
         name: cleanName(name),
@@ -257,6 +288,7 @@ export function createGame(db, config, push = null) {
         now: ctx.now,
         generation: previous && egg.heir ? previous.generation + 1 : 1,
         parentId: previous && egg.heir ? previous.id : null,
+        bornNight: hour >= NIGHT_HOURS[0] && hour < NIGHT_HOURS[1],
       });
       if (previous) await saveCreature(userId, previous, ctx.now);
       await db.run('UPDATE creatures SET active = 0 WHERE user_id = ?', [userId]);
@@ -290,7 +322,7 @@ export function createGame(db, config, push = null) {
     feed: (userId, itemId) => operation(userId, async (ctx) => {
       const creature = needCreature(ctx);
       if (await ownedQty(userId, itemId) < 1) throw new HttpError(400, 'No te queda. Cómpralo en la tienda.');
-      const outcome = unwrap(actions.feed(creature, itemId));
+      const outcome = unwrap(actions.feed(creature, itemId, ctx.now, scale));
       await consume(userId, itemId);
       ctx.track('feed');
       if (outcome.reaction === 'favorita') ctx.track('favorite');
@@ -314,7 +346,7 @@ export function createGame(db, config, push = null) {
     heal: (userId, itemId) => operation(userId, async (ctx) => {
       const creature = needCreature(ctx);
       if (await ownedQty(userId, itemId) < 1) throw new HttpError(400, 'No te queda. Cómpralo en la tienda.');
-      const outcome = unwrap(actions.heal(creature, itemId));
+      const outcome = unwrap(actions.heal(creature, itemId, ctx.now, scale));
       await consume(userId, itemId);
       return { reaction: outcome.reaction, itemId };
     }),
@@ -401,7 +433,7 @@ export function createGame(db, config, push = null) {
         [ctx.now, points, paid.won ? 1 : 0, paid.coins, playId],
       );
       if (paid.coins > 0) await db.run('UPDATE users SET coins = coins + ? WHERE id = ?', [paid.coins, userId]);
-      if (ctx.creature && ctx.creature.alive) actions.applyGameResult(ctx.creature, paid.won);
+      if (ctx.creature && ctx.creature.alive) actions.applyGameResult(ctx.creature, paid.won, ctx.now, scale);
       if (credible && elapsed >= MIN_PLAY_MS) ctx.track('play');
       if (paid.won) ctx.track('win');
       if (paid.won && play.difficulty !== 'facil') ctx.track('winHard');
@@ -426,6 +458,21 @@ export function createGame(db, config, push = null) {
       }
       await db.run('UPDATE users SET coins = coins + ? WHERE id = ?', [mission.reward + bonus, userId]);
       return { id, coins: mission.reward, bonus, streak: bonus ? daily.streak : null };
+    }),
+
+    // Las criaturas que ya se fueron, de la más reciente a la más antigua.
+    // La que acaba de irse cuenta aunque aún no se haya elegido otro huevo.
+    memorial: (userId) => operation(userId, async (ctx) => {
+      const rows = await db.all(
+        'SELECT data FROM creatures WHERE user_id = ? AND active = 0 ORDER BY created_at DESC',
+        [userId],
+      );
+      const past = rows.map((row) => JSON.parse(row.data));
+      const all = ctx.creature ? [ctx.creature, ...past] : past;
+      const heirs = new Map();
+      for (const creature of all) if (creature.parentId) heirs.set(creature.parentId, creature);
+      const gone = ctx.creature && !ctx.creature.alive ? [ctx.creature, ...past] : past;
+      return { creatures: gone.filter((creature) => !creature.alive).map((creature) => memory(creature, heirs)) };
     }),
 
     // Zona horaria del navegador. Se manda al entrar y si cambia.

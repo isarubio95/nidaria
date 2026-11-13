@@ -126,6 +126,7 @@ class Api(context: Context) {
     }
 
     suspend fun state() = call("GET", "/state")
+    suspend fun memorial() = call("GET", "/memorial")
     suspend fun register(name: String, password: String) =
         call("POST", "/auth/register", body("name" to name, "password" to password, "timeZone" to localTimeZone()))
     suspend fun login(name: String, password: String) =

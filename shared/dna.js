@@ -67,6 +67,7 @@ export function createGenes(seed, family) {
 }
 
 // Huevo heredero: conserva casi todo de su progenitor y muta un poco.
+// Si cambia de familia, `origin` recuerda la de su progenitor.
 export function inheritGenes(parent, seed) {
   // Semilla derivada: si usara la misma que `createGenes`, las dos
   // secuencias coincidirían y la mutación no sería independiente.
@@ -80,7 +81,7 @@ export function inheritGenes(parent, seed) {
   const inherited = rng.pick(parent.traits);
   let other = rng.pick(TRAIT_IDS);
   while (other === inherited) other = rng.pick(TRAIT_IDS);
-  return {
+  const genes = {
     ...fresh,
     family,
     hue: keepFamily ? Math.round((parent.hue + rng.range(-16, 16) + 360) % 360) : pickHue(rng, family),
@@ -95,6 +96,8 @@ export function inheritGenes(parent, seed) {
     favFood: rng.chance(0.5) ? parent.favFood : fresh.favFood,
     hateFood: fresh.hateFood === fresh.favFood ? parent.hateFood : fresh.hateFood,
   };
+  if (family !== parent.family) genes.origin = parent.family;
+  return genes;
 }
 
 const ALPHABET = '23456789ABCDEFGHJKLMNPQRSTUVWXYZ';

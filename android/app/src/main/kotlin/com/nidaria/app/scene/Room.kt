@@ -426,7 +426,8 @@ class Room(private val painter: Painter, private val reduce: Boolean) {
     }
 
     fun showDemo() {
-        val adults = FORM_LIST.filter { it.stage == "adulto" }
+        // Las ocultas no salen en la demo: se descubren jugando.
+        val adults = FORM_LIST.filter { it.stage == "adulto" && it.secret == null }
         val form = adults[Random.nextInt(adults.size)]
         val genes = createGenes(Random.nextLong(0, 4294967296L), form.family)
         currentKey = "demo"
@@ -651,6 +652,18 @@ class Room(private val painter: Painter, private val reduce: Boolean) {
             sparks(bodyCenter(), 12, 0.8f)
         } else {
             a.shake()
+        }
+    }
+
+    // Un truco de los que aprende con el vínculo (ver rules/Bond.kt).
+    fun trick(kind: String) {
+        val a = actor ?: return
+        if (kind == "saltitos") {
+            a.hop(3, 0.2f)
+            hearts(bodyCenter(), 4)
+        } else {
+            a.spin()
+            sparks(bodyCenter(), 10, 0.7f)
         }
     }
 

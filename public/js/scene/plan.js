@@ -1,6 +1,7 @@
 // De la forma (posición en el árbol) y el ADN sale un plano corporal:
 // la familia pone la base, la rama de joven cambia el cuerpo y la rama
-// de adulta añade una pieza grande. El ADN afina proporciones y color.
+// de adulta añade una pieza grande. Las formas ocultas no siguen ramas:
+// cada una tiene su aspecto propio. El ADN afina proporciones y color.
 
 import { getForm } from '/shared/forms.js';
 
@@ -94,5 +95,48 @@ export function planFor(formId, genes) {
     plan.tone = { sat: plan.tone.sat + 4, light: plan.tone.light - 4 };
   }
 
+  if (form.secret) secretLook(plan, form);
   return plan;
+}
+
+function secretLook(plan, form) {
+  if (form.secret === 'radiante') {
+    // Aureola dorada, colores más claros y ojos con doble brillo.
+    plan.extra = 'halo';
+    plan.tone = { sat: 4, light: 6 };
+    plan.eyes.style = 2;
+    plan.ears.size *= 1.12;
+    plan.top.size = 1.2;
+    plan.tail.size *= 1.25;
+    plan.cheeks = 1.2;
+    plan.scale *= 1.04;
+  } else if (form.secret === 'sibarita') {
+    // Redonda como un postre, con nata y guinda en la cabeza.
+    plan.body.w *= 1.3;
+    plan.body.d *= 1.2;
+    plan.body.h *= 0.94;
+    plan.belly = true;
+    plan.cheeks = 1.8;
+    plan.eyes.lids = 0.28;
+    plan.top = { type: 'cherry', size: 1.1 };
+    plan.tail.size *= 0.75;
+    plan.scale *= 1.06;
+  } else if (form.secret === 'lunar') {
+    // Una luna creciente en la cabeza, colores apagados y ojos de sueño.
+    plan.top = { type: 'moon', size: 1.35 };
+    plan.eyes.lids = 0.45;
+    plan.ears.size *= 1.15;
+    plan.ears.droop = 0.7;
+    plan.tail.size *= 1.3;
+    plan.tone = { sat: -8, light: -5 };
+  } else if (form.secret === 'mestiza') {
+    // Orejas y cola de la familia de la que viene.
+    const other = FAMILY_BASE[form.origin];
+    plan.ears.type = other.ears;
+    plan.ears.size *= 1.1;
+    plan.tail.type = other.tail;
+    plan.tail.size *= 1.2;
+    plan.body.w *= 1.05;
+    plan.scale *= 1.04;
+  }
 }

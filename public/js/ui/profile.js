@@ -5,6 +5,7 @@ import { api } from '../api.js';
 import { store, run } from '../store.js';
 import { FAMILY_INFO, TRAITS } from '/shared/dna.js';
 import { BRANCH_INFO } from '/shared/forms.js';
+import { BOND_LEVELS, SHY_UNTIL, bondOf, bondLevel } from '/shared/bond.js';
 import { getItem } from '/shared/catalog.js';
 import { openSheet, closeSheet } from './sheet.js';
 import { toast } from './toast.js';
@@ -12,6 +13,19 @@ import { settingsSection } from './settings.js';
 import { disablePush } from '../pwa.js';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
+
+// Nivel de vínculo y lo que falta para el siguiente.
+function bondFact(creature) {
+  const bond = bondOf(creature);
+  const level = bondLevel(bond);
+  const next = BOND_LEVELS[level + 1];
+  const points = `${Math.floor(bond)} de 100.`;
+  let note = next
+    ? `${points} Con ${next.min}: ${next.unlocks.charAt(0).toLowerCase()}${next.unlocks.slice(1)}`
+    : `${points} Cuanto más os queráis, más vivirá.`;
+  if (creature.genes.traits.includes('timido') && bond < SHY_UNTIL) note += ' Es tímida: le cuesta coger confianza.';
+  return fact('Vínculo', BOND_LEVELS[level].name, note);
+}
 
 const fact = (label, value, note) => h('div', { class: 'fact' },
   h('dt', {}, label),
@@ -80,6 +94,7 @@ export function openProfile() {
       fact('Forma', creature.formName, `Etapa: ${creature.stageName.toLowerCase()}`),
       fact('Familia', FAMILY_INFO[creature.genes.family].name, FAMILY_INFO[creature.genes.family].blurb),
       fact('Edad', days === 0 ? 'Menos de un día' : duration(days * DAY_MS), creature.generation > 1 ? `Generación ${creature.generation}` : null),
+      bondFact(creature),
       fact(
         'Carácter',
         creature.genes.traits.map((trait, index) => (index ? TRAITS[trait].name.toLowerCase() : TRAITS[trait].name)).join(' y '),

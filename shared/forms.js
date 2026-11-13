@@ -39,6 +39,56 @@ const ADULT_EPITHETS = {
   gota: { gloton: 'Orondo', jugueton: 'Saltaolas', tranquilo: 'Manso', arisco: 'Bravío' },
 };
 
+// Formas ocultas: adultas fuera de las cuatro ramas, para crianzas raras.
+// Se comprueban en este orden al pasar de joven a adulta; la primera que
+// se cumple gana. Las mestizas son una por cada pareja de familias.
+export const SECRETS = ['radiante', 'sibarita', 'lunar', 'mestiza'];
+
+export const SECRET_INFO = {
+  radiante: {
+    name: 'Radiante',
+    hint: 'Solo aparece con una crianza perfecta: ni un descuido en toda su vida y siempre bien atendida.',
+    reason: 'La has criado sin un solo descuido.',
+  },
+  sibarita: {
+    name: 'Sibarita',
+    hint: 'Dicen que de joven no quería comer nada más que una cosa: la que más le gusta.',
+    reason: 'De joven solo ha comido su comida favorita.',
+  },
+  lunar: {
+    name: 'Lunar',
+    hint: 'Nace de un huevo elegido de madrugada y crece en calma.',
+    reason: 'Nació de madrugada y la has criado tranquila.',
+  },
+  mestiza: {
+    name: 'Mestiza',
+    hint: 'Sale de un huevo heredero que cambió de familia, si se la cuida bien.',
+    reason: 'Lleva sangre de dos familias y la has cuidado bien.',
+  },
+};
+
+const SECRET_NAMES = {
+  pelusa: { radiante: 'Nimbo Radiante', sibarita: 'Merengue Sibarita', lunar: 'Plumón Lunar' },
+  hoja: { radiante: 'Girasol Radiante', sibarita: 'Higo Sibarita', lunar: 'Helecho Lunar' },
+  gota: { radiante: 'Rocío Radiante', sibarita: 'Almíbar Sibarita', lunar: 'Marea Lunar' },
+};
+
+// Familia de la criatura y familia de la que viene.
+const MIXED_NAMES = {
+  pelusa: { hoja: 'Musgopelo', gota: 'Espumón' },
+  hoja: { pelusa: 'Cardolana', gota: 'Nenúfar' },
+  gota: { pelusa: 'Nubarrón', hoja: 'Alguita' },
+};
+
+// Hora local (0-23) a la que hay que elegir el huevo para que cuente
+// como nacida de madrugada.
+export const NIGHT_HOURS = [0, 6];
+
+// Calidad mínima de la crianza (media de las necesidades, de 0 a 1).
+const RADIANT_QUALITY = 0.7;
+const MIXED_QUALITY = 0.6;
+const GOURMET_FEEDS = 8;
+
 function buildForms() {
   const forms = new Map();
   const add = (form) => forms.set(form.id, form);
@@ -62,6 +112,14 @@ function buildForms() {
         });
       }
     }
+    // Las ocultas cuelgan de la cría: pueden salir de cualquier joven.
+    const secret = (id, kind, name, origin = null) => add({
+      id, stage: 'adulto', family, parent: babyId, branch: null, path: [], name, secret: kind, origin,
+    });
+    for (const kind of ['radiante', 'sibarita', 'lunar']) secret(`oculta-${family}-${kind}`, kind, SECRET_NAMES[family][kind]);
+    for (const origin of FAMILIES.filter((f) => f !== family)) {
+      secret(`oculta-${family}-${origin}`, 'mestiza', MIXED_NAMES[family][origin], origin);
+    }
   }
   return forms;
 }
@@ -75,15 +133,20 @@ export function getForm(id) {
   return form;
 }
 
+// Hijas dentro del árbol normal: las ocultas van aparte.
 export function childrenOf(id) {
-  return FORM_LIST.filter((form) => form.parent === id);
+  return FORM_LIST.filter((form) => form.parent === id && !form.secret);
+}
+
+export function secretsOf(family) {
+  return FORM_LIST.filter((form) => form.family === family && form.secret);
 }
 
 export function emptyCare() {
   return {
     hours: 0,
     sumHunger: 0, sumEnergy: 0, sumHygiene: 0, sumFun: 0,
-    feeds: 0, sweets: 0, plays: 0, pets: 0, baths: 0, heals: 0, mistakes: 0,
+    feeds: 0, sweets: 0, plays: 0, pets: 0, baths: 0, heals: 0, mistakes: 0, favs: 0,
   };
 }
 
@@ -130,12 +193,39 @@ export function chooseBranch(care, genes) {
   return best;
 }
 
+// Calidad de toda la vida hasta ahora (crías y jóvenes), de 0 a 1.
+function lifeQuality(creature) {
+  const { lifeCare, care } = creature;
+  const hours = Math.max(lifeCare.hours + care.hours, 0.0001);
+  const sum = lifeCare.sum + care.sumHunger + care.sumEnergy + care.sumHygiene + care.sumFun;
+  return sum / hours / 400;
+}
+
+// Forma oculta que le toca al dejar de ser joven, o null. `branch` es la
+// rama normal que seguiría.
+export function secretFor(creature, branch) {
+  const { care, genes } = creature;
+  const family = genes.family;
+  const mistakes = (creature.lifeCare.mistakes ?? 0) + care.mistakes;
+  if (mistakes === 0 && lifeQuality(creature) >= RADIANT_QUALITY) return `oculta-${family}-radiante`;
+  if (care.feeds >= GOURMET_FEEDS && (care.favs ?? 0) === care.feeds) return `oculta-${family}-sibarita`;
+  if (creature.bornNight && branch === 'tranquilo') return `oculta-${family}-lunar`;
+  if (genes.origin && genes.origin !== family && lifeQuality(creature) >= MIXED_QUALITY) {
+    return `oculta-${family}-${genes.origin}`;
+  }
+  return null;
+}
+
 // Forma siguiente a partir de la actual, la crianza y el ADN.
-export function nextFormId(formId, care, genes) {
-  const form = getForm(formId);
+export function nextFormId(creature) {
+  const { care, genes } = creature;
+  const form = getForm(creature.formId);
   if (form.stage === 'huevo') return `cria-${genes.family}`;
   if (form.stage === 'cria') return `joven-${form.family}-${chooseBranch(care, genes)}`;
-  if (form.stage === 'joven') return `adulto-${form.family}-${form.path[0]}-${chooseBranch(care, genes)}`;
+  if (form.stage === 'joven') {
+    const branch = chooseBranch(care, genes);
+    return secretFor(creature, branch) ?? `adulto-${form.family}-${form.path[0]}-${branch}`;
+  }
   return null;
 }
 
@@ -148,6 +238,7 @@ export function nextStage(stage) {
 export function hintFor(formId) {
   const form = getForm(formId);
   if (form.stage === 'cria') return `Nace de un huevo de la familia ${form.family}.`;
+  if (form.secret) return SECRET_INFO[form.secret].hint;
   if (!form.branch) return '';
   return BRANCH_INFO[form.branch].hint;
 }

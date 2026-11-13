@@ -190,6 +190,60 @@ test('la muerte deja un huevo heredero', async () => {
   }
 });
 
+test('recuerdos: las criaturas que se fueron, con su heredera', async () => {
+  const app = await startServer();
+  try {
+    await app.call('POST', '/api/auth/register', { name: 'Memoria', password: 'secreta123' });
+    const empty = await app.call('GET', '/api/memorial');
+    assert.equal(empty.status, 200);
+    assert.deepEqual(empty.data.result.creatures, []);
+    await app.call('POST', '/api/egg/pick', { index: 0, name: 'Bruma' });
+    for (let i = 0; i < 4; i++) await app.call('POST', '/api/egg/warm', { taps: 20 });
+    await app.call('POST', '/api/dev/skip', { hours: 24 * 6 });
+    // Recién ida, ya sale aunque no se haya elegido otro huevo.
+    const gone = await app.call('GET', '/api/memorial');
+    assert.equal(gone.data.result.creatures.length, 1);
+    const first = gone.data.result.creatures[0];
+    assert.equal(first.name, 'Bruma');
+    assert.ok(first.lived > 12 * 60 * 60 * 1000, `vivió ${first.lived} ms`);
+    assert.ok(first.cause);
+    assert.ok(first.formName);
+    assert.equal(first.heir, null);
+    await app.call('POST', '/api/egg/pick', { index: 0, name: 'Bruma II' });
+    const later = await app.call('GET', '/api/memorial');
+    assert.equal(later.data.result.creatures.length, 1);
+    assert.equal(later.data.result.creatures[0].heir, 'Bruma II');
+    assert.equal(later.data.state.creature.name, 'Bruma II');
+  } finally {
+    await app.close();
+  }
+});
+
+test('el vínculo sube al cuidarla y avisa al cambiar de nivel', async () => {
+  // Con el tiempo acelerado, las caricias cuentan casi seguidas.
+  const app = await startServer({ timeScale: 3600 });
+  try {
+    await app.call('POST', '/api/auth/register', { name: 'Caricias', password: 'secreta123' });
+    await app.call('POST', '/api/egg/pick', { index: 0, name: 'Mimo' });
+    await new Promise((resolve) => setTimeout(resolve, 60));
+    const born = await app.call('GET', '/api/state');
+    assert.equal(born.data.state.creature.stage, 'cria');
+    assert.equal(born.data.state.creature.bond, 0);
+    let leveled = null;
+    for (let i = 0; i < 40 && !leveled; i++) {
+      await new Promise((resolve) => setTimeout(resolve, 12));
+      const petted = await app.call('POST', '/api/creature/pet');
+      leveled = petted.data.events.find((event) => event.type === 'bond') ?? null;
+    }
+    assert.ok(leveled, 'debería subir de nivel');
+    assert.equal(leveled.level, 1);
+    const state = (await app.call('GET', '/api/state')).data.state;
+    assert.ok(state.creature.bond >= 20);
+  } finally {
+    await app.close();
+  }
+});
+
 async function hatchedPlayer(app, name) {
   await app.call('POST', '/api/auth/register', { name, password: 'secreta123', timeZone: 'Europe/Madrid' });
   await app.call('POST', '/api/egg/pick', { index: 0, name: 'Pipo' });

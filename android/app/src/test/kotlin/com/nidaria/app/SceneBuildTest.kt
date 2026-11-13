@@ -65,7 +65,8 @@ class SceneBuildTest {
                 built++
             }
         }
-        assertEquals(63 * seeds.size, built)
+        assertEquals((FORM_LIST.size - 1) * seeds.size, built)
+        assertEquals(78, FORM_LIST.size - 1)
     }
 
     @Test
@@ -81,6 +82,19 @@ class SceneBuildTest {
             assertTrue("La adulta $branch debe llevar más piezas que la joven", grown > young)
         }
         assertEquals(2, buildCreature("adulto-gota-jugueton-jugueton", createGenes(303, "gota")).rig.wings.size)
+    }
+
+    @Test
+    fun secretsHaveTheirLook() {
+        for (family in listOf("pelusa", "hoja", "gota")) {
+            val genes = createGenes(202, family)
+            assertNotNull(buildCreature("oculta-$family-radiante", genes).rig.halo)
+            assertEquals(3, buildCreature("oculta-$family-sibarita", genes).rig.top.children.size)
+            assertEquals(1, buildCreature("oculta-$family-lunar", genes).rig.top.children.size)
+            for (origin in listOf("pelusa", "hoja", "gota").filter { it != family }) {
+                assertEquals(planFor("cria-$origin", genes).earType, planFor("oculta-$family-$origin", genes).earType)
+            }
+        }
     }
 
     @Test

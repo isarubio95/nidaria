@@ -483,7 +483,8 @@ export function createRoom(canvas) {
   }
 
   function showDemo() {
-    const adults = FORM_LIST.filter((form) => form.stage === 'adulto');
+    // Las ocultas no se enseñan antes de descubrirlas.
+    const adults = FORM_LIST.filter((form) => form.stage === 'adulto' && !form.secret);
     const form = adults[Math.floor(Math.random() * adults.length)];
     const genes = createGenes(Math.floor(Math.random() * 4294967296), form.family);
     currentKey = 'demo';
@@ -722,6 +723,18 @@ export function createRoom(canvas) {
       sparks(bodyCenter(), 12, 0.8);
     } else {
       actor.shake();
+    }
+  }
+
+  // Trucos que sabe con confianza: un giro con chispas o unos saltitos.
+  function trick(kind) {
+    if (!actor) return;
+    if (kind === 'saltitos') {
+      actor.hop(3, 0.2);
+      hearts(bodyCenter(), 3);
+    } else {
+      actor.spin();
+      sparks(bodyCenter(), 10, 0.7);
     }
   }
 
@@ -1078,6 +1091,7 @@ export function createRoom(canvas) {
     bath,
     heal,
     cheer,
+    trick,
     hatch,
     evolve,
     farewell,

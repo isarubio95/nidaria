@@ -1,6 +1,7 @@
 // De la forma (posición en el árbol) y el ADN sale un plano corporal:
 // la familia pone la base, la rama de joven cambia el cuerpo y la rama
-// de adulta añade una pieza grande. El ADN afina proporciones y color.
+// de adulta añade una pieza grande. Las formas ocultas no siguen ramas:
+// cada una tiene su aspecto propio. El ADN afina proporciones y color.
 
 package com.nidaria.app.scene
 
@@ -29,7 +30,7 @@ class Plan(
     var tailSize: Float,
     var eyeSize: Float,
     val eyeGap: Float,
-    val eyeStyle: Int,
+    var eyeStyle: Int,
     var eyeLids: Float,
     var fang: Boolean,
     var brows: Boolean,
@@ -163,5 +164,57 @@ fun planFor(formId: String, genes: Genes): Plan {
         }
     }
 
+    if (form.secret != null) secretLook(plan, form.secret, form.origin)
     return plan
+}
+
+private fun secretLook(plan: Plan, secret: String, origin: String?) {
+    when (secret) {
+        "radiante" -> {
+            // Aureola dorada, colores más claros y ojos con doble brillo.
+            plan.extra = "halo"
+            plan.toneSat = 4f
+            plan.toneLight = 6f
+            plan.eyeStyle = 2
+            plan.earSize *= 1.12f
+            plan.topSize = 1.2f
+            plan.tailSize *= 1.25f
+            plan.cheeks = 1.2f
+            plan.scale *= 1.04f
+        }
+        "sibarita" -> {
+            // Redonda como un postre, con nata y guinda en la cabeza.
+            plan.bodyW *= 1.3f
+            plan.bodyD *= 1.2f
+            plan.bodyH *= 0.94f
+            plan.belly = true
+            plan.cheeks = 1.8f
+            plan.eyeLids = 0.28f
+            plan.topType = "cherry"
+            plan.topSize = 1.1f
+            plan.tailSize *= 0.75f
+            plan.scale *= 1.06f
+        }
+        "lunar" -> {
+            // Una luna creciente en la cabeza, colores apagados y ojos de sueño.
+            plan.topType = "moon"
+            plan.topSize = 1.35f
+            plan.eyeLids = 0.45f
+            plan.earSize *= 1.15f
+            plan.earDroop = 0.7f
+            plan.tailSize *= 1.3f
+            plan.toneSat = -8f
+            plan.toneLight = -5f
+        }
+        "mestiza" -> {
+            // Orejas y cola de la familia de la que viene.
+            val other = FAMILY_BASE.getValue(origin ?: plan.family)
+            plan.earType = other.ears
+            plan.earSize *= 1.1f
+            plan.tailType = other.tail
+            plan.tailSize *= 1.2f
+            plan.bodyW *= 1.05f
+            plan.scale *= 1.04f
+        }
+    }
 }

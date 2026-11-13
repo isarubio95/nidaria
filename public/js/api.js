@@ -44,6 +44,7 @@ export function localTimeZone() {
 
 export const api = {
   state: () => call('GET', '/state'),
+  memorial: () => call('GET', '/memorial'),
   register: post('/auth/register'),
   login: post('/auth/login'),
   logout: post('/auth/logout'),

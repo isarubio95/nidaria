@@ -26,7 +26,7 @@ private val RATES_ASLEEP = mapOf("hunger" to -2.5, "energy" to 12.5, "hygiene" t
 private val STAGE_FACTOR = mapOf("huevo" to 0.0, "cria" to 3.0, "joven" to 1.3, "adulto" to 1.0)
 
 @Serializable
-data class LifeCare(var hours: Double = 0.0, var sum: Double = 0.0)
+data class LifeCare(var hours: Double = 0.0, var sum: Double = 0.0, var mistakes: Double = 0.0)
 
 @Serializable
 data class Equipped(val cabeza: String? = null, val cara: String? = null, val cuello: String? = null) {
@@ -71,6 +71,12 @@ data class Creature(
     val parentId: String? = null,
     val pets: Double = 0.0,
     val lastPetAt: Double = 0.0,
+    // Vínculo (ver Bond.kt). Lo sube el servidor; la simulación lo baja.
+    var bond: Double = 0.0,
+    val bondDay: Double = 0.0,
+    val bondToday: Double = 0.0,
+    // Si el huevo se eligió de madrugada (lo decide el servidor).
+    val bornNight: Boolean = false,
     val known: Known = Known(),
     val code: String = "",
     val formName: String = "",
@@ -146,7 +152,7 @@ fun moodOf(creature: Creature): String {
 
 private fun evolve(creature: Creature, at: Double, scale: Double, events: MutableList<SimEvent>) {
     val from = creature.formId
-    val to = nextFormId(creature.formId, creature.care, creature.genes) ?: return
+    val to = nextFormId(creature) ?: return
     val form = getForm(to)
     if (creature.stage == "huevo") {
         creature.hunger = 45.0
@@ -157,6 +163,7 @@ private fun evolve(creature: Creature, at: Double, scale: Double, events: Mutabl
     }
     creature.lifeCare.hours += creature.care.hours
     creature.lifeCare.sum += creature.care.sumHunger + creature.care.sumEnergy + creature.care.sumHygiene + creature.care.sumFun
+    creature.lifeCare.mistakes += creature.care.mistakes
     creature.formId = to
     creature.stage = form.stage
     creature.stageAt = at
@@ -200,11 +207,15 @@ private fun step(creature: Creature, from: Double, to: Double, scale: Double, ev
     creature.care.sumFun += creature.`fun` * hours
 
     val critical = criticalNeeds(creature)
-    if (critical.size > before) creature.care.mistakes += critical.size - before
+    if (critical.size > before) {
+        creature.care.mistakes += critical.size - before
+        loseBond(creature, (critical.size - before).toDouble())
+    }
 
     if (!creature.asleep && creature.energy <= 0) {
         creature.asleep = true
         creature.care.mistakes += 1
+        loseBond(creature, 1.0)
         events.add(SimEvent("collapsed", to))
     } else if (creature.asleep && creature.energy >= 100) {
         creature.asleep = false
@@ -250,14 +261,15 @@ fun simulate(original: Creature, now: Double, scale: Double = 1.0): SimResult {
         var end = min(now, t + stepMs)
         val evolveAt = nextStageAt(creature, scale)
         if (evolveAt != null && evolveAt > t && evolveAt < end) end = evolveAt
-        val lifeEnds = creature.lifeEndsAt
-        if (lifeEnds != null && lifeEnds != 0.0 && lifeEnds > t && lifeEnds < end) end = lifeEnds
+        // El final depende del vínculo, que puede bajar en este tramo.
+        val endsAt = lifeEnd(creature, scale)
+        if (endsAt != null && endsAt > t && endsAt < end) end = endsAt
         step(creature, t, end, scale, events)
         t = end
         if (!creature.alive) break
         if (evolveAt != null && t >= evolveAt) evolve(creature, t, scale, events)
-        val ends = creature.lifeEndsAt
-        if (ends != null && ends != 0.0 && t >= ends) die(creature, t, "vejez", events)
+        val ends = lifeEnd(creature, scale)
+        if (ends != null && t >= ends) die(creature, t, "vejez", events)
     }
     creature.tickAt = now
     creature.mood = moodOf(creature)

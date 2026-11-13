@@ -4,6 +4,7 @@
 
 import { clamp } from './rng.js';
 import { getItem, TOY_COOLDOWN_MS, BATH_COOLDOWN_MS } from './catalog.js';
+import { gainBond, BOND_GAINS } from './bond.js';
 
 const fail = (error) => ({ ok: false, error });
 const add = (creature, need, amount) => {
@@ -17,7 +18,7 @@ function checkAwake(creature) {
   return null;
 }
 
-export function feed(creature, itemId) {
+export function feed(creature, itemId, now = Date.now(), scale = 1) {
   const blocked = checkAwake(creature);
   if (blocked) return fail(blocked);
   const item = getItem(itemId);
@@ -31,6 +32,7 @@ export function feed(creature, itemId) {
     fun += 10;
     reaction = 'favorita';
     creature.known.fav = true;
+    creature.care.favs = (creature.care.favs ?? 0) + 1;
   } else if (item.id === creature.genes.hateFood) {
     fun -= 8;
     reaction = 'asco';
@@ -41,6 +43,8 @@ export function feed(creature, itemId) {
   add(creature, 'health', item.health);
   creature.care.feeds += 1;
   if (item.sweet) creature.care.sweets += 1;
+  // Lo que no le gusta no suma confianza.
+  if (reaction !== 'asco') gainBond(creature, reaction === 'favorita' ? BOND_GAINS.favorite : BOND_GAINS.feed, now, scale);
   return { ok: true, reaction, item };
 }
 
@@ -76,12 +80,15 @@ export function bathe(creature, itemId, now, scale = 1) {
   } else {
     add(creature, 'hygiene', 55);
   }
-  if (wasDirty) creature.care.baths += 1;
+  if (wasDirty) {
+    creature.care.baths += 1;
+    gainBond(creature, BOND_GAINS.bathe, now, scale);
+  }
   creature.cooldowns.bano = now;
   return { ok: true, reaction: 'bano' };
 }
 
-export function heal(creature, itemId) {
+export function heal(creature, itemId, now = Date.now(), scale = 1) {
   if (!creature.alive) return fail('Ya no está aquí.');
   if (creature.stage === 'huevo') return fail('Todavía no ha salido del huevo.');
   const item = getItem(itemId);
@@ -94,6 +101,7 @@ export function heal(creature, itemId) {
   }
   add(creature, 'health', item.health);
   creature.care.heals += 1;
+  gainBond(creature, BOND_GAINS.heal, now, scale);
   return { ok: true, reaction: 'cura' };
 }
 
@@ -108,6 +116,7 @@ export function pet(creature, now, scale = 1) {
   if (now - creature.lastPetAt >= 30000 / scale) {
     creature.care.pets += 1;
     creature.lastPetAt = now;
+    gainBond(creature, BOND_GAINS.pet * (creature.genes.traits.includes('mimoso') ? 1.5 : 1), now, scale);
   }
   creature.pets += 1;
   return { ok: true, reaction: 'caricia' };
@@ -127,6 +136,7 @@ export function playToy(creature, itemId, now, scale = 1) {
   add(creature, 'energy', -item.energy);
   creature.care.plays += 0.5;
   creature.cooldowns[item.id] = now;
+  gainBond(creature, BOND_GAINS.toy, now, scale);
   return { ok: true, reaction: 'juega', item };
 }
 
@@ -139,12 +149,13 @@ export function canPlayGame(creature) {
   return null;
 }
 
-export function applyGameResult(creature, won) {
+export function applyGameResult(creature, won, now = Date.now(), scale = 1) {
   const bonus = creature.genes.traits.includes('curioso') ? 1.25 : 1;
   add(creature, 'energy', -7);
   add(creature, 'hunger', -4);
   add(creature, 'fun', (won ? 16 : 8) * bonus);
   creature.care.plays += 1;
+  gainBond(creature, won ? BOND_GAINS.win : BOND_GAINS.game, now, scale);
 }
 
 export function equip(creature, slot, itemId) {

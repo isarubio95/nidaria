@@ -6,7 +6,9 @@ package com.nidaria.app.data
 
 import com.nidaria.app.rules.Creature
 import com.nidaria.app.rules.EggLook
+import com.nidaria.app.rules.Genes
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
@@ -105,6 +107,28 @@ data class GameState(
     fun owned(itemId: String): Int = inventory[itemId] ?: 0
 }
 
+// Una criatura que ya se fue, tal como la cuenta GET /memorial.
+// `lived` es tiempo de juego en milisegundos; `heir`, el nombre de su
+// heredera si la tuvo.
+@Serializable
+data class MemorialEntry(
+    val id: String = "",
+    val name: String = "",
+    val genes: Genes = Genes(),
+    val formId: String = "huevo",
+    val formName: String = "",
+    val stage: String = "huevo",
+    val secret: String? = null,
+    val history: List<String> = emptyList(),
+    val generation: Int = 1,
+    val bornAt: Double = 0.0,
+    val diedAt: Double = 0.0,
+    val lived: Double = 0.0,
+    val cause: String? = null,
+    val bond: Double = 0.0,
+    val heir: String? = null,
+)
+
 @Serializable
 data class GameEvent(
     val type: String = "",
@@ -112,6 +136,8 @@ data class GameEvent(
     val from: String? = null,
     val to: String? = null,
     val cause: String? = null,
+    // Nivel de vínculo alcanzado, en los eventos "bond".
+    val level: Int = 0,
 )
 
 @Serializable
@@ -125,6 +151,12 @@ data class Payload(
     fun text(key: String): String? = field(key)?.contentOrNull
     fun int(key: String): Int = field(key)?.intOrNull ?: field(key)?.doubleOrNull?.toInt() ?: 0
     fun flag(key: String): Boolean = field(key)?.booleanOrNull ?: false
+
+    // Las criaturas que manda GET /memorial en `result.creatures`.
+    fun memorial(): List<MemorialEntry> {
+        val list = (result as? JsonObject)?.get("creatures") ?: return emptyList()
+        return NidJson.decodeFromJsonElement(ListSerializer(MemorialEntry.serializer()), list)
+    }
 }
 
 // Un error con su mensaje listo para enseñar. `status` 0: sin conexión.

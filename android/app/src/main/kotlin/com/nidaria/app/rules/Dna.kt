@@ -60,6 +60,8 @@ data class Genes(
     val traits: List<String> = emptyList(),
     val favFood: String = "",
     val hateFood: String = "",
+    // Familia del progenitor si el huevo heredero cambió de familia.
+    val origin: String? = null,
 )
 
 // Lo que se sabe de un huevo antes de elegirlo: solo sus colores.

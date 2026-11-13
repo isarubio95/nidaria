@@ -181,6 +181,7 @@ class RoomView(context: Context) : GLSurfaceView(context), GLSurfaceView.Rendere
     fun bath() = post { bath() }
     fun heal() = post { heal() }
     fun cheer(won: Boolean) = post { cheer(won) }
+    fun trick(kind: String) = post { trick(kind) }
 
     // En pausa (durante un minijuego) la escena deja de dibujarse.
     fun setPaused(value: Boolean) {

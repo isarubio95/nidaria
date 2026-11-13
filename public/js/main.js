@@ -10,8 +10,9 @@ import { startWeather, onWeather } from './weather.js';
 import { watchMissions } from './ui/daily.js';
 import { createRoom } from './scene/room.js';
 import { creatureThumb } from './scene/thumbs.js';
-import { getForm, BRANCH_INFO } from '/shared/forms.js';
+import { getForm, BRANCH_INFO, SECRET_INFO } from '/shared/forms.js';
 import { FAMILY_INFO } from '/shared/dna.js';
+import { BOND_LEVELS } from '/shared/bond.js';
 import { mountAuth } from './ui/auth.js';
 import { mountEggs } from './ui/eggs.js';
 import { mountHome } from './ui/home.js';
@@ -19,7 +20,7 @@ import { mountFarewell } from './ui/farewell.js';
 import { dialog } from './ui/dialog.js';
 import { toast } from './ui/toast.js';
 import { closeSheet } from './ui/sheet.js';
-import { line } from './ui/speech.js';
+import { line, bondLine } from './ui/speech.js';
 
 const app = document.getElementById('app');
 const canvas = document.getElementById('stage');
@@ -121,6 +122,14 @@ function announce(creature, first) {
       actions: [{ label: 'Conocerla', value: true, tone: 'pink' }],
     });
   }
+  if (form.secret) {
+    return dialog({
+      title: '¡Una forma oculta!',
+      text: `${creature.name} ahora es ${form.name}. ${SECRET_INFO[form.secret].reason}`,
+      art,
+      actions: [{ label: 'Verla', value: true, tone: 'pink' }],
+    });
+  }
   return dialog({
     title: `¡${creature.name} ha evolucionado!`,
     text: `Ahora es ${form.name}. La has criado ${BRANCH_INFO[form.branch].name.toLowerCase()} y por eso ha seguido esa rama.`,
@@ -204,6 +213,11 @@ function route(state, payload = {}) {
     if (event.type === 'sick') toast(`${creature.name} se ha puesto enferma. Dale medicina.`, 'error', 4200);
     else if (event.type === 'collapsed') toast(`${creature.name} se ha dormido de puro cansancio.`, 'info', 3600);
     else if (event.type === 'woke') toast(`${creature.name} se ha despertado.`);
+    else if (event.type === 'bond') {
+      toast(BOND_LEVELS[event.level].reached.replace('{name}', creature.name), 'info', 4000);
+      const fond = bondLine(creature, state.user.name, event.level);
+      if (fond && !animating) screen?.say?.(fond);
+    }
   }
 }
 

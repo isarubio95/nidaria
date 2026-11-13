@@ -1,6 +1,7 @@
 // Lo que dice la criatura. Frases cortas, en primera persona.
 
 import { LOW } from '/shared/needs.js';
+import { BOND_LINES, bondOf, bondLevel } from '/shared/bond.js';
 import { currentWeather } from '../weather.js';
 
 const LINES = {
@@ -77,11 +78,21 @@ function contextLines(creature, date = new Date()) {
 
 export const line = (kind) => pick(LINES[kind] ?? LINES.calm);
 
-// Frase espontánea: primero lo que más le falta, luego su carácter.
-export function idleLine(creature, mood) {
+// Lo que dice por el cariño que te tiene, de su nivel y los anteriores.
+export function bondLine(creature, player, level = bondLevel(bondOf(creature))) {
+  const lines = [];
+  for (let i = 1; i <= level; i++) lines.push(...(BOND_LINES[i] ?? []));
+  return lines.length ? pick(lines).replace('{player}', player ?? '') : null;
+}
+
+// Frase espontánea: primero lo que más le falta, luego el cariño que te
+// tiene, lo que pasa fuera y su carácter. `player` es quien la cuida.
+export function idleLine(creature, mood, player) {
   if (creature.sick) return pick(LINES.sick);
   const worst = ['hunger', 'energy', 'hygiene', 'fun'].sort((a, b) => creature[a] - creature[b])[0];
   if (creature[worst] < LOW) return pick(LINES[worst]);
+  const fond = bondLine(creature, player);
+  if (fond && Math.random() < 0.3) return fond;
   const context = contextLines(creature);
   if (context.length && Math.random() < 0.35) return pick(context);
   if (Math.random() < 0.5) return pick(TRAIT_LINES[pick(creature.genes.traits)]);

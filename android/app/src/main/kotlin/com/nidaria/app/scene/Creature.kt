@@ -66,6 +66,13 @@ class CreatureMaterials(genes: Genes, plan: Plan) {
     val line = Material.standard(Color.hex("#4a2d20"), 0.7f)
     val bubble: Material
     val center = Material.standard(Color.hex("#ffd166"), 0.6f)
+    // Sin luces: la aureola y la luna parecen brillar con luz propia.
+    val glow = Material.basic(Color.hex("#ffd76e"))
+    val moon = Material.basic(Color.hex("#fff0b8"))
+    val cherry = Material.standard(Color.hex("#e5465e"), 0.25f) {
+        clearcoat = 0.8f
+        clearcoatRoughness = 0.1f
+    }
 
     init {
         val s = genes.sat + plan.toneSat
@@ -246,6 +253,9 @@ class Rig(
     val tail: Group,
     val wings: List<Limb>,
     val top: Group,
+    // Aureola de las radiantes, con su altura de reposo.
+    val halo: Mesh? = null,
+    val haloY: Float = 0f,
 )
 
 class Built(val obj: Group, val plan: Plan, val height: Float, val anchors: Anchors, val rig: Rig) {
@@ -453,6 +463,23 @@ fun buildCreature(formId: String, genes: Genes): Built {
             drop.position.y = -0.03f * ts
             top.add(drop)
         }
+        "cherry" -> {
+            val cream = shaped(dropGeometry(0.12f * ts, 0.17f * ts), mats.ivory)
+            cream.position.y = -0.02f * ts
+            val berry = ball(mats.cherry, 0.072f * ts, 0.068f * ts, 0.072f * ts, true)
+            berry.position.y = 0.19f * ts
+            val stem = shaped(cylinderGeometry(0.008f * ts, 0.011f * ts, 0.13f * ts, 6), mats.line)
+            stem.position.set(0.03f * ts, 0.29f * ts, 0f)
+            stem.rotation.z = -0.4f
+            top.add(cream, berry, stem)
+        }
+        "moon" -> {
+            // Media luna de pie, con las puntas hacia arriba y un poco de lado.
+            val moon = shaped(torusGeometry(0.12f * ts, 0.042f * ts, 10, 28, PI_F * 1.2f), mats.moon)
+            moon.rotation.z = PI_F * 1.15f
+            moon.position.y = 0.15f * ts
+            top.add(moon)
+        }
         else -> {
             for (spec in arrayOf(floatArrayOf(-0.15f, 0.5f, 0.2f), floatArrayOf(0f, 0f, 0.3f), floatArrayOf(0.15f, -0.5f, 0.2f))) {
                 val spike = cone(mats.accent, 0.07f * ts, spec[2] * ts)
@@ -540,7 +567,18 @@ fun buildCreature(formId: String, genes: Genes): Built {
 
     // Pieza de adulta
     val wings = ArrayList<Limb>()
+    var halo: Mesh? = null
     when (plan.extra) {
+        "halo" -> {
+            val ring = shaped(torusGeometry(0.22f * unit, 0.024f * unit, 10, 36), mats.glow)
+            ring.castShadow = false
+            ring.rotation.set(PI_F / 2f - 0.22f, 0f, 0.1f)
+            // Por encima del remate de la cabeza; el brote de las hojas es más alto.
+            val lift = if (plan.topType == "sprout") 0.46f else 0.32f
+            ring.position.set(0f, host.center.y + host.ry + lift * unit, -0.03f * unit)
+            headPivot.add(ring)
+            halo = ring
+        }
         "mane" -> {
             val neckY = h * 0.9f
             val count = 11
@@ -637,7 +675,7 @@ fun buildCreature(formId: String, genes: Genes): Built {
     )
     val height = (headPivot.position.y + hostTop) * plan.scale
 
-    return Built(root, plan, height, anchors, Rig(root, bounce, squash, headPivot, eyes, mouths, mouth, cheeks, ears, arms, feet, tail, wings, top))
+    return Built(root, plan, height, anchors, Rig(root, bounce, squash, headPivot, eyes, mouths, mouth, cheeks, ears, arms, feet, tail, wings, top, halo, halo?.let { it.position.y } ?: 0f))
 }
 
 // ── Animación ─────────────────────────────────────────────────
@@ -756,6 +794,7 @@ class Actor(private val built: Built, private val anim: Animator) {
             wing.pivot.rotation.z = wing.rest + wing.side * sin(t * (if (happy) 9f else 2.6f)) * (if (asleep) 0.03f else 0.22f)
         }
         for (arm in rig.arms) arm.pivot.rotation.z = arm.rest + arm.side * sin(t * 1.9f + arm.side) * 0.07f
+        rig.halo?.let { it.position.y = rig.haloY + sin(t * 1.6f) * 0.012f }
 
         rig.bounce.position.x = if (mood == "enferma") sin(t * 46f) * 0.006f else 0f
 

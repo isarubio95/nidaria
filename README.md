@@ -41,6 +41,7 @@ Se pasan como variables de entorno o en un fichero `.env` (ver `.env.example`).
 | `TIME_SCALE` | `1` | Acelera el tiempo del juego. Con `60`, una hora pasa en un minuto. |
 | `DEV_TOOLS` | sin activar | Con `1`, la ficha de la criatura muestra botones para adelantar el tiempo. No lo actives en producción. |
 | `SECURE_COOKIES` | sin activar | Con `1`, la cookie de sesión solo viaja por HTTPS. Actívalo en producción. |
+| `TRUST_PROXY` | sin activar | Con `1`, se fía de la cabecera `X-Forwarded-For` de un proxy en la misma máquina, para limitar peticiones por la IP real de cada jugador. Actívalo si el juego va detrás de Caddy o nginx. |
 | `VAPID_PUBLIC_KEY` y `VAPID_PRIVATE_KEY` | sin definir | Claves de los avisos al móvil. Si faltan, se generan solas la primera vez y se guardan en la base de datos. |
 | `VAPID_SUBJECT` | `mailto:avisos@nidaria.invalid` | Contacto que va en cada aviso: un `mailto:` o la dirección `https://` del juego. Pon uno real en producción. |
 

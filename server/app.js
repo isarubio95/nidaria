@@ -45,6 +45,7 @@ export function createApp(db, config, { push = createPush(db, config) } = {}) {
   const game = createGame(db, config, push);
 
   app.disable('x-powered-by');
+  if (config.trustProxy) app.set('trust proxy', 'loopback');
   const csp = [
     "default-src 'self'",
     `script-src 'self' ${importMapHash()}`.trim(),
@@ -114,6 +115,7 @@ export function createApp(db, config, { push = createPush(db, config) } = {}) {
 
   const body = (req) => req.body ?? {};
   api.get('/state', handle((req) => game.state(req.userId)));
+  api.get('/memorial', handle((req) => game.memorial(req.userId)));
   api.post('/egg/pick', handle((req) => game.pickEgg(req.userId, Number(body(req).index), body(req).name)));
   api.post('/egg/warm', handle((req) => game.warmEgg(req.userId, body(req).taps)));
   api.post('/creature/feed', handle((req) => game.feed(req.userId, body(req).itemId)));
