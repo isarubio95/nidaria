@@ -1,0 +1,32 @@
+# Servicio de systemd del juego. Va en /etc/systemd/system/nidaria.service.
+# La configuración (DATABASE_URL, etc.) está en /etc/nidaria/nidaria.env,
+# que solo puede leer root.
+[Unit]
+Description=Nidaria
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=nidaria
+Group=nidaria
+WorkingDirectory=/opt/nidaria/app
+EnvironmentFile=/etc/nidaria/nidaria.env
+ExecStart=/usr/bin/node server/index.js
+Restart=on-failure
+RestartSec=5
+
+# El proceso solo puede escribir en la carpeta de datos (SQLite, si se usa).
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+ReadWritePaths=/opt/nidaria/data
+
+[Install]
+WantedBy=multi-user.target

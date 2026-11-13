@@ -1,0 +1,7 @@
+# Proxy HTTPS delante del juego. Va en /etc/caddy/Caddyfile.
+# Caddy pide y renueva el certificado solo. Para usar un dominio propio,
+# apúntalo a la IP del servidor y cambia la primera línea por ese dominio.
+62-83-125-115.sslip.io {
+	encode zstd gzip
+	reverse_proxy 127.0.0.1:3000
+}
