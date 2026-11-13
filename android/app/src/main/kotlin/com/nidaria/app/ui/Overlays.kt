@@ -127,6 +127,8 @@ fun SheetHost(game: Game, safeBottom: Dp) {
                         is Sheet.Play -> PlaySheet(game, sheet.tab)
                         Sheet.Profile -> ProfileSheet(game)
                         Sheet.Daily -> DailySheet(game)
+                        Sheet.Friends -> FriendsSheet(game)
+                        Sheet.Gift -> GiftSheet(game)
                     }
                 }
             }

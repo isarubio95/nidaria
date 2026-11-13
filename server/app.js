@@ -140,6 +140,17 @@ export function createApp(db, config, { push = createPush(db, config) } = {}) {
   api.post('/games/finish', handle((req) => game.finishGame(req.userId, body(req).playId, body(req).score)));
   api.post('/daily/claim', handle((req) => game.claimMission(req.userId, body(req).id)));
   api.post('/settings', handle((req) => game.settings(req.userId, body(req))));
+  // Amigos. Añadir por código va con su propio límite para que no se
+  // puedan ir probando códigos.
+  const friendLimit = rateLimit(30);
+  api.get('/friends', handle((req) => game.friends(req.userId)));
+  api.post('/friends/add', friendLimit, handle((req) => game.addFriend(req.userId, body(req).code)));
+  api.post('/friends/accept', handle((req) => game.acceptFriend(req.userId, body(req).id)));
+  api.post('/friends/remove', handle((req) => game.removeFriend(req.userId, body(req).id)));
+  api.post('/friends/visit', handle((req) => game.visit(req.userId, body(req).id)));
+  api.post('/friends/gift', handle((req) => game.gift(req.userId, body(req).id, body(req).itemId)));
+  api.post('/friends/code', handle((req) => game.renewFriendCode(req.userId)));
+  api.post('/gifts/open', handle((req) => game.openGift(req.userId, body(req).id)));
   api.post('/account/recovery', authLimit, handle(async (req) => {
     const recoveryCode = await auth.renewRecovery(req.userId, body(req).password);
     return { ...(await game.state(req.userId)), result: { recoveryCode } };

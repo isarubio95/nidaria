@@ -164,6 +164,16 @@ class Api(context: Context) {
         call("POST", "/games/start", body("gameId" to gameId, "difficulty" to difficulty))
     suspend fun finishGame(playId: String, score: Int) = call("POST", "/games/finish", body("playId" to playId, "score" to score))
     suspend fun claim(missionId: String) = call("POST", "/daily/claim", body("id" to missionId))
+
+    // Amigos. `id` es el de la otra persona; en `openGift`, el del regalo.
+    suspend fun friends() = call("GET", "/friends")
+    suspend fun addFriend(code: String) = call("POST", "/friends/add", body("code" to code))
+    suspend fun acceptFriend(id: String) = call("POST", "/friends/accept", body("id" to id))
+    suspend fun removeFriend(id: String) = call("POST", "/friends/remove", body("id" to id))
+    suspend fun renewFriendCode() = call("POST", "/friends/code", body())
+    suspend fun visit(id: String) = call("POST", "/friends/visit", body("id" to id))
+    suspend fun gift(id: String, itemId: String) = call("POST", "/friends/gift", body("id" to id, "itemId" to itemId))
+    suspend fun openGift(id: String) = call("POST", "/gifts/open", body("id" to id))
     suspend fun setTimeZone(timeZone: String) = call("POST", "/settings", body("timeZone" to timeZone))
     suspend fun setAlert(group: String, on: Boolean) =
         call("POST", "/settings", body("notify" to buildJsonObject { put(group, on) }))

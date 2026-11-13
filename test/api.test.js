@@ -532,3 +532,138 @@ test('avisos: un servicio que da la suscripción por perdida la borra', async ()
     await app.close();
   }
 });
+
+test('amigos: código, solicitud, visita, regalo y quitar', async () => {
+  const app = await startServer();
+  const CODE = /^[0-9A-HJKMNP-TV-Z]{4}-[0-9A-HJKMNP-TV-Z]{4}$/;
+  try {
+    const ana = await hatchedPlayer(app, 'Ana');
+    assert.match(ana.social.code, CODE);
+    assert.deepEqual({ ...ana.social, code: null }, { code: null, requests: 0, gifts: 0 });
+    const anaCookie = app.cookie();
+    // El código no cambia de una petición a otra.
+    assert.equal((await app.call('GET', '/api/state')).data.state.social.code, ana.social.code);
+
+    app.dropCookie();
+    const luis = await app.call('POST', '/api/auth/register', { name: 'Luis', password: 'secreta123' });
+    const luisCookie = app.cookie();
+    assert.notEqual(luis.data.state.social.code, ana.social.code);
+    assert.equal((await app.call('POST', '/api/friends/add', { code: 'corto' })).status, 400);
+    assert.equal((await app.call('POST', '/api/friends/add', { code: luis.data.state.social.code })).status, 400);
+    assert.equal((await app.call('POST', '/api/friends/add', { code: 'ZZZZ-ZZZZ' })).status, 404);
+
+    // Se acepta en minúsculas y sin guion.
+    const sent = await app.call('POST', '/api/friends/add', { code: ana.social.code.toLowerCase().replace('-', '') });
+    assert.equal(sent.status, 200);
+    assert.deepEqual([sent.data.result.name, sent.data.result.friends], ['Ana', false]);
+    const anaId = sent.data.result.id;
+    assert.equal((await app.call('POST', '/api/friends/add', { code: ana.social.code })).status, 400);
+    assert.equal((await app.call('GET', '/api/friends')).data.result.outgoing[0].name, 'Ana');
+    // Hasta que acepte no se puede visitar ni regalar.
+    assert.equal((await app.call('POST', '/api/friends/visit', { id: anaId })).status, 404);
+    assert.equal((await app.call('POST', '/api/friends/gift', { id: anaId, itemId: 'manzana' })).status, 404);
+
+    app.useCookie(anaCookie);
+    assert.equal((await app.call('GET', '/api/state')).data.state.social.requests, 1);
+    const pending = (await app.call('GET', '/api/friends')).data.result;
+    assert.equal(pending.incoming.length, 1);
+    assert.equal(pending.incoming[0].name, 'Luis');
+    const luisId = pending.incoming[0].id;
+    const accepted = await app.call('POST', '/api/friends/accept', { id: luisId });
+    assert.equal(accepted.status, 200);
+    assert.equal(accepted.data.result.friends, true);
+    assert.equal(accepted.data.state.social.requests, 0);
+    assert.equal((await app.call('POST', '/api/friends/accept', { id: luisId })).status, 400);
+
+    // Luis va a ver a Ana: su habitación y su criatura, tal como están.
+    app.useCookie(luisCookie);
+    const list = (await app.call('GET', '/api/friends')).data.result;
+    assert.equal(list.friends.length, 1);
+    assert.equal(list.friends[0].name, 'Ana');
+    assert.equal(list.friends[0].creature.name, 'Pipo');
+    assert.equal(list.outgoing.length, 0);
+    const visit = await app.call('POST', '/api/friends/visit', { id: anaId });
+    assert.equal(visit.status, 200);
+    const room = visit.data.result.visit;
+    assert.equal(room.name, 'Ana');
+    assert.equal(room.creature.name, 'Pipo');
+    assert.equal(room.creature.stage, 'cria');
+    assert.equal(typeof room.creature.mood, 'string');
+    assert.equal(room.creature.care, undefined);
+    assert.deepEqual(room.decor, { pared: null, alfombra: null, rincon: null, ventana: null });
+    assert.equal(room.giftedToday, false);
+
+    // Un regalo al día, de comida o cuidados, sacado de lo suyo.
+    assert.equal((await app.call('POST', '/api/friends/gift', { id: anaId, itemId: 'pelota' })).status, 400);
+    assert.equal((await app.call('POST', '/api/friends/gift', { id: anaId, itemId: 'medicina' })).status, 400);
+    const gift = await app.call('POST', '/api/friends/gift', { id: anaId, itemId: 'manzana' });
+    assert.equal(gift.status, 200);
+    assert.equal(gift.data.state.inventory.manzana, 2);
+    assert.equal((await app.call('POST', '/api/friends/gift', { id: anaId, itemId: 'pan' })).status, 400);
+    assert.equal((await app.call('POST', '/api/friends/visit', { id: anaId })).data.result.visit.giftedToday, true);
+
+    // Ana ve quién vino y abre el regalo.
+    app.useCookie(anaCookie);
+    const before = (await app.call('GET', '/api/state')).data.state;
+    assert.equal(before.social.gifts, 1);
+    const mine = (await app.call('GET', '/api/friends')).data.result;
+    assert.ok(mine.friends[0].visitedAt > 0);
+    assert.deepEqual([mine.gifts[0].from, mine.gifts[0].itemId], ['Luis', 'manzana']);
+    const opened = await app.call('POST', '/api/gifts/open', { id: mine.gifts[0].id });
+    assert.equal(opened.status, 200);
+    assert.equal(opened.data.result.from, 'Luis');
+    assert.equal(opened.data.state.inventory.manzana, (before.inventory.manzana ?? 0) + 1);
+    assert.equal(opened.data.state.social.gifts, 0);
+    assert.equal((await app.call('POST', '/api/gifts/open', { id: mine.gifts[0].id })).status, 400);
+
+    // Un código nuevo deja de valer el anterior, pero no quita amigos.
+    const renewed = await app.call('POST', '/api/friends/code');
+    assert.match(renewed.data.result.code, CODE);
+    assert.notEqual(renewed.data.result.code, ana.social.code);
+    assert.equal(renewed.data.state.social.code, renewed.data.result.code);
+    app.useCookie(luisCookie);
+    assert.equal((await app.call('POST', '/api/friends/remove', { id: anaId })).data.result.removed, true);
+    assert.equal((await app.call('POST', '/api/friends/add', { code: ana.social.code })).status, 404);
+    assert.equal((await app.call('POST', '/api/friends/visit', { id: anaId })).status, 404);
+    assert.equal((await app.call('POST', '/api/friends/remove', { id: anaId })).data.result.removed, false);
+    app.useCookie(anaCookie);
+    assert.equal((await app.call('GET', '/api/friends')).data.result.friends.length, 0);
+  } finally {
+    await app.close();
+  }
+});
+
+test('amigos: si los dos se añaden, quedan como amigos; rechazar borra la solicitud', async () => {
+  const app = await startServer();
+  try {
+    const eva = (await app.call('POST', '/api/auth/register', { name: 'Eva', password: 'secreta123' })).data.state;
+    const evaCookie = app.cookie();
+    app.dropCookie();
+    const teo = (await app.call('POST', '/api/auth/register', { name: 'Teo', password: 'secreta123' })).data.state;
+    const teoCookie = app.cookie();
+    await app.call('POST', '/api/friends/add', { code: eva.social.code });
+    app.useCookie(evaCookie);
+    const both = await app.call('POST', '/api/friends/add', { code: teo.social.code });
+    assert.equal(both.data.result.friends, true);
+    assert.equal(both.data.state.social.requests, 0);
+    assert.equal((await app.call('GET', '/api/friends')).data.result.friends[0].name, 'Teo');
+    // Sin criatura, la visita enseña la habitación vacía.
+    const teoId = (await app.call('GET', '/api/friends')).data.result.friends[0].id;
+    const visit = (await app.call('POST', '/api/friends/visit', { id: teoId })).data.result.visit;
+    assert.equal(visit.creature, null);
+    await app.call('POST', '/api/friends/remove', { id: visit.id });
+
+    // Teo vuelve a pedirlo y Eva lo rechaza.
+    app.useCookie(teoCookie);
+    await app.call('POST', '/api/friends/add', { code: eva.social.code });
+    app.useCookie(evaCookie);
+    const incoming = (await app.call('GET', '/api/friends')).data.result.incoming;
+    assert.equal(incoming.length, 1);
+    assert.equal((await app.call('POST', '/api/friends/remove', { id: incoming[0].id })).data.result.removed, true);
+    assert.equal((await app.call('GET', '/api/state')).data.state.social.requests, 0);
+    app.useCookie(teoCookie);
+    assert.equal((await app.call('GET', '/api/friends')).data.result.outgoing.length, 0);
+  } finally {
+    await app.close();
+  }
+});

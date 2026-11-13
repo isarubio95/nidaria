@@ -188,6 +188,8 @@ class RoomView(context: Context) : GLSurfaceView(context), GLSurfaceView.Rendere
 
     fun showCreature(view: Creature) = post { showCreature(view) }
     fun showDemo() = post { showDemo() }
+    fun showEmpty() = post { showEmpty() }
+    fun setWarmable(on: Boolean) = post { setWarmable(on) }
     fun showEggs(offer: List<EggLook>) = post { showEggs(offer) }
     fun selectEgg(index: Int) = post { selectEgg(index) }
     fun setEggProgress(value: Float) = post { setEggProgress(value) }

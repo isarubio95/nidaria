@@ -82,6 +82,18 @@ private fun contextLines(creature: Creature, weather: WeatherNow?, hour: Int = L
 
 fun line(kind: String?): String = pick(LINES[kind] ?: LINES.getValue("calm"))
 
+// Lo que dice la criatura de un amigo cuando vas de visita. `visitor` es
+// quien la visita.
+private val VISIT_LINES = listOf("¡Una visita!", "¿Vienes a jugar?", "¿Has venido a verme?", "¡Hola, {visitor}!")
+
+fun visitLine(creature: Creature, visitor: String?): String {
+    if (creature.sick) return pick(LINES.getValue("sick"))
+    val worst = listOf("hunger", "energy", "hygiene", "fun").minBy { creature.need(it) }
+    if (creature.need(worst) < LOW) return pick(LINES.getValue(worst))
+    if ("timido" in creature.genes.traits) return pick(TRAIT_LINES.getValue("timido"))
+    return pick(VISIT_LINES).replace("{visitor}", visitor ?: "")
+}
+
 // Lo que dice por el cariño que te tiene, de su nivel y los anteriores.
 fun bondLine(creature: Creature, player: String?, level: Int = bondLevel(creature.bond)): String? {
     val lines = (1..level).flatMap { BOND_LINES[it].orEmpty() }

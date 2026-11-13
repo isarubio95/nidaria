@@ -113,6 +113,62 @@ data class Decor(
     }
 }
 
+// Tu código de amigo y lo que espera en la hoja de amigos: solicitudes y
+// regalos sin abrir (ver shared/social.js en el servidor).
+@Serializable
+data class Social(val code: String = "", val requests: Int = 0, val gifts: Int = 0)
+
+// La criatura de un amigo tal como sale en su lista: lo guardado, sin
+// poner al día. La visita la trae al momento como una Creature.
+@Serializable
+data class FriendCreature(
+    val name: String = "",
+    val formId: String = "huevo",
+    val formName: String = "",
+    val stage: String = "huevo",
+    val genes: Genes = Genes(),
+    val alive: Boolean = true,
+)
+
+// `visitedAt`: la última vez que vino a ver tu habitación.
+@Serializable
+data class Friend(
+    val id: String = "",
+    val name: String = "",
+    val since: Double = 0.0,
+    val visitedAt: Double? = null,
+    val giftedToday: Boolean = false,
+    val creature: FriendCreature? = null,
+)
+
+// Alguien con una solicitud de por medio, en un sentido o en otro.
+@Serializable
+data class FriendRequest(val id: String = "", val name: String = "", val at: Double = 0.0)
+
+@Serializable
+data class Gift(val id: String = "", val itemId: String = "", val from: String = "", val at: Double = 0.0)
+
+// Lo que manda GET /friends en `result`.
+@Serializable
+data class FriendsInfo(
+    val max: Int = 50,
+    val friends: List<Friend> = emptyList(),
+    val incoming: List<FriendRequest> = emptyList(),
+    val outgoing: List<FriendRequest> = emptyList(),
+    val gifts: List<Gift> = emptyList(),
+)
+
+// La habitación de un amigo, de POST /friends/visit. Sin criatura, la
+// habitación está vacía.
+@Serializable
+data class Visit(
+    val id: String = "",
+    val name: String = "",
+    val decor: Decor = Decor(),
+    val creature: Creature? = null,
+    val giftedToday: Boolean = false,
+)
+
 @Serializable
 data class GameState(
     val now: Double = 0.0,
@@ -126,6 +182,7 @@ data class GameState(
     val criadex: Map<String, DexEntry> = emptyMap(),
     val daily: Daily? = null,
     val push: PushInfo? = null,
+    val social: Social = Social(),
 ) {
     fun owned(itemId: String): Int = inventory[itemId] ?: 0
 }
@@ -174,6 +231,12 @@ data class Payload(
     fun text(key: String): String? = field(key)?.contentOrNull
     fun int(key: String): Int = field(key)?.intOrNull ?: field(key)?.doubleOrNull?.toInt() ?: 0
     fun flag(key: String): Boolean = field(key)?.booleanOrNull ?: false
+
+    // Lo que manda GET /friends en `result`.
+    fun friends(): FriendsInfo? = (result as? JsonObject)?.let { NidJson.decodeFromJsonElement(FriendsInfo.serializer(), it) }
+
+    // La habitación que manda POST /friends/visit en `result.visit`.
+    fun visit(): Visit? = (result as? JsonObject)?.get("visit")?.let { NidJson.decodeFromJsonElement(Visit.serializer(), it) }
 
     // Las criaturas que manda GET /memorial en `result.creatures`.
     fun memorial(): List<MemorialEntry> {

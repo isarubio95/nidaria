@@ -10,6 +10,8 @@ import com.nidaria.app.rules.MINIGAMES
 import com.nidaria.app.rules.Rng
 import com.nidaria.app.rules.baseReward
 import com.nidaria.app.rules.branchScores
+import com.nidaria.app.rules.canGift
+import com.nidaria.app.rules.normalizeFriendCode
 import com.nidaria.app.rules.chooseBranch
 import com.nidaria.app.rules.createGenes
 import com.nidaria.app.rules.gameLock
@@ -206,11 +208,22 @@ class RulesParityTest {
             assertEquals(o.getValue("kind").jsonPrimitive.content, ITEMS[index].kind)
             val spot = o.getValue("spot").let { if (it is JsonNull) null else it.jsonPrimitive.content }
             assertEquals(ITEMS[index].id, spot, ITEMS[index].spot)
+            assertEquals(ITEMS[index].id, o.getValue("gift").jsonPrimitive.boolean, canGift(ITEMS[index].id))
         }
     }
 
     // Las ventajas del carácter dejan el nivel igual que en la web. Los
     // valores que no son números (como los huecos de charcos) se saltan.
+    @Test
+    fun friendCodesMatch() {
+        for (entry in list("friendCodes")) {
+            val o = entry.jsonObject
+            val input = o.getValue("input").jsonPrimitive.content
+            val code = o.getValue("code").let { if (it is JsonNull) null else it.jsonPrimitive.content }
+            assertEquals(input, code, normalizeFriendCode(input))
+        }
+    }
+
     @Test
     fun perksMatch() {
         val perks = list("perks")

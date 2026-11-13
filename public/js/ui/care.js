@@ -9,7 +9,8 @@ import { openShop, effectChips } from './shop.js';
 import { line } from './speech.js';
 import { itemThumb, lazyThumbs } from '../scene/thumbs.js';
 
-function ownedTiles(items, onPick) {
+// Casillas de lo que el jugador tiene de `items`, con cuántos le quedan.
+export function ownedTiles(items, onPick) {
   const jobs = [];
   const tiles = items.map((item) => {
     const img = h('img', { class: 'item-thumb', alt: '', width: '76', height: '76' });

@@ -17,6 +17,7 @@ import { mountAuth } from './ui/auth.js';
 import { mountEggs } from './ui/eggs.js';
 import { mountHome } from './ui/home.js';
 import { mountFarewell } from './ui/farewell.js';
+import { bindVisits } from './ui/visit.js';
 import { dialog } from './ui/dialog.js';
 import { toast } from './ui/toast.js';
 import { closeSheet } from './ui/sheet.js';
@@ -93,6 +94,11 @@ let animating = false;
 let queue = Promise.resolve();
 const seenFarewell = new Set();
 
+// De visita en casa de un amigo, la habitación es la suya: lo que pase con
+// la propia criatura mientras tanto se guarda y se cuenta al volver.
+let visiting = false;
+let missed = [];
+
 function show(name, mount) {
   screen?.destroy();
   screen = mount();
@@ -149,11 +155,19 @@ function route(state, payload = {}) {
 
   if (!state) {
     linked = false;
+    visiting = false;
+    missed = [];
     closeSheet();
     room.setNight(false);
     room.setDecor(null);
     room.showDemo();
     show('auth', () => mountAuth(app));
+    return;
+  }
+
+  if (visiting) {
+    missed.push(...events);
+    screen?.update(state);
     return;
   }
 
@@ -230,6 +244,23 @@ function route(state, payload = {}) {
     }
   }
 }
+
+bindVisits({
+  enter(mount) {
+    visiting = true;
+    missed = [];
+    show('visit', () => mount(app, room));
+    enter();
+  },
+  leave() {
+    if (!visiting) return;
+    visiting = false;
+    const events = missed;
+    missed = [];
+    closeSheet();
+    route(store.state, { events });
+  },
+});
 
 store.onChange((state, payload) => {
   route(state, payload);

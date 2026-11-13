@@ -219,7 +219,7 @@ Pastel saturado sobre crema, con tinta cacao. Los colores hacen trabajo: dicen q
 
 ## Layout
 
-Móvil primero, con una mano. La escena 3D va a sangre y la interfaz se ancla a los bordes: arriba, monedas a la izquierda y tienda a la derecha; debajo, centrada, la placa con el nombre; a la derecha, una columna de accesos pequeños (Misiones, Armario, Casa y Criadex); abajo, un muelle con la tarjeta de necesidades y la fila de acciones.
+Móvil primero, con una mano. La escena 3D va a sangre y la interfaz se ancla a los bordes: arriba, monedas a la izquierda y tienda a la derecha; debajo, centrada, la placa con el nombre; a la derecha, una columna de accesos pequeños (Misiones, Armario, Casa, Amigos y Criadex); abajo, un muelle con la tarjeta de necesidades y la fila de acciones.
 
 - **Margen lateral:** 16px. El muelle mide como mucho 520px y se centra.
 - **Ritmo:** múltiplos de 4px. Grupos apretados (4 a 8px) y separación generosa entre grupos (12 a 24px).
@@ -288,7 +288,7 @@ Fichas de carril con icono de 14px y texto en caption. Dicen un efecto ("+14 com
 
 Campo crema con borde de 2px en `line` y radio de 16px. Con foco, el borde pasa a cacao. Con error, pasa a `danger`, el campo se sacude una vez y el mensaje aparece debajo.
 
-- **Código para guardar:** el código de recuperación va en una caja crema con borde discontinuo de 2px en `line`, en peso 900 con cifras tabulares y algo de espacio entre letras. Se selecciona entero con un toque. El borde discontinuo dice «esto es para copiar», no «esto se escribe».
+- **Código para guardar:** el código de recuperación va en una caja crema con borde discontinuo de 2px en `line`, en peso 900 con cifras tabulares y algo de espacio entre letras. Se selecciona entero con un toque. El borde discontinuo dice «esto es para copiar», no «esto se escribe». El código de amigo usa la misma caja, con los botones de compartir y copiar debajo.
 
 ### Navigation
 

@@ -153,6 +153,15 @@ fun HomeScreen(game: Game, insets: Insets) {
                         SideButton(Ic.Target, "Misiones", badge = ready) { game.openSheet(Sheet.Daily) }
                         SideButton(Ic.Hanger, "Armario") { game.openSheet(Sheet.Wardrobe) }
                         SideButton(Ic.Home, "Casa") { game.openSheet(Sheet.House()) }
+                        val requests = state.social.requests
+                        val gifts = state.social.gifts
+                        val waiting = listOfNotNull(
+                            if (requests > 0) (if (requests == 1) "1 solicitud" else "$requests solicitudes") else null,
+                            if (gifts > 0) (if (gifts == 1) "1 regalo" else "$gifts regalos") else null,
+                        )
+                        SideButton(Ic.Friends, "Amigos", badge = requests + gifts, spoken = waiting.joinToString(" y ").ifEmpty { null }) {
+                            game.openSheet(Sheet.Friends)
+                        }
                         SideButton(Ic.Tree, "Criadex") { game.openSheet(Sheet.Criadex) }
                     }
                 }
@@ -254,13 +263,18 @@ private fun HudLeft(game: Game, coins: Int, income: Int, modifier: Modifier) {
 }
 
 @Composable
-private fun SideButton(icon: Ic, label: String, badge: Int = 0, onClick: () -> Unit) {
-    val spoken = if (badge > 0) "$label, ${if (badge == 1) "1 premio" else "$badge premios"} por recoger" else null
+private fun SideButton(icon: Ic, label: String, badge: Int = 0, spoken: String? = null, onClick: () -> Unit) {
+    // `spoken` dice qué cuenta el contador; si no, son premios por recoger.
+    val described = when {
+        badge == 0 -> null
+        spoken != null -> "$label, $spoken"
+        else -> "$label, ${if (badge == 1) "1 premio" else "$badge premios"} por recoger"
+    }
     Box {
         Column(
             Modifier
                 .width(60.dp)
-                .pressable(onClick, label = spoken)
+                .pressable(onClick, label = described)
                 .softShadow(Elevation.Sm, Nd.rMd)
                 .surface(Nd.paper, Nd.rMd)
                 .padding(top = 8.dp, bottom = 7.dp),
@@ -285,7 +299,7 @@ private fun SideButton(icon: Ic, label: String, badge: Int = 0, onClick: () -> U
 
 // Lo que dice la criatura. Sigue a su cabeza mientras está abierto.
 @Composable
-private fun Bubble(game: Game, plateBottom: Float) {
+fun Bubble(game: Game, plateBottom: Float) {
     val room = LocalRoom.current
     val open = game.bubbleOpen
     val shown by animateFloatAsState(if (open) 1f else 0f, tween(Nd.FAST, easing = Nd.ease), label = "bocadillo")

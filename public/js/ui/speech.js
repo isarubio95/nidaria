@@ -78,6 +78,18 @@ function contextLines(creature, date = new Date()) {
 
 export const line = (kind) => pick(LINES[kind] ?? LINES.calm);
 
+// Lo que dice la criatura de un amigo cuando vas de visita. `visitor` es
+// quien la visita.
+const VISIT_LINES = ['¡Una visita!', '¿Vienes a jugar?', '¿Has venido a verme?', '¡Hola, {visitor}!'];
+
+export function visitLine(creature, visitor) {
+  if (creature.sick) return pick(LINES.sick);
+  const worst = ['hunger', 'energy', 'hygiene', 'fun'].sort((a, b) => creature[a] - creature[b])[0];
+  if (creature[worst] < LOW) return pick(LINES[worst]);
+  if (creature.genes.traits.includes('timido')) return pick(TRAIT_LINES.timido);
+  return pick(VISIT_LINES).replace('{visitor}', visitor ?? '');
+}
+
 // Lo que dice por el cariño que te tiene, de su nivel y los anteriores.
 export function bondLine(creature, player, level = bondLevel(bondOf(creature))) {
   const lines = [];

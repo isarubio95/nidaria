@@ -447,6 +447,23 @@ class Room(private val painter: Painter, private val reduce: Boolean) {
         putActor(form.id, genes, null, "feliz")
     }
 
+    // La habitación sin nadie: la de un amigo que ahora no tiene criatura.
+    fun showEmpty() {
+        if (currentKey == "empty") return
+        currentKey = "empty"
+        clearMount()
+        mode = "none"
+        hits = emptyList()
+        setSubject(1.55f, 1.3f)
+    }
+
+    // Si tocar el huevo le da calor. El de un amigo no se calienta.
+    private var warmable = true
+
+    fun setWarmable(on: Boolean) {
+        warmable = on
+    }
+
     fun showEggs(offer: List<EggLook>) {
         val key = "eggs|" + offer.joinToString("|") { "${it.hue}-${it.hue2}" }
         if (key == currentKey) return
@@ -999,7 +1016,7 @@ class Room(private val painter: Painter, private val reduce: Boolean) {
                 Sfx.play("toque")
                 listener?.onEggPick(index)
             }
-            "egg" -> warm()
+            "egg" -> if (warmable) warm()
             "creature", "demo" -> {
                 val a = actor
                 if (a != null && a.mood != "dormida" && !a.busy) {

@@ -8,7 +8,8 @@ import { NEED_INFO, CRITICAL, LOW, moodOf, nextStageAt, stageDuration } from '/s
 import { STAGE_INFO } from '/shared/forms.js';
 import { TRICKS, TRICK_LINES, TRICK_CHANCE, TRICK_GAP_MS, bondOf, bondLevel } from '/shared/bond.js';
 import { subtleNumber } from './widgets.js';
-import { sheetOpen, sheetTop, onSheetChange } from './sheet.js';
+import { sheetOpen, onSheetChange } from './sheet.js';
+import { speechBubble, frameCreature } from './bubble.js';
 import { dialog } from './dialog.js';
 import { toast } from './toast.js';
 import { line, idleLine } from './speech.js';
@@ -20,6 +21,7 @@ import { openDecor } from './decor.js';
 import { openCriadex } from './criadex.js';
 import { openProfile } from './profile.js';
 import { openDaily, claimable } from './daily.js';
+import { openFriends } from './friends.js';
 import { sfx } from '../audio/sfx.js';
 
 const NEED_ICONS = { hunger: 'food', energy: 'moon', hygiene: 'drop', fun: 'ball', health: 'heart' };
@@ -39,7 +41,6 @@ export function mountHome(app, room) {
   let lastTrick = 0;
   let eggTaps = 0;
   let eggTimer = null;
-  let bubbleTimer = null;
   let chatterAt = Date.now() + 9000;
   let destroyed = false;
 
@@ -62,10 +63,14 @@ export function mountHome(app, room) {
   const dailyBadge = h('span', { class: 'badge num', 'aria-hidden': 'true', hidden: true });
   const dailyLabel = h('span', { class: 'sr-only' });
   const dailyButton = h('button', { class: 'side-btn', type: 'button', onclick: () => openDaily() }, icon('target'), 'Misiones', dailyBadge, dailyLabel);
+  // Solicitudes y regalos que esperan en la hoja de amigos.
+  const friendsBadge = h('span', { class: 'badge num', 'aria-hidden': 'true', hidden: true });
+  const friendsLabel = h('span', { class: 'sr-only' });
   const side = h('nav', { class: 'side', 'aria-label': 'Más' },
     dailyButton,
     h('button', { class: 'side-btn', type: 'button', onclick: () => openWardrobe() }, icon('hanger'), 'Armario'),
     h('button', { class: 'side-btn', type: 'button', onclick: () => openDecor() }, icon('home'), 'Casa'),
+    h('button', { class: 'side-btn', type: 'button', onclick: () => openFriends() }, icon('friends'), 'Amigos', friendsBadge, friendsLabel),
     h('button', { class: 'side-btn', type: 'button', onclick: () => openCriadex() }, icon('tree'), 'Criadex'),
   );
 
@@ -73,7 +78,7 @@ export function mountHome(app, room) {
   const plateSub = h('span', { class: 'plate-sub' });
   const plate = h('button', { class: 'plate', type: 'button', onclick: () => openProfile(room), 'aria-label': 'Ficha de la criatura' }, plateName, plateSub);
 
-  const bubble = h('div', { class: 'bubble', 'aria-hidden': 'true' });
+  const bubble = speechBubble(room, plate);
 
   // ── Muelle ──
   const meters = {};
@@ -115,7 +120,7 @@ export function mountHome(app, room) {
     h('div', { class: 'hud-left' }, coinsPill, piggy),
     h('div', { class: 'hud-right' }, shopButton, side),
   );
-  app.replaceChildren(top, plate, bubble, dock);
+  app.replaceChildren(top, plate, bubble.el, dock);
 
   // ── Acciones ──
   async function toggleSleep() {
@@ -148,22 +153,8 @@ export function mountHome(app, room) {
   }
 
   function say(text, seconds = 2.6) {
-    if (destroyed || !room.hasActor()) return;
-    clearTimeout(bubbleTimer);
-    bubble.textContent = text;
-    placeBubble();
-    bubble.classList.add('is-open');
-    room.say(Math.min(1.4, seconds));
-    chatterAt = Date.now() + 14000 + Math.random() * 12000;
-    bubbleTimer = setTimeout(() => bubble.classList.remove('is-open'), seconds * 1000);
-  }
-
-  function placeBubble() {
-    const point = room.headPoint(0.16);
-    const half = bubble.offsetWidth / 2 + 12;
-    const x = Math.max(half, Math.min(window.innerWidth - half, point.x));
-    bubble.style.left = `${x}px`;
-    bubble.style.top = `${Math.max(point.y, plate.getBoundingClientRect().bottom + bubble.offsetHeight + 8)}px`;
+    if (destroyed) return;
+    if (bubble.say(text, seconds)) chatterAt = Date.now() + 14000 + Math.random() * 12000;
   }
 
   room.on('pet', () => {
@@ -206,17 +197,7 @@ export function mountHome(app, room) {
   });
 
   // ── Pintado ──
-  function layout() {
-    const plateBox = plate.getBoundingClientRect();
-    const dockBox = dock.getBoundingClientRect();
-    // Con una hoja abierta la criatura sube al hueco que queda encima.
-    // Si la hoja es tan alta que no deja hueco, el encuadre no se toca:
-    // la criatura queda detrás en vez de encogerse hasta desaparecer.
-    const sheet = sheetTop();
-    const fits = sheet !== null && sheet - plateBox.bottom >= 200;
-    const bottom = fits ? Math.min(dockBox.top, sheet) : dockBox.top;
-    room.setFocus(plateBox.bottom + 6, bottom - 8);
-  }
+  const layout = () => frameCreature(room, plate, dock);
 
   function paint() {
     if (!live) return;
@@ -271,6 +252,16 @@ export function mountHome(app, room) {
     dailyBadge.hidden = ready === 0;
     dailyBadge.textContent = String(ready);
     dailyLabel.textContent = ready ? `, ${ready === 1 ? '1 premio' : `${ready} premios`} por recoger` : '';
+
+    const requests = state.social?.requests ?? 0;
+    const gifts = state.social?.gifts ?? 0;
+    friendsBadge.hidden = requests + gifts === 0;
+    friendsBadge.textContent = String(requests + gifts);
+    const waiting = [
+      requests && (requests === 1 ? '1 solicitud' : `${requests} solicitudes`),
+      gifts && (gifts === 1 ? '1 regalo' : `${gifts} regalos`),
+    ].filter(Boolean);
+    friendsLabel.textContent = waiting.length ? `, ${waiting.join(' y ')}` : '';
   }
 
   function update(next) {
@@ -302,13 +293,6 @@ export function mountHome(app, room) {
     }
   }, 1000);
 
-  const follow = () => {
-    if (destroyed) return;
-    if (bubble.classList.contains('is-open')) placeBubble();
-    requestAnimationFrame(follow);
-  };
-  requestAnimationFrame(follow);
-
   const onVisible = () => {
     if (!document.hidden) sync();
   };
@@ -327,7 +311,7 @@ export function mountHome(app, room) {
     destroy() {
       destroyed = true;
       clearInterval(ticker);
-      clearTimeout(bubbleTimer);
+      bubble.destroy();
       clearTimeout(eggTimer);
       document.removeEventListener('visibilitychange', onVisible);
       window.removeEventListener('resize', layout);

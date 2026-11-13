@@ -27,6 +27,10 @@ import com.nidaria.app.data.Api
 import com.nidaria.app.data.ApiError
 import com.nidaria.app.data.Daily
 import com.nidaria.app.data.Decor
+import com.nidaria.app.data.FriendRequest
+import com.nidaria.app.data.FriendsInfo
+import com.nidaria.app.data.Gift
+import com.nidaria.app.data.Visit
 import com.nidaria.app.data.Mission
 import com.nidaria.app.data.GameEvent
 import com.nidaria.app.data.GameState
@@ -49,6 +53,7 @@ import com.nidaria.app.rules.TRICK_GAP_MS
 import com.nidaria.app.rules.TRICK_LINES
 import com.nidaria.app.rules.bondLevel
 import com.nidaria.app.rules.getForm
+import com.nidaria.app.rules.getItem
 import com.nidaria.app.rules.getGame
 import com.nidaria.app.rules.levelFor
 import com.nidaria.app.rules.moodOf
@@ -64,6 +69,7 @@ import com.nidaria.app.ui.bondLine
 import com.nidaria.app.ui.fmt
 import com.nidaria.app.ui.idleLine
 import com.nidaria.app.ui.line
+import com.nidaria.app.ui.visitLine
 import kotlin.math.max
 import kotlin.math.min
 import kotlin.random.Random
@@ -78,7 +84,7 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 
-enum class Screen { Boot, Auth, Eggs, Farewell, Home, Offline, Broken }
+enum class Screen { Boot, Auth, Eggs, Farewell, Home, Visit, Offline, Broken }
 
 sealed class Sheet {
     data class Shop(val category: String = "comida") : Sheet()
@@ -90,6 +96,10 @@ sealed class Sheet {
     data class Play(val tab: String = "juegos") : Sheet()
     data object Profile : Sheet()
     data object Daily : Sheet()
+    data object Friends : Sheet()
+
+    // Elegir qué regalarle al amigo que se está visitando.
+    data object Gift : Sheet()
 }
 
 // `run` se llama al tocar el botón (compartir, copiar…) y, con `keep`, el
@@ -209,6 +219,12 @@ class Game(context: Context, val room: RoomView, private val scope: CoroutineSco
     var busy by mutableStateOf(false)
         private set
 
+    // La habitación del amigo que se está visitando. Mientras tanto, lo que
+    // pase con la propia criatura se guarda y se cuenta al volver.
+    var visit by mutableStateOf<Visit?>(null)
+        private set
+    private val missed = mutableListOf<GameEvent>()
+
     private var screenName = ""
     private var animating = false
     private val queue = Mutex()
@@ -226,8 +242,14 @@ class Game(context: Context, val room: RoomView, private val scope: CoroutineSco
     private var toastId = 0L
 
     init {
-        room.onPet = { if (screen == Screen.Home) pet() }
-        room.onTap = { if (screen == Screen.Home) tap() }
+        room.onPet = {
+            if (screen == Screen.Home) pet()
+            else if (screen == Screen.Visit) visitPet()
+        }
+        room.onTap = {
+            if (screen == Screen.Home) tap()
+            else if (screen == Screen.Visit) visitTap()
+        }
         room.onEggTap = { if (screen == Screen.Home) eggTap() }
         room.onEggPick = { index -> if (screen == Screen.Eggs) selectEgg(index) }
         room.onError = {
@@ -507,6 +529,9 @@ class Game(context: Context, val room: RoomView, private val scope: CoroutineSco
 
         if (state == null) {
             linked = false
+            visit = null
+            missed.clear()
+            room.setWarmable(true)
             dismissSheet()
             live = null
             bubbleOpen = false
@@ -514,6 +539,11 @@ class Game(context: Context, val room: RoomView, private val scope: CoroutineSco
             room.setDecor(Decor())
             room.showDemo()
             show("auth", Screen.Auth)
+            return
+        }
+
+        if (visit != null) {
+            missed += events
             return
         }
 
@@ -657,7 +687,7 @@ class Game(context: Context, val room: RoomView, private val scope: CoroutineSco
     }
 
     fun say(text: String, seconds: Float = 2.6f) {
-        if (screen != Screen.Home || !room.hasActor) return
+        if ((screen != Screen.Home && screen != Screen.Visit) || !room.hasActor) return
         bubbleJob?.cancel()
         bubbleText = text
         bubbleOpen = true
@@ -932,6 +962,171 @@ class Game(context: Context, val room: RoomView, private val scope: CoroutineSco
         route(null, Payload())
     }
 
+    // ── Amigos y visitas ──
+
+    // Todo lo de la hoja de amigos, o null si no ha llegado.
+    suspend fun loadFriends(): FriendsInfo? = send(silent = true) { friends() }?.let { runCatching { it.friends() }.getOrNull() }
+
+    // Añadir por código manda una solicitud. Si esa persona ya te la había
+    // mandado a ti, quedáis como amigos.
+    suspend fun addFriend(code: String): Boolean {
+        val payload = send { addFriend(code) } ?: return false
+        val name = payload.text("name") ?: ""
+        toast(
+            if (payload.flag("friends")) "$name y tú ya sois amigos." else "Solicitud enviada a $name. Cuando la acepte, podréis visitaros.",
+            holdMs = 3600,
+        )
+        return true
+    }
+
+    suspend fun acceptFriend(request: FriendRequest): Boolean {
+        val payload = send { acceptFriend(request.id) } ?: return false
+        toast("${payload.text("name") ?: request.name} y tú ya sois amigos.")
+        return true
+    }
+
+    // Rechaza la solicitud que te mandó esa persona o cancela la tuya.
+    suspend fun dropRequest(request: FriendRequest, done: String? = null): Boolean {
+        send { removeFriend(request.id) } ?: return false
+        if (done != null) toast(done)
+        return true
+    }
+
+    suspend fun openGift(gift: Gift): Boolean {
+        val payload = send { openGift(gift.id) } ?: return false
+        Sfx.play("vinculo")
+        val itemId = payload.text("itemId") ?: gift.itemId
+        dialog(
+            DialogSpec(
+                title = "Un regalo de ${payload.text("from") ?: gift.from}",
+                text = "Te ha dejado: ${getItem(itemId)?.name ?: "algo"}. Ya está entre tus cosas.",
+                art = ThumbSpec.Item(itemId),
+                actions = listOf(DialogAction("¡Gracias!", true, Tone.Sun)),
+            ),
+        )
+        return true
+    }
+
+    // Un código nuevo, por si el anterior ha llegado a quien no debía.
+    suspend fun renewFriendCode(): Boolean {
+        val yes = dialog(
+            DialogSpec(
+                title = "¿Cambiar tu código?",
+                text = "El de ahora dejará de valer. Tus amigos y las solicitudes que ya tienes se quedan como están.",
+                actions = listOf(DialogAction("Cambiar el código", true, Tone.Pink), DialogAction("Ahora no", false)),
+            ),
+        )
+        if (yes != true) return false
+        send { renewFriendCode() } ?: return false
+        toast("Ya tienes un código nuevo.")
+        return true
+    }
+
+    fun copyFriendCode(code: String) {
+        val clipboard = app.getSystemService(ClipboardManager::class.java)
+        if (clipboard == null) {
+            toast("No se ha podido copiar. Apúntalo a mano.", error = true)
+            return
+        }
+        clipboard.setPrimaryClip(ClipData.newPlainText("Código de amigo de Nidaria", code))
+        // Desde Android 13 es el propio sistema quien avisa de que se ha copiado.
+        if (Build.VERSION.SDK_INT < 33) toast("Código copiado.")
+    }
+
+    fun shareFriendCode(code: String) {
+        val send = Intent(Intent.ACTION_SEND)
+            .setType("text/plain")
+            .putExtra(Intent.EXTRA_TEXT, "Añádeme en Nidaria: mi código de amigo es $code. Se juega en $origin")
+        val chooser = Intent.createChooser(send, "Tu código de amigo").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        runCatching { app.startActivity(chooser) }.onFailure { copyFriendCode(code) }
+    }
+
+    // Si la criatura del amigo puede hablar y reaccionar ahora.
+    private fun awake(info: Visit) = info.creature?.let { it.stage != "huevo" && !it.asleep } == true
+
+    // Va a la habitación de un amigo: su decoración y su criatura.
+    fun startVisit(friendId: String): Job = scope.launch {
+        val info = send { visit(friendId) }?.let { runCatching { it.visit() }.getOrNull() } ?: return@launch
+        closeSheet()
+        missed.clear()
+        bubbleOpen = false
+        visit = info
+        room.setWarmable(false)
+        room.setDecor(info.decor)
+        val creature = info.creature
+        if (creature != null) {
+            room.showCreature(creature)
+            room.setNight(creature.asleep)
+        } else {
+            room.showEmpty()
+            room.setNight(false)
+        }
+        show("visit", Screen.Visit)
+        if (creature != null && awake(info)) {
+            delay(700)
+            if (visit?.id == info.id) say(visitLine(creature, store.state?.user?.name))
+        }
+    }
+
+    // Vuelve a casa y cuenta lo que haya pasado mientras tanto.
+    fun leaveVisit() {
+        if (visit == null) return
+        visit = null
+        room.setWarmable(true)
+        dismissSheet()
+        bubbleOpen = false
+        val events = missed.toList()
+        missed.clear()
+        val state = store.state ?: return
+        route(state, Payload(state = state, events = events))
+    }
+
+    // Las caricias y los toques a la criatura de otro son solo para verla
+    // reaccionar: no le cambian nada.
+    private var visitPetLine = 0L
+
+    private fun visitPet() {
+        val info = visit ?: return
+        val now = clockNow()
+        if (!awake(info) || now - visitPetLine < 6000) return
+        visitPetLine = now
+        say(line("caricia"), 1.6f)
+    }
+
+    private fun visitTap() {
+        val info = visit ?: return
+        val creature = info.creature ?: return
+        if (awake(info)) say(visitLine(creature, store.state?.user?.name)) else say("Zzz…", 1.4f)
+    }
+
+    // Le deja algo suyo al amigo que se está visitando. Uno al día.
+    fun giveGift(item: Item): Job = scope.launch {
+        val info = visit ?: return@launch
+        dismissSheet()
+        send { gift(info.id, item.id) } ?: return@launch
+        if (visit?.id != info.id) return@launch
+        visit = info.copy(giftedToday = true)
+        Sfx.play("vinculo")
+        room.cheer(true)
+        if (awake(info)) say("¡Un regalo! Gracias.", 2f)
+        toast("Le has dejado ${item.name} a ${info.name}. Lo verá al entrar.", holdMs = 3400)
+    }
+
+    fun removeVisitedFriend(): Job = scope.launch {
+        val info = visit ?: return@launch
+        val sure = dialog(
+            DialogSpec(
+                title = "¿Quitar a ${info.name} de tus amigos?",
+                text = "Dejaréis de poder visitaros y de dejaros regalos. Para volver a ser amigos, uno tendrá que añadir otra vez al otro.",
+                actions = listOf(DialogAction("Seguir siendo amigos", false, Tone.Pink), DialogAction("Quitar", true)),
+            ),
+        )
+        if (sure != true || visit?.id != info.id) return@launch
+        send { removeFriend(info.id) } ?: return@launch
+        toast("${info.name} ya no está entre tus amigos.")
+        leaveVisit()
+    }
+
     // ── Minijuegos ──
 
     fun launchGame(gameId: String, difficulty: String): Job = scope.launch {
@@ -1056,6 +1251,10 @@ class Game(context: Context, val room: RoomView, private val scope: CoroutineSco
         }
         if (sheet != null) {
             dismissSheet()
+            return true
+        }
+        if (visit != null) {
+            leaveVisit()
             return true
         }
         return false

@@ -508,6 +508,16 @@ export function createRoom(canvas) {
     putActor(form.id, genes, {}, 'feliz');
   }
 
+  // La habitación sin nadie: la de un amigo que ahora no tiene criatura.
+  function showEmpty() {
+    if (currentKey === 'empty') return;
+    currentKey = 'empty';
+    clearMount();
+    mode = 'none';
+    setHits([]);
+    setSubject(1.55, 1.3);
+  }
+
   function showEggs(offer) {
     const key = `eggs|${offer.map((egg) => `${egg.hue}-${egg.hue2}`).join('|')}`;
     if (key === currentKey) return;
@@ -1083,7 +1093,7 @@ export function createRoom(canvas) {
     if (mode === 'eggs') {
       sfx('toque');
       handlers.eggPick?.(index);
-    } else if (mode === 'egg') warm();
+    } else if (mode === 'egg' && handlers.eggTap) warm();
     else if (mode === 'creature' || mode === 'demo') {
       if (actor && actor.mood !== 'dormida' && !actor.busy) {
         actor.hop(1, 0.16);
@@ -1145,6 +1155,7 @@ export function createRoom(canvas) {
     setFocus,
     showCreature,
     showDemo,
+    showEmpty,
     showEggs,
     selectEgg,
     setEggProgress(value) { eggProgress = clamp(value, 0, 1); },

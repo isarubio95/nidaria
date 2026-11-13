@@ -14,6 +14,7 @@ import {
 } from '../../shared/economy.js';
 import { ITEMS } from '../../shared/catalog.js';
 import { gameLock } from '../../shared/actions.js';
+import { normalizeFriendCode, canGift } from '../../shared/social.js';
 import { TRAITS } from '../../shared/dna.js';
 import { SOUND_NAMES, renderSound } from '../../public/js/audio/sounds.js';
 
@@ -173,7 +174,13 @@ const locks = MINIGAMES.flatMap((game) => FORM_LIST.filter((form) => form.stage 
   game: game.id, formId: form.id, lock: gameLock(game, { formId: form.id }),
 })));
 
-const items = ITEMS.map((item) => ({ id: item.id, name: item.name, price: item.price, kind: item.kind, spot: item.spot ?? null }));
+const items = ITEMS.map((item) => ({
+  id: item.id, name: item.name, price: item.price, kind: item.kind, spot: item.spot ?? null, gift: canGift(item.id),
+}));
+
+// Códigos de amigo tal como los escribiría alguien.
+const friendCodes = ['K7QM-4XPA', 'k7qm4xpa', ' k7qm 4xpa ', 'OILO-1234', 'ABCD-EFGU', 'ABC-DEF', 'ABCDEFGHJ', '', 'ÑAND-ÚCAR']
+  .map((input) => ({ input, code: normalizeFriendCode(input) }));
 
 // Los efectos de sonido (public/js/audio/sounds.js) a 22 050 Hz: cuántas
 // muestras salen, 24 de ellas repartidas y el volumen medio (RMS).
@@ -188,5 +195,5 @@ const sounds = SOUND_NAMES.map((name) => {
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const file = path.join(here, '..', 'app', 'src', 'test', 'resources', 'golden.json');
-fs.writeFileSync(file, JSON.stringify({ rng, hashes, mixes, genes, forms, sims, branches, secrets, economy, items, perks, locks, sounds }));
+fs.writeFileSync(file, JSON.stringify({ rng, hashes, mixes, genes, forms, sims, branches, secrets, economy, items, friendCodes, perks, locks, sounds }));
 console.log('golden.json', fs.statSync(file).size, 'bytes;', sims.length, 'simulaciones');

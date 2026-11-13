@@ -19,6 +19,7 @@ import {
   rollMissions, trackMissions, getMission, streakBonus, currentStreak, nextStreak,
   localDay, localHour, nextDayAt, dayAfter, isTimeZone, DEFAULT_TIME_ZONE,
 } from '../../shared/daily.js';
+import { createFriends } from './friends.js';
 
 const randomSeed = () => crypto.randomBytes(4).readUInt32BE(0);
 const NAME_RULE = /^[\p{L}\p{N} .'-]{1,14}$/u;
@@ -36,6 +37,8 @@ const MIN_PLAY_MS = 5000;
 
 export function createGame(db, config, push = null) {
   const scale = config.timeScale;
+  // `operation` se declara más abajo; las operaciones de amigos van por él.
+  const friends = createFriends(db, config, operation);
 
   async function loadUser(userId) {
     const user = await db.get('SELECT * FROM users WHERE id = ?', [userId]);
@@ -113,7 +116,8 @@ export function createGame(db, config, push = null) {
     }
     const owned = await db.all('SELECT item_id FROM inventory WHERE user_id = ? AND qty > 0', [user.id]);
     const hasToy = owned.some((item) => getItem(item.item_id)?.kind === 'juguete');
-    const missions = rollMissions(hashString(`${user.id}:${today}`), { hasToy });
+    const hasFriend = await friends.hasFriend(user.id);
+    const missions = rollMissions(hashString(`${user.id}:${today}`), { hasToy, hasFriend });
     if (row) {
       await db.run('UPDATE daily SET day = ?, missions = ? WHERE user_id = ?', [today, JSON.stringify(missions), user.id]);
       return { day: today, missions, streak: row.streak, streakDay: row.streak_day, best: row.best };
@@ -196,6 +200,8 @@ export function createGame(db, config, push = null) {
       devTools: config.devTools,
       daily: dailyView(daily, user, now),
       push: push ? { key: await push.publicKey(), prefs: await push.prefsOf(user.id) } : null,
+      // Tu código de amigo y lo que espera en la hoja de amigos.
+      social: await friends.summary(user),
       user: {
         name: user.name,
         timeZone: user.time_zone ?? null,
@@ -282,6 +288,15 @@ export function createGame(db, config, push = null) {
 
   return {
     state: (userId) => operation(userId),
+
+    friends: friends.list,
+    addFriend: friends.add,
+    acceptFriend: friends.accept,
+    removeFriend: friends.remove,
+    visit: friends.visit,
+    gift: friends.gift,
+    openGift: friends.open,
+    renewFriendCode: friends.renewCode,
 
     pickEgg: (userId, index, name) => operation(userId, async (ctx) => {
       if (ctx.creature && ctx.creature.alive) throw new HttpError(400, 'Ya tienes una criatura.');

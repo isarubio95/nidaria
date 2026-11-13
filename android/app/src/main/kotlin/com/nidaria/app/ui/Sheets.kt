@@ -222,7 +222,7 @@ private fun BuyBar(game: Game, state: GameState, item: Item, wanted: Int, onQty:
 // ── Comer y curar ─────────────────────────────────────────────
 
 @Composable
-private fun OwnedTiles(state: GameState, items: List<Item>, onPick: (Item) -> Unit) {
+fun OwnedTiles(state: GameState, items: List<Item>, onPick: (Item) -> Unit) {
     Grid(items.size) { index ->
         val item = items[index]
         ItemTile(item.name, ThumbSpec.Item(item.id), { onPick(item) }, count = state.owned(item.id)) { EffectChips(item, 1, center = true) }

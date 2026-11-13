@@ -26,6 +26,11 @@ test('las misiones del día salen una por dificultad y siempre las mismas', () =
     assert.ok(!rollMissions(seed).some((entry) => entry.id === 'juguete'));
   }
   assert.ok(Array.from({ length: 300 }, (_, seed) => rollMissions(seed, { hasToy: true })).some((list) => list.some((entry) => entry.id === 'juguete')));
+  // La de visitar solo sale a quien tiene algún amigo.
+  for (let seed = 0; seed < 300; seed++) {
+    assert.ok(!rollMissions(seed, { hasToy: true }).some((entry) => entry.id === 'visita'));
+  }
+  assert.ok(Array.from({ length: 300 }, (_, seed) => rollMissions(seed, { hasFriend: true })).some((list) => list.some((entry) => entry.id === 'visita')));
   assert.equal(new Set(MISSIONS.map((m) => m.id)).size, MISSIONS.length);
 });
 

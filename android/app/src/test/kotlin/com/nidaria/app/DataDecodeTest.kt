@@ -49,6 +49,44 @@ class DataDecodeTest {
         assertNull(fixture().text("recoveryCode"))
     }
 
+    // La hoja de amigos y la visita (ver server/game/friends.js).
+    @Test
+    fun decodesFriendsAndVisits() {
+        val list = """{"state":{"now":5,"social":{"code":"K7QM-4XPA","requests":1,"gifts":2}},"events":[],"result":{"max":50,
+            "friends":[{"id":"a","name":"Ana","since":1,"visitedAt":null,"giftedToday":true,
+              "creature":{"name":"Pipo","formId":"pelusin","formName":"Pelusín","stage":"cria","stageName":"Cría","genes":{"family":"pelusa","hue":20},"alive":true}},
+              {"id":"m","name":"Marta","since":2,"visitedAt":4,"giftedToday":false,"creature":null}],
+            "incoming":[{"id":"t","name":"Teo","at":3}],"outgoing":[],"gifts":[{"id":"g","itemId":"pan","from":"Ana","at":4}]}}"""
+        val payload = NidJson.decodeFromString(Payload.serializer(), list)
+        assertEquals("K7QM-4XPA", payload.state!!.social.code)
+        assertEquals(3, payload.state!!.social.requests + payload.state!!.social.gifts)
+        val friends = payload.friends()!!
+        assertEquals(listOf("Ana", "Marta"), friends.friends.map { it.name })
+        assertEquals("Pipo", friends.friends[0].creature!!.name)
+        assertTrue(friends.friends[0].giftedToday)
+        assertNull(friends.friends[0].visitedAt)
+        assertNull(friends.friends[1].creature)
+        assertEquals("Teo", friends.incoming.single().name)
+        assertEquals("pan", friends.gifts.single().itemId)
+        // Las respuestas de antes, sin el campo: sin código ni avisos.
+        assertEquals("", fixture().state!!.social.code)
+
+        val room = """{"state":{"now":5},"events":[],"result":{"visit":{"id":"a","name":"Ana",
+            "decor":{"pared":"papel-rayas","alfombra":null,"rincon":null,"ventana":null},
+            "creature":{"id":"c","name":"Pipo","genes":{"family":"pelusa"},"formId":"pelusin","formName":"Pelusín","stage":"cria",
+              "stageName":"Cría","equipped":{"cabeza":"lazo","cara":null,"cuello":null},"mood":"feliz","alive":true,"asleep":false,
+              "sick":false,"hunger":80,"energy":70.5,"hygiene":90,"fun":60,"health":100,"bornAt":1,"generation":2},
+            "giftedToday":false}}}"""
+        val visit = NidJson.decodeFromString(Payload.serializer(), room).visit()!!
+        assertEquals("papel-rayas", visit.decor.pared)
+        assertEquals("lazo", visit.creature!!.equipped.cabeza)
+        assertEquals(70.5, visit.creature!!.energy, 0.0)
+        assertEquals("feliz", visit.creature!!.mood)
+        assertFalse(visit.giftedToday)
+        val empty = """{"state":{"now":5},"events":[],"result":{"visit":{"id":"m","name":"Marta","decor":{},"creature":null,"giftedToday":false}}}"""
+        assertNull(NidJson.decodeFromString(Payload.serializer(), empty).visit()!!.creature)
+    }
+
     @Test
     fun decodesTheDailyMissions() {
         val daily = fixture().state!!.daily!!

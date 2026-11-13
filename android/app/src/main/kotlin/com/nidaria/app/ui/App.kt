@@ -29,7 +29,7 @@ fun App(game: Game) {
     val insets = with(density) {
         Insets(bars.getTop(density).toDp(), bars.getBottom(density).toDp(), WindowInsets.ime.getBottom(density).toDp())
     }
-    BackHandler(enabled = game.dialogs.isNotEmpty() || game.play != null || game.sheet != null) { game.back() }
+    BackHandler(enabled = game.dialogs.isNotEmpty() || game.play != null || game.sheet != null || game.visit != null) { game.back() }
 
     CompositionLocalProvider(LocalRoom provides game.room) {
         Box(Modifier.fillMaxSize()) {
@@ -40,6 +40,7 @@ fun App(game: Game) {
             Box(Modifier.fillMaxSize().hiddenWhen(covered)) {
                 when (game.screen) {
                     Screen.Home -> HomeScreen(game, insets)
+                    Screen.Visit -> VisitScreen(game, insets)
                     Screen.Auth -> AuthScreen(game, insets)
                     Screen.Eggs -> EggsScreen(game, insets)
                     Screen.Farewell -> FarewellScreen(game, insets)

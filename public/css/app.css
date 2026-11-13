@@ -671,6 +671,75 @@ img:not([src]) { visibility: hidden; }
 .memory-text small { font-size: var(--text-sm); font-weight: 700; color: var(--ink-soft); }
 .memory-note { color: var(--ink-soft); font-weight: 700; }
 
+/* ── Amigos ────────────────────────────────────────────────── */
+
+.friend-list { display: grid; gap: var(--s2); margin: 0; padding: 0; list-style: none; }
+.friend-row {
+  display: grid;
+  grid-template-columns: 56px 1fr auto;
+  gap: var(--s3);
+  align-items: center;
+  padding: var(--s2) var(--s3) var(--s2) var(--s2);
+  border-radius: var(--r-md);
+  background: var(--cream);
+}
+.memory.friend { grid-template-columns: 56px 1fr auto; }
+.friend-avatar {
+  display: grid;
+  place-items: center;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: var(--paper);
+  overflow: hidden;
+}
+.friend-avatar img { width: 56px; height: 56px; object-fit: contain; }
+.friend-avatar .icon { width: 26px; height: 26px; }
+.friend-gift { background: var(--sun-wash); }
+.friend-actions { display: flex; gap: 6px; }
+.friend-go {
+  padding: 6px 12px 7px;
+  border-radius: var(--r-pill);
+  background: var(--paper);
+  font-size: var(--text-sm);
+  font-weight: 900;
+}
+.add-friend { display: flex; gap: var(--s2); }
+.add-friend .t-input { flex: 1; min-width: 0; }
+.add-friend input { text-transform: uppercase; letter-spacing: 0.06em; }
+.add-friend input::placeholder { text-transform: none; letter-spacing: 0.06em; }
+.friend-hint { margin-top: 6px; }
+.friend-code { text-align: center; font-size: var(--text-xl); }
+.friend-code-actions { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s2); margin-top: var(--s2); }
+.friends > .text-link { display: block; margin: var(--s1) auto 0; }
+
+/* ── Visita ────────────────────────────────────────────────── */
+
+/* Volver a casa: píldora de papel, como la de las monedas. */
+.pill-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 48px;
+  padding: 6px 18px 8px 12px;
+  border-radius: var(--r-pill);
+  background: var(--paper);
+  box-shadow: var(--shadow-sm);
+  font-weight: 900;
+  transition: transform var(--duration-quick) var(--ease-smooth-out);
+}
+.pill-btn:active { transform: scale(0.96) translateY(2px); }
+.plate-visit { max-width: calc(100% - 2 * var(--gutter)); }
+.visit-card {
+  display: grid;
+  gap: var(--s3);
+  padding: var(--s4) var(--s4) var(--s2);
+  border-radius: var(--r-lg);
+  background: var(--paper);
+  box-shadow: var(--shadow-md);
+}
+.visit-status { font-weight: 700; text-align: center; text-wrap: balance; }
+
 /* ── Diálogos (modal de transitions.dev) ───────────────────── */
 
 .dialog-wrap { position: fixed; inset: 0; display: grid; place-items: center; padding: var(--gutter); pointer-events: none; }

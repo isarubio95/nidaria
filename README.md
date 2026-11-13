@@ -103,6 +103,18 @@ Los efectos de sonido (comer, el baño, las monedas, los minijuegos…) vienen a
 
 Desde la ficha, y en el aviso de que ha nacido o evolucionado, se puede hacer una tarjeta para compartir: una foto de la criatura en su habitación con su nombre, su forma, su ADN y la dirección del juego, en PNG de 1080 × 1350. En el móvil se comparte con el menú del sistema; donde el navegador no lo permite, se guarda la imagen.
 
+## Amigos y visitas
+
+Es el primer paso hacia el mundo compartido. Cada jugador tiene un código de amigo (`K7QM-4XPA`) en la hoja de Amigos, con botones para compartirlo y copiarlo.
+
+- Añadir a alguien por su código le manda una solicitud; cuando la acepta, sois amigos. Si los dos os añadís, quedáis como amigos sin más. Caben 50 amigos y 20 solicitudes sin respuesta.
+- Entre amigos se visitan las habitaciones: se ve su decoración y su criatura tal como está en ese momento. Las caricias y los toques son solo para verla reaccionar; no cambian nada de su crianza. Al dueño le queda cuándo vino cada amigo.
+- En la visita se le puede dejar un regalo al día, de la comida o los cuidados que uno tiene. Sale de tu inventario, así que no crea nada de la nada. Llega envuelto y se abre desde la hoja de Amigos.
+- El código se puede cambiar si llega a quien no debía: el anterior deja de valer y los amigos se quedan.
+- Quien tiene algún amigo puede recibir la misión del día «Visita a un amigo».
+
+Las reglas están en `shared/social.js` y las operaciones del servidor en `server/game/friends.js`.
+
 ## Pruebas
 
 ```bash
@@ -130,6 +142,7 @@ TEST_DATABASE_URL=postgresql://... npm test
 ## Dónde tocar las reglas
 
 - Misiones del día, sus premios y el premio de la racha: `shared/daily.js`.
+- Cuántos amigos caben, qué se puede regalar y la forma del código de amigo: `shared/social.js`.
 - Qué se avisa al móvil, sus textos y las horas de silencio: `server/game/alerts.js`.
 - Ritmo de las necesidades, enfermedad y muerte: `shared/needs.js`.
 - Duración de cada etapa y de la vida adulta, y reglas de evolución: `shared/forms.js`.

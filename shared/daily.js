@@ -16,12 +16,13 @@ export const DEFAULT_TIME_ZONE = 'Europe/Madrid';
 export const MISSION_REWARDS = [15, 25, 40];
 
 // `track` es lo que cuenta para avanzarla. `needsToy`: solo sale si el
-// jugador tiene algún juguete.
+// jugador tiene algún juguete; `needsFriend`, si tiene algún amigo.
 export const MISSIONS = [
   { id: 'comer', tier: 0, track: 'feed', goal: 3, text: 'Dale de comer 3 veces' },
   { id: 'mimos', tier: 0, track: 'pet', goal: 10, text: 'Hazle 10 mimos' },
   { id: 'bano', tier: 0, track: 'bathe', goal: 1, text: 'Dale un baño' },
   { id: 'hucha', tier: 0, track: 'collect', goal: 1, text: 'Recoge las monedas de la hucha' },
+  { id: 'visita', tier: 0, track: 'visit', goal: 1, text: 'Visita a un amigo', needsFriend: true },
 
   { id: 'partidas', tier: 1, track: 'play', goal: 3, text: 'Juega 3 minijuegos' },
   { id: 'victorias', tier: 1, track: 'win', goal: 2, text: 'Gana 2 minijuegos' },
@@ -41,10 +42,11 @@ export function getMission(id) {
 
 // Las tres misiones de un día. La semilla sale del jugador y del día,
 // así que repetir la pregunta da las mismas.
-export function rollMissions(seed, { hasToy = false } = {}) {
+export function rollMissions(seed, { hasToy = false, hasFriend = false } = {}) {
   const rng = createRng(seed);
   return MISSION_REWARDS.map((reward, tier) => {
-    const pool = MISSIONS.filter((mission) => mission.tier === tier && (!mission.needsToy || hasToy));
+    const pool = MISSIONS.filter((mission) => mission.tier === tier
+      && (!mission.needsToy || hasToy) && (!mission.needsFriend || hasFriend));
     const mission = rng.pick(pool);
     return { id: mission.id, goal: mission.goal, progress: 0, reward, claimed: false };
   });
