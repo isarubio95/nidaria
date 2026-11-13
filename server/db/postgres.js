@@ -6,7 +6,6 @@
 // `db.tx(...)` sin recibir la conexión de la transacción. Para que esas
 // llamadas vayan a la conexión correcta se usa AsyncLocalStorage.
 
-import fs from 'node:fs';
 import { AsyncLocalStorage } from 'node:async_hooks';
 import pg from 'pg';
 
@@ -23,25 +22,8 @@ function numbered(sql) {
   return sql.replace(/\?/g, () => `$${++n}`);
 }
 
-const LOCAL_HOSTS = new Set(['localhost', '127.0.0.1', '::1', '[::1]']);
-
-// El certificado de Supabase lo firma su propia autoridad. Si se indica su
-// fichero (DATABASE_CA_FILE) se verifica; si no, la conexión va cifrada
-// pero sin comprobar el certificado.
-export function poolConfig(url, { caFile } = {}) {
-  const parsed = new URL(url);
-  for (const key of ['sslmode', 'sslrootcert', 'sslcert', 'sslkey', 'ssl', 'uselibpqcompat']) {
-    parsed.searchParams.delete(key);
-  }
-  let ssl;
-  if (caFile) ssl = { ca: fs.readFileSync(caFile, 'utf8') };
-  else if (!LOCAL_HOSTS.has(parsed.hostname)) ssl = { rejectUnauthorized: false };
-  else ssl = false;
-  return { connectionString: parsed.toString(), ssl, max: 10, idleTimeoutMillis: 30_000 };
-}
-
-export function createPostgresDb(url, options = {}) {
-  const pool = new pg.Pool(poolConfig(url, options));
+export function createPostgresDb(url) {
+  const pool = new pg.Pool({ connectionString: url, max: 10, idleTimeoutMillis: 30_000 });
   // Un fallo de una conexión en reposo no debe tumbar el proceso.
   pool.on('error', (error) => console.error('PostgreSQL:', error.message));
 

@@ -61,12 +61,6 @@ systemctl start nidaria
 
 Para pasar a otra versión menor de PostgreSQL 18, en `/opt/nidaria/postgres`: `docker compose pull && docker compose up -d --wait`. Para cambiar de versión mayor hace falta volcar y restaurar, o usar `pg_upgrade`.
 
-### Otro PostgreSQL
-
-Vale cualquier PostgreSQL. Pon su cadena de conexión en `DATABASE_URL` (en `.env` para desarrollo). Si el servidor no está en la misma máquina, la conexión va cifrada. Para que además se verifique el certificado, pon en `DATABASE_CA_FILE` el de la autoridad que lo firma.
-
-Si usas Supabase, coge la cadena del *Session pooler*. Las tablas tienen RLS activado sin políticas, para que no se puedan leer con la clave `anon` del proyecto. En un PostgreSQL propio ese RLS no estorba: el dueño de las tablas no lo pasa.
-
 ## Opciones
 
 Se pasan como variables de entorno o en un fichero `.env` (ver `.env.example`).
@@ -75,7 +69,6 @@ Se pasan como variables de entorno o en un fichero `.env` (ver `.env.example`).
 | --- | --- | --- |
 | `PORT` | `3000` | Puerto del servidor. |
 | `DATABASE_URL` | sin definir | Cadena de conexión de PostgreSQL. Si está, se usa en lugar de SQLite. |
-| `DATABASE_CA_FILE` | sin definir | Certificado de la autoridad que firma el servidor de PostgreSQL, para verificar la conexión cifrada. |
 | `DB_FILE` | `data/nidaria.db` | Fichero de la base de datos SQLite, si no hay `DATABASE_URL`. |
 | `TIME_SCALE` | `1` | Acelera el tiempo del juego. Con `60`, una hora pasa en un minuto. |
 | `DEV_TOOLS` | sin activar | Con `1`, la ficha de la criatura muestra botones para adelantar el tiempo. No lo actives en producción. |

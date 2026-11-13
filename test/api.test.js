@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import crypto from 'node:crypto';
 import pg from 'pg';
 import { createSqliteDb } from '../server/db/index.js';
-import { createPostgresDb, poolConfig } from '../server/db/postgres.js';
+import { createPostgresDb } from '../server/db/postgres.js';
 import { migrate } from '../server/db/migrate.js';
 import { createApp } from '../server/app.js';
 import { createPush } from '../server/push.js';
@@ -19,7 +19,7 @@ async function openDb() {
     return { db, drop: async () => db.close() };
   }
   const schema = `test_${crypto.randomBytes(6).toString('hex')}`;
-  const admin = new pg.Client(poolConfig(PG_URL));
+  const admin = new pg.Client({ connectionString: PG_URL });
   await admin.connect();
   await admin.query(`CREATE SCHEMA ${schema}`);
   const url = new URL(PG_URL);

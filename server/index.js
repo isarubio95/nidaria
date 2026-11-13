@@ -7,7 +7,7 @@ import { createPush } from './push.js';
 
 const config = loadConfig();
 const db = config.databaseUrl
-  ? createPostgresDb(config.databaseUrl, { caFile: config.databaseCaFile })
+  ? createPostgresDb(config.databaseUrl)
   : createSqliteDb(config.dbFile);
 await migrate(db);
 console.log(db.dialect === 'postgres' ? 'Base de datos: PostgreSQL' : `Base de datos: SQLite (${config.dbFile})`);

@@ -1,0 +1,15 @@
+-- Solo PostgreSQL. Quita el RLS que activaban migraciones antiguas en las
+-- bases ya creadas. La base es local y solo entra el juego como dueño de
+-- las tablas, así que no hace falta.
+
+ALTER TABLE users DISABLE ROW LEVEL SECURITY;
+ALTER TABLE sessions DISABLE ROW LEVEL SECURITY;
+ALTER TABLE creatures DISABLE ROW LEVEL SECURITY;
+ALTER TABLE inventory DISABLE ROW LEVEL SECURITY;
+ALTER TABLE criadex DISABLE ROW LEVEL SECURITY;
+ALTER TABLE plays DISABLE ROW LEVEL SECURITY;
+ALTER TABLE schema_migrations DISABLE ROW LEVEL SECURITY;
+ALTER TABLE daily DISABLE ROW LEVEL SECURITY;
+ALTER TABLE push_subscriptions DISABLE ROW LEVEL SECURITY;
+ALTER TABLE notify_state DISABLE ROW LEVEL SECURITY;
+ALTER TABLE server_keys DISABLE ROW LEVEL SECURITY;
