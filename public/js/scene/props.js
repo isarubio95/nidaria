@@ -4,6 +4,7 @@
 
 import * as THREE from 'three';
 import { createRng } from '/shared/rng.js';
+import { wallpaperTexture, buildRug, isWallpaper, isRug } from './decor.js';
 
 const cache = new Map();
 function mat(color, options = {}) {
@@ -233,6 +234,202 @@ const BUILDERS = {
   },
 };
 
+// ── Casa ──────────────────────────────────────────────────────
+// Muebles para el rincón (al lado de la criatura, a la derecha) y para
+// debajo de la ventana. Se apoyan en el suelo en y = 0.
+
+const ROOM = { roughness: 0.7 };
+
+function pot(color, band, scale = 1) {
+  const g = group(
+    at(cyl(color, 0.2, 0.15, 0.3, ROOM, 24), 0, 0.15, 0),
+    at(cyl(band, 0.205, 0.19, 0.08, ROOM, 24), 0, 0.24, 0),
+  );
+  g.scale.setScalar(scale);
+  return g;
+}
+
+const leafShape = new THREE.Shape();
+leafShape.moveTo(0, 0);
+leafShape.bezierCurveTo(0.14, 0.12, 0.12, 0.5, 0, 0.62);
+leafShape.bezierCurveTo(-0.12, 0.5, -0.14, 0.12, 0, 0);
+const LEAF = new THREE.ExtrudeGeometry(leafShape, { depth: 0.02, bevelEnabled: false, curveSegments: 10 });
+LEAF.userData.shared = true;
+
+function petals(color, count, length, width, radius) {
+  const g = group();
+  for (let i = 0; i < count; i++) {
+    const a = (i / count) * Math.PI * 2;
+    const petal = at(ball(color, width, length, 0.03), Math.cos(a) * radius, Math.sin(a) * radius, 0);
+    petal.rotation.z = a - Math.PI / 2;
+    g.add(petal);
+  }
+  return g;
+}
+
+const DECOR = {
+  // La planta de siempre.
+  planta: () => {
+    const g = pot('#fffdf8', '#ffd166');
+    for (let i = 0; i < 6; i++) {
+      const leaf = new THREE.Mesh(LEAF, mat(i % 2 ? '#6cc47f' : '#4fae7c', ROOM));
+      leaf.position.y = 0.28;
+      leaf.rotation.order = 'YXZ';
+      leaf.rotation.y = (i / 6) * Math.PI * 2;
+      leaf.rotation.x = 0.35 + (i % 3) * 0.16;
+      leaf.scale.setScalar(0.9 + (i % 2) * 0.25);
+      leaf.castShadow = true;
+      g.add(leaf);
+    }
+    return g;
+  },
+  cactus: () => {
+    const g = group(
+      at(cyl('#f2a07b', 0.19, 0.15, 0.28, ROOM, 24), 0, 0.14, 0),
+      at(cyl('#e8865f', 0.21, 0.205, 0.06, ROOM, 24), 0, 0.28, 0),
+      at(cyl(C.cocoa, 0.18, 0.18, 0.02, ROOM, 24), 0, 0.3, 0),
+      at(ball(C.green, 0.15, 0.34, 0.15), 0, 0.6, 0),
+      at(ball(C.pink, 0.06, 0.04, 0.06), 0, 0.95, 0),
+    );
+    for (const [side, y, up] of [[-1, 0.58, 0.16], [1, 0.68, 0.12]]) {
+      g.add(at(ball(C.green, 0.1, 0.06, 0.07), side * 0.17, y, 0));
+      g.add(at(ball(C.green, 0.065, up, 0.065), side * 0.24, y + up * 0.7, 0));
+    }
+    for (let i = 0; i < 7; i++) {
+      const a = (i / 7) * Math.PI * 2;
+      g.add(at(ball(C.cream, 0.012), Math.sin(a) * 0.145, 0.45 + (i % 3) * 0.12, Math.cos(a) * 0.145));
+    }
+    return g;
+  },
+  girasol: () => {
+    const head = group(
+      petals(C.yellow, 12, 0.13, 0.065, 0.15),
+      at(ball(C.brown, 0.12, 0.12, 0.05), 0, 0, 0.02),
+    );
+    head.position.set(0.02, 1.08, 0.04);
+    head.rotation.set(-0.25, 0.25, 0);
+    const leafL = at(ball(C.leaf, 0.12, 0.035, 0.06), -0.11, 0.66, 0);
+    leafL.rotation.z = 0.5;
+    const leafR = at(ball(C.green, 0.11, 0.035, 0.06), 0.1, 0.78, 0);
+    leafR.rotation.z = -0.5;
+    return group(
+      pot('#fffdf8', C.mint),
+      at(cyl(C.leaf, 0.022, 0.026, 0.78, ROOM, 12), 0, 0.68, 0),
+      leafL, leafR, head,
+    );
+  },
+  lampara: () => group(
+    at(cyl(C.white, 0.17, 0.2, 0.05, ROOM), 0, 0.025, 0),
+    at(cyl(C.tan, 0.022, 0.022, 1.12, ROOM, 12), 0, 0.6, 0),
+    at(ball('#fffbe8', 0.07, 0.08, 0.07, { roughness: 0.3 }), 0, 1.16, 0),
+    at(cyl('#ffe9b8', 0.13, 0.25, 0.3, { roughness: 0.9, side: THREE.DoubleSide }, 32), 0, 1.27, 0),
+    at(ring(C.yellow, 0.25, 0.012, ROOM), 0, 1.12, 0).rotateX(Math.PI / 2),
+  ),
+  pecera: () => {
+    const fish = group(
+      at(ball(C.orange, 0.065, 0.045, 0.035), 0, 0, 0),
+      at(cone(C.orange, 0.04, 0.06).rotateZ(Math.PI / 2), -0.08, 0, 0),
+      at(ball(C.cocoa, 0.01), 0.04, 0.012, 0.03),
+    );
+    fish.position.set(0.02, 0.8, 0.13);
+    fish.rotation.y = -0.4;
+    return group(
+      at(cyl(C.tan, 0.18, 0.2, 0.04, ROOM), 0, 0.02, 0),
+      at(cyl(C.tan, 0.04, 0.05, 0.5, ROOM, 16), 0, 0.29, 0),
+      at(cyl('#e8bd87', 0.3, 0.3, 0.05, ROOM, 32), 0, 0.555, 0),
+      at(ball('#86c1f2', 0.2, 0.15, 0.2, { transparent: true, opacity: 0.82, roughness: 0.2 }), 0, 0.74, 0),
+      at(ball(C.grey, 0.04, 0.025, 0.04), -0.07, 0.6, 0.03),
+      at(ball(C.pink, 0.035, 0.022, 0.035), 0.06, 0.6, -0.02),
+      at(cyl(C.leaf, 0.012, 0.016, 0.14, ROOM, 8), -0.05, 0.66, -0.06),
+      fish,
+      at(ball('#eaf5ff', 0.25, 0.24, 0.25, { transparent: true, opacity: 0.18, roughness: 0.05 }), 0, 0.82, 0),
+      at(ring('#eaf5ff', 0.14, 0.016, { transparent: true, opacity: 0.6, roughness: 0.1 }), 0, 1.04, 0).rotateX(Math.PI / 2),
+    );
+  },
+  cojin: () => {
+    const top = at(ball(C.mint, 0.2, 0.08, 0.17, { roughness: 0.9 }), 0.08, 0.27, 0.02);
+    top.rotation.z = -0.18;
+    const g = group(at(ball(C.pink, 0.38, 0.15, 0.33, { roughness: 0.9 }), 0, 0.15, 0), top);
+    for (const [x, z] of [[-0.3, -0.25], [0.3, -0.25], [-0.3, 0.25], [0.3, 0.25]]) g.add(at(ball(C.yellow, 0.04), x, 0.12, z));
+    g.add(at(ball('#e2648b', 0.035, 0.02, 0.035), 0, 0.3, 0));
+    return g;
+  },
+  mesita: () => {
+    const g = group(at(cyl(C.white, 0.26, 0.24, 0.05, ROOM, 32), 0, 0.46, 0));
+    for (let i = 0; i < 3; i++) {
+      const a = (i / 3) * Math.PI * 2 + 0.5;
+      const leg = at(cyl(C.tan, 0.024, 0.018, 0.46, ROOM, 10), Math.cos(a) * 0.15, 0.22, Math.sin(a) * 0.15);
+      leg.rotation.set(Math.sin(a) * 0.18, 0, -Math.cos(a) * 0.18);
+      g.add(leg);
+    }
+    g.add(
+      at(cyl(C.blue, 0.06, 0.085, 0.18, ROOM, 20), 0, 0.575, 0),
+      at(cyl(C.blue, 0.045, 0.06, 0.05, ROOM, 20), 0, 0.69, 0),
+    );
+    for (const [x, tilt, height, color] of [[-0.05, 0.3, 0.2, C.pink], [0, 0, 0.26, C.yellow], [0.05, -0.32, 0.2, '#ff7a7a']]) {
+      const stem = group(
+        at(cyl(C.leaf, 0.01, 0.01, height, ROOM, 6), 0, height / 2, 0),
+        at(ball(color, 0.045, 0.06, 0.045), 0, height + 0.03, 0),
+      );
+      stem.position.set(x * 0.5, 0.7, 0);
+      stem.rotation.z = tilt;
+      g.add(stem);
+    }
+    return g;
+  },
+  baul: () => {
+    const lid = group(at(box(C.tan, 0.7, 0.07, 0.4), 0, 0.035, 0.2));
+    lid.position.set(0, 0.36, -0.2);
+    lid.rotation.x = -0.55;
+    const ballToy = at(ball(C.pink, 0.11), -0.16, 0.38, 0.02);
+    const star = at(ball(C.yellow, 0.07, 0.07, 0.025), 0.14, 0.42, 0.04);
+    star.rotation.z = 0.4;
+    return group(
+      at(box(C.tan, 0.68, 0.34, 0.38), 0, 0.17, 0),
+      at(box(C.brown, 0.7, 0.05, 0.4), 0, 0.06, 0),
+      at(box(C.brown, 0.7, 0.05, 0.4), 0, 0.3, 0),
+      at(box(C.gold, 0.08, 0.1, 0.02), 0, 0.3, 0.2),
+      ballToy, star, lid,
+    );
+  },
+  camita: () => {
+    const rim = new THREE.Mesh(new THREE.TorusGeometry(0.33, 0.11, 14, 40), mat(C.blue, { roughness: 0.9 }));
+    rim.castShadow = true;
+    rim.rotation.x = Math.PI / 2;
+    rim.scale.set(1, 0.8, 0.9);
+    rim.position.y = 0.1;
+    const blanket = at(box(C.yellow, 0.3, 0.02, 0.24), 0.08, 0.12, 0.06);
+    blanket.rotation.set(0, 0.5, 0.08);
+    return group(
+      rim,
+      at(ball(C.cream, 0.32, 0.07, 0.28, { roughness: 0.9 }), 0, 0.06, 0),
+      blanket,
+      at(ball(C.pink, 0.11, 0.05, 0.08, { roughness: 0.9 }), -0.13, 0.13, -0.08),
+    );
+  },
+};
+
+// Muestra de papel pintado enmarcada, para la tienda.
+function swatch(id) {
+  const face = new THREE.Mesh(new THREE.PlaneGeometry(0.9, 0.9), new THREE.MeshBasicMaterial({ map: wallpaperTexture(id, 1.25, 1.25) }));
+  face.position.set(0, 0.5, 0.026);
+  return group(at(box(C.white, 1, 1, 0.05, ROOM), 0, 0.5, 0), face);
+}
+
+// Alfombra de muestra, inclinada hacia la cámara para que se vea entera.
+function rugSample(id) {
+  const rug = buildRug(id).object;
+  rug.rotation.x = 0.95;
+  return group(rug);
+}
+
+export function buildDecor(itemId) {
+  if (DECOR[itemId]) return DECOR[itemId]();
+  if (isWallpaper(itemId)) return swatch(itemId);
+  if (isRug(itemId)) return rugSample(itemId);
+  return null;
+}
+
 // ── Ropa ──────────────────────────────────────────────────────
 // Cada prenda recibe los anclajes de la criatura y devuelve el objeto y
 // a qué parte se cuelga: 'head' (gira con la cabeza) o 'body'.
@@ -416,7 +613,7 @@ export function buildWear(itemId, anchors = MANNEQUIN) {
 
 export function buildItem(itemId) {
   if (BUILDERS[itemId]) return BUILDERS[itemId]();
-  return buildWear(itemId)?.object ?? null;
+  return buildDecor(itemId) ?? buildWear(itemId)?.object ?? null;
 }
 
 export const isWear = (itemId) => itemId in WEAR;

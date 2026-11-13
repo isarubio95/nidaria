@@ -9,10 +9,10 @@ import { getForm, STAGE_INFO, chooseBranch, NIGHT_HOURS } from '../../shared/for
 import { bondOf, bondLevel } from '../../shared/bond.js';
 import { simulate, newCreature, nextStageAt, moodOf } from '../../shared/needs.js';
 import * as actions from '../../shared/actions.js';
-import { getItem, MAX_STACK } from '../../shared/catalog.js';
+import { getItem, MAX_STACK, cleanDecor, placeDecor } from '../../shared/catalog.js';
 import {
-  pendingIncome, ticketsNow, getGame, gameReward, DIFFICULTIES,
-  TICKETS_MAX, INCOME_CAP,
+  pendingIncome, ticketsNow, getGame, gameReward, featuredGame, DIFFICULTIES,
+  TICKETS_MAX, INCOME_CAP, FEATURED_MULT,
 } from '../../shared/economy.js';
 import { hashString } from '../../shared/rng.js';
 import {
@@ -82,6 +82,10 @@ export function createGame(db, config, push = null) {
     await db.run('UPDATE inventory SET qty = qty - 1 WHERE user_id = ? AND item_id = ?', [userId, itemId]);
   }
 
+  function decorOf(user) {
+    return cleanDecor(user.decor ? JSON.parse(user.decor) : null);
+  }
+
   // Tres huevos para elegir. Tras una muerte, el primero es el heredero.
   async function ensureEggOffer(user, deadCreature) {
     if (user.egg_offer) return JSON.parse(user.egg_offer);
@@ -140,6 +144,8 @@ export function createGame(db, config, push = null) {
       doneToday,
       // Premio extra que dará completar hoy (o el que dio, si ya está).
       bonus: streakBonus(doneToday ? streak : nextStreak(daily.streak, daily.streakDay, daily.day)),
+      // El minijuego que hoy paga más (ver FEATURED_MULT).
+      featured: featuredGame(daily.day),
     };
   }
 
@@ -204,6 +210,7 @@ export function createGame(db, config, push = null) {
       creature: view,
       eggOffer,
       inventory: Object.fromEntries(inventoryRows.map((row) => [row.item_id, row.qty])),
+      decor: decorOf(user),
       criadex: Object.fromEntries(criadexRows.map((row) => [row.form_id, { firstAt: row.first_at, times: row.times }])),
     };
   }
@@ -377,6 +384,16 @@ export function createGame(db, config, push = null) {
       return null;
     }),
 
+    // Pone en un sitio de la habitación algo que ya es suyo, o lo deja
+    // como venía con `itemId` null. No hace falta tener criatura.
+    decorate: (userId, spot, itemId) => operation(userId, async (ctx) => {
+      if (itemId && await ownedQty(userId, itemId) < 1) throw new HttpError(400, 'Eso no es tuyo todavía.');
+      const decor = decorOf(ctx.user);
+      unwrap(placeDecor(decor, spot, itemId ?? null));
+      await db.run('UPDATE users SET decor = ? WHERE id = ?', [JSON.stringify(decor), userId]);
+      return { spot, itemId: decor[spot] };
+    }),
+
     buy: (userId, itemId, qty) => operation(userId, async (ctx) => {
       const item = getItem(itemId);
       if (!item) throw new HttpError(400, 'Ese artículo no existe.');
@@ -402,7 +419,7 @@ export function createGame(db, config, push = null) {
     startGame: (userId, gameId, difficulty) => operation(userId, async (ctx) => {
       const game = getGame(gameId);
       if (!game || !DIFFICULTIES[difficulty]) throw new HttpError(400, 'Ese juego no existe.');
-      const blocked = actions.canPlayGame(needCreature(ctx));
+      const blocked = actions.canPlayGame(needCreature(ctx)) ?? actions.gameLock(game, ctx.creature);
       if (blocked) throw new HttpError(400, blocked);
       const tickets = ticketsNow(ctx.user.tickets, ctx.user.tickets_at, ctx.now, scale);
       if (tickets.tickets < 1) throw new HttpError(400, 'No te queda energía de juego. Se recarga sola con el tiempo.');
@@ -410,11 +427,13 @@ export function createGame(db, config, push = null) {
       const from = tickets.tickets >= TICKETS_MAX ? ctx.now : tickets.ticketsAt;
       await db.run('UPDATE users SET tickets = ?, tickets_at = ? WHERE id = ?', [tickets.tickets - 1, from, userId]);
       const playId = crypto.randomUUID();
+      // Cuenta el día en que empieza: si acaba pasada la medianoche, paga igual.
+      const featured = featuredGame(ctx.daily.day) === gameId;
       await db.run(
-        'INSERT INTO plays (id, user_id, game_id, difficulty, started_at) VALUES (?, ?, ?, ?, ?)',
-        [playId, userId, gameId, difficulty, ctx.now],
+        'INSERT INTO plays (id, user_id, game_id, difficulty, started_at, featured) VALUES (?, ?, ?, ?, ?, ?)',
+        [playId, userId, gameId, difficulty, ctx.now, featured ? 1 : 0],
       );
-      return { playId, gameId, difficulty, seed: randomSeed() };
+      return { playId, gameId, difficulty, featured, seed: randomSeed() };
     }),
 
     finishGame: (userId, playId, score) => operation(userId, async (ctx) => {
@@ -426,7 +445,8 @@ export function createGame(db, config, push = null) {
       // Una partida imposible (demasiado rápida o con demasiados puntos)
       // se cierra como perdida en lugar de pagarse.
       const credible = points <= game.maxScore && elapsed <= 10 * 60 * 1000;
-      const outcome = credible ? gameReward(game, play.difficulty, points) : { won: false, coins: 0 };
+      const mult = play.featured ? FEATURED_MULT : 1;
+      const outcome = credible ? gameReward(game, play.difficulty, points, mult) : { won: false, coins: 0 };
       const paid = outcome.won && elapsed < game.minMs ? { won: false, coins: 0 } : outcome;
       await db.run(
         'UPDATE plays SET finished_at = ?, score = ?, won = ?, reward = ? WHERE id = ?',
@@ -437,7 +457,9 @@ export function createGame(db, config, push = null) {
       if (credible && elapsed >= MIN_PLAY_MS) ctx.track('play');
       if (paid.won) ctx.track('win');
       if (paid.won && play.difficulty !== 'facil') ctx.track('winHard');
-      return { won: paid.won, coins: paid.coins, score: points, target: game.levels[play.difficulty].target };
+      return {
+        won: paid.won, coins: paid.coins, score: points, target: game.levels[play.difficulty].target, featured: Boolean(play.featured),
+      };
     }),
 
     // Recoge el premio de una misión cumplida. Al recoger la tercera, la

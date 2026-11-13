@@ -6,9 +6,13 @@ import com.nidaria.app.gl.Mesh
 import com.nidaria.app.gl.Object3D
 import com.nidaria.app.rules.FORM_LIST
 import com.nidaria.app.rules.ITEMS
+import com.nidaria.app.rules.SPOTS
 import com.nidaria.app.rules.createGenes
 import com.nidaria.app.rules.eggLook
 import com.nidaria.app.scene.Actor
+import com.nidaria.app.scene.BASE_DECOR
+import com.nidaria.app.scene.TILE
+import com.nidaria.app.scene.wallpaperTexture
 import com.nidaria.app.scene.buildCreature
 import com.nidaria.app.scene.buildEgg
 import com.nidaria.app.scene.buildItem
@@ -117,6 +121,20 @@ class SceneBuildTest {
                     check(wear.obj, "${item.id} sobre $formId")
                 }
             }
+        }
+    }
+
+    // Lo que hay en la habitación sin decorar y los papeles pintados, que
+    // se pintan en Kotlin puro y deben repetirse sin costuras.
+    @Test
+    fun roomDecorBuilds() {
+        for (id in BASE_DECOR.values.filterNotNull()) check(buildItem(id)!!, id)
+        for (item in ITEMS.filter { it.kind == "casa" }) assertTrue(item.id, SPOTS.any { it.id == item.spot })
+        for (id in ITEMS.filter { it.spot == "pared" }.map { it.id } + "papel-lunares") {
+            val pixels = wallpaperTexture(id).pixels!!
+            assertEquals(TILE * TILE * 4, pixels.size)
+            val colors = (0 until TILE * TILE).map { i -> (0 until 3).map { pixels[i * 4 + it] } }.toSet()
+            assertTrue("$id: un solo color", colors.size > 1)
         }
     }
 

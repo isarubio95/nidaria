@@ -35,6 +35,7 @@
   transition: opacity var(--duration-fast) var(--ease-smooth-out);
 }
 .game-cover[hidden] { display: none !important; }
+.game-cover .cover-note { font-size: var(--text-sm); font-weight: 700; }
 
 .pairs { position: absolute; inset: 0; display: grid; place-content: center; gap: var(--s2); padding: var(--gutter) var(--gutter) calc(var(--safe-bottom) + var(--gutter)); }
 .pair-card {

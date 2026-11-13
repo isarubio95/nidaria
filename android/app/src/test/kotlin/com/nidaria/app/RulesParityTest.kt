@@ -2,6 +2,7 @@ package com.nidaria.app
 
 import com.nidaria.app.rules.Care
 import com.nidaria.app.rules.Creature
+import com.nidaria.app.rules.FEATURED_MULT
 import com.nidaria.app.rules.FORM_LIST
 import com.nidaria.app.rules.Genes
 import com.nidaria.app.rules.ITEMS
@@ -11,6 +12,9 @@ import com.nidaria.app.rules.baseReward
 import com.nidaria.app.rules.branchScores
 import com.nidaria.app.rules.chooseBranch
 import com.nidaria.app.rules.createGenes
+import com.nidaria.app.rules.gameLock
+import com.nidaria.app.rules.getGame
+import com.nidaria.app.rules.levelFor
 import com.nidaria.app.rules.hashString
 import com.nidaria.app.rules.hintFor
 import com.nidaria.app.rules.mix
@@ -24,6 +28,7 @@ import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.boolean
 import kotlinx.serialization.json.decodeFromJsonElement
 import kotlinx.serialization.json.double
@@ -184,6 +189,7 @@ class RulesParityTest {
             val game = MINIGAMES.first { it.id == o.getValue("game").jsonPrimitive.content }
             val difficulty = o.getValue("difficulty").jsonPrimitive.content
             assertEquals(o.getValue("reward").jsonPrimitive.int, baseReward(game, difficulty))
+            assertEquals(o.getValue("featured").jsonPrimitive.int, baseReward(game, difficulty, FEATURED_MULT))
             assertEquals(o.getValue("target").jsonPrimitive.int, game.levels.getValue(difficulty).target)
         }
     }
@@ -198,6 +204,39 @@ class RulesParityTest {
             assertEquals(o.getValue("name").jsonPrimitive.content, ITEMS[index].name)
             assertEquals(o.getValue("price").jsonPrimitive.int, ITEMS[index].price)
             assertEquals(o.getValue("kind").jsonPrimitive.content, ITEMS[index].kind)
+            val spot = o.getValue("spot").let { if (it is JsonNull) null else it.jsonPrimitive.content }
+            assertEquals(ITEMS[index].id, spot, ITEMS[index].spot)
+        }
+    }
+
+    // Las ventajas del carácter dejan el nivel igual que en la web. Los
+    // valores que no son números (como los huecos de charcos) se saltan.
+    @Test
+    fun perksMatch() {
+        val perks = list("perks")
+        assertTrue(perks.size > 100)
+        for (entry in perks) {
+            val o = entry.jsonObject
+            val game = getGame(o.getValue("game").jsonPrimitive.content)!!
+            val difficulty = o.getValue("difficulty").jsonPrimitive.content
+            val traits = o.getValue("traits").jsonArray.map { it.jsonPrimitive.content }
+            val level = levelFor(game, difficulty, traits)
+            val where = "${game.id} $difficulty $traits"
+            for ((key, value) in o.getValue("level").jsonObject) {
+                if (value !is JsonPrimitive) continue
+                if (key == "target") assertEquals(where, value.int, level.target) else assertEquals("$where $key", value.double, level.num(key), 0.0)
+            }
+        }
+    }
+
+    @Test
+    fun locksMatch() {
+        for (entry in list("locks")) {
+            val o = entry.jsonObject
+            val game = getGame(o.getValue("game").jsonPrimitive.content)!!
+            val formId = o.getValue("formId").jsonPrimitive.content
+            val expected = o.getValue("lock").let { if (it is JsonNull) null else it.jsonPrimitive.content }
+            assertEquals("${game.id} con $formId", expected, gameLock(game, Creature(formId = formId)))
         }
     }
 

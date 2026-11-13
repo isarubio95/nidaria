@@ -5,6 +5,7 @@
 package com.nidaria.app.scene
 
 import com.nidaria.app.gl.Color
+import com.nidaria.app.gl.Euler
 import com.nidaria.app.gl.Group
 import com.nidaria.app.gl.Material
 import com.nidaria.app.gl.Mesh
@@ -20,6 +21,7 @@ import com.nidaria.app.gl.cylinderGeometry
 import com.nidaria.app.gl.extrudeGeometry
 import com.nidaria.app.gl.group
 import com.nidaria.app.gl.latheGeometry
+import com.nidaria.app.gl.planeGeometry
 import com.nidaria.app.gl.sphereGeometry
 import com.nidaria.app.gl.torusGeometry
 import com.nidaria.app.rules.EggLook
@@ -72,14 +74,14 @@ private fun cone(color: String, radius: Float, height: Float, opt: Opt = NONE): 
     return mesh
 }
 
-private fun box(color: String, x: Float, y: Float, z: Float): Mesh {
-    val mesh = Mesh(boxGeometry(x, y, z), mat(color))
+private fun box(color: String, x: Float, y: Float, z: Float, opt: Opt = NONE): Mesh {
+    val mesh = Mesh(boxGeometry(x, y, z), mat(color, opt))
     mesh.castShadow = true
     return mesh
 }
 
-private fun ring(color: String, radius: Float, tube: Float): Mesh {
-    val mesh = Mesh(torusGeometry(radius, tube, 12, 36), mat(color))
+private fun ring(color: String, radius: Float, tube: Float, opt: Opt = NONE): Mesh {
+    val mesh = Mesh(torusGeometry(radius, tube, 12, 36), mat(color, opt))
     mesh.castShadow = true
     return mesh
 }
@@ -296,6 +298,187 @@ private val BUILDERS: Map<String, () -> Object3D> = mapOf(
     },
 )
 
+// ── Casa ──────────────────────────────────────────────────────
+// Muebles para el rincón (a la derecha de la criatura) y para el sitio
+// de la ventana. Se apoyan en el suelo en y = 0.
+
+private val ROOM = Opt(roughness = 0.7f)
+private val PLUSH = Opt(roughness = 0.9f)
+
+private fun pot(color: String, band: String): Group = group(
+    at(cyl(color, 0.2f, 0.15f, 0.3f, ROOM, 24), 0f, 0.15f, 0f),
+    at(cyl(band, 0.205f, 0.19f, 0.08f, ROOM, 24), 0f, 0.24f, 0f),
+)
+
+private val LEAF = extrudeGeometry(
+    Shape().moveTo(0f, 0f).bezierCurveTo(0.14f, 0.12f, 0.12f, 0.5f, 0f, 0.62f).bezierCurveTo(-0.12f, 0.5f, -0.14f, 0.12f, 0f, 0f),
+    0.02f, curveSegments = 10,
+).also { it.shared = true }
+
+private fun petals(color: String, count: Int, length: Float, width: Float, radius: Float): Group {
+    val g = Group()
+    for (i in 0 until count) {
+        val a = (i / count.toFloat()) * PI_F * 2f
+        val petal = at(ball(color, width, length, 0.03f), cos(a) * radius, sin(a) * radius, 0f)
+        petal.rotation.z = a - PI_F / 2f
+        g.add(petal)
+    }
+    return g
+}
+
+private val DECOR: Map<String, () -> Object3D> = mapOf(
+    // La planta de siempre.
+    "planta" to {
+        val g = pot("#fffdf8", "#ffd166")
+        for (i in 0 until 6) {
+            val leaf = Mesh(LEAF, mat(if (i % 2 == 1) "#6cc47f" else "#4fae7c", ROOM))
+            leaf.position.y = 0.28f
+            leaf.rotation.order = Euler.Order.YXZ
+            leaf.rotation.y = (i / 6f) * PI_F * 2f
+            leaf.rotation.x = 0.35f + (i % 3) * 0.16f
+            leaf.scale.setScalar(0.9f + (i % 2) * 0.25f)
+            leaf.castShadow = true
+            g.add(leaf)
+        }
+        g
+    },
+    "cactus" to {
+        val g = group(
+            at(cyl("#f2a07b", 0.19f, 0.15f, 0.28f, ROOM, 24), 0f, 0.14f, 0f),
+            at(cyl("#e8865f", 0.21f, 0.205f, 0.06f, ROOM, 24), 0f, 0.28f, 0f),
+            at(cyl(C.cocoa, 0.18f, 0.18f, 0.02f, ROOM, 24), 0f, 0.3f, 0f),
+            at(ball(C.green, 0.15f, 0.34f, 0.15f), 0f, 0.6f, 0f),
+            at(ball(C.pink, 0.06f, 0.04f, 0.06f), 0f, 0.95f, 0f),
+        )
+        for ((side, y, up) in listOf(Triple(-1f, 0.58f, 0.16f), Triple(1f, 0.68f, 0.12f))) {
+            g.add(at(ball(C.green, 0.1f, 0.06f, 0.07f), side * 0.17f, y, 0f))
+            g.add(at(ball(C.green, 0.065f, up, 0.065f), side * 0.24f, y + up * 0.7f, 0f))
+        }
+        for (i in 0 until 7) {
+            val a = (i / 7f) * PI_F * 2f
+            g.add(at(ball(C.cream, 0.012f), sin(a) * 0.145f, 0.45f + (i % 3) * 0.12f, cos(a) * 0.145f))
+        }
+        g
+    },
+    "girasol" to {
+        val head = group(petals(C.yellow, 12, 0.13f, 0.065f, 0.15f), at(ball(C.brown, 0.12f, 0.12f, 0.05f), 0f, 0f, 0.02f))
+        head.position.set(0.02f, 1.08f, 0.04f)
+        head.rotation.set(-0.25f, 0.25f, 0f)
+        val leafL = at(ball(C.leaf, 0.12f, 0.035f, 0.06f), -0.11f, 0.66f, 0f)
+        leafL.rotation.z = 0.5f
+        val leafR = at(ball(C.green, 0.11f, 0.035f, 0.06f), 0.1f, 0.78f, 0f)
+        leafR.rotation.z = -0.5f
+        group(pot("#fffdf8", C.mint), at(cyl(C.leaf, 0.022f, 0.026f, 0.78f, ROOM, 12), 0f, 0.68f, 0f), leafL, leafR, head)
+    },
+    "lampara" to {
+        val trim = at(ring(C.yellow, 0.25f, 0.012f, ROOM), 0f, 1.12f, 0f)
+        trim.rotation.x = PI_F / 2f
+        group(
+            at(cyl(C.white, 0.17f, 0.2f, 0.05f, ROOM), 0f, 0.025f, 0f),
+            at(cyl(C.tan, 0.022f, 0.022f, 1.12f, ROOM, 12), 0f, 0.6f, 0f),
+            at(ball("#fffbe8", 0.07f, 0.08f, 0.07f, Opt(roughness = 0.3f)), 0f, 1.16f, 0f),
+            at(cyl("#ffe9b8", 0.13f, 0.25f, 0.3f, Opt(roughness = 0.9f, doubleSide = true), 32), 0f, 1.27f, 0f),
+            trim,
+        )
+    },
+    "pecera" to {
+        val tail = cone(C.orange, 0.04f, 0.06f)
+        tail.rotation.z = PI_F / 2f
+        val fish = group(at(ball(C.orange, 0.065f, 0.045f, 0.035f)), at(tail, -0.08f, 0f, 0f), at(ball(C.cocoa, 0.01f), 0.04f, 0.012f, 0.03f))
+        fish.position.set(0.02f, 0.8f, 0.13f)
+        fish.rotation.y = -0.4f
+        val rim = at(ring("#eaf5ff", 0.14f, 0.016f, Opt(roughness = 0.1f, opacity = 0.6f)), 0f, 1.04f, 0f)
+        rim.rotation.x = PI_F / 2f
+        group(
+            at(cyl(C.tan, 0.18f, 0.2f, 0.04f, ROOM), 0f, 0.02f, 0f),
+            at(cyl(C.tan, 0.04f, 0.05f, 0.5f, ROOM, 16), 0f, 0.29f, 0f),
+            at(cyl("#e8bd87", 0.3f, 0.3f, 0.05f, ROOM, 32), 0f, 0.555f, 0f),
+            at(ball("#86c1f2", 0.2f, 0.15f, 0.2f, Opt(roughness = 0.2f, opacity = 0.82f)), 0f, 0.74f, 0f),
+            at(ball("#b8c4cc", 0.04f, 0.025f, 0.04f), -0.07f, 0.6f, 0.03f),
+            at(ball(C.pink, 0.035f, 0.022f, 0.035f), 0.06f, 0.6f, -0.02f),
+            at(cyl(C.leaf, 0.012f, 0.016f, 0.14f, ROOM, 8), -0.05f, 0.66f, -0.06f),
+            fish,
+            at(ball("#eaf5ff", 0.25f, 0.24f, 0.25f, Opt(roughness = 0.05f, opacity = 0.18f)), 0f, 0.82f, 0f),
+            rim,
+        )
+    },
+    "cojin" to {
+        val top = at(ball(C.mint, 0.2f, 0.08f, 0.17f, PLUSH), 0.08f, 0.27f, 0.02f)
+        top.rotation.z = -0.18f
+        val g = group(at(ball(C.pink, 0.38f, 0.15f, 0.33f, PLUSH), 0f, 0.15f, 0f), top)
+        for ((x, z) in listOf(-0.3f to -0.25f, 0.3f to -0.25f, -0.3f to 0.25f, 0.3f to 0.25f)) g.add(at(ball(C.yellow, 0.04f), x, 0.12f, z))
+        g.add(at(ball("#e2648b", 0.035f, 0.02f, 0.035f), 0f, 0.3f, 0f))
+        g
+    },
+    "mesita" to {
+        val g = group(at(cyl(C.white, 0.26f, 0.24f, 0.05f, ROOM, 32), 0f, 0.46f, 0f))
+        for (i in 0 until 3) {
+            val a = (i / 3f) * PI_F * 2f + 0.5f
+            val leg = at(cyl(C.tan, 0.024f, 0.018f, 0.46f, ROOM, 10), cos(a) * 0.15f, 0.22f, sin(a) * 0.15f)
+            leg.rotation.set(sin(a) * 0.18f, 0f, -cos(a) * 0.18f)
+            g.add(leg)
+        }
+        g.add(at(cyl(C.blue, 0.06f, 0.085f, 0.18f, ROOM, 20), 0f, 0.575f, 0f), at(cyl(C.blue, 0.045f, 0.06f, 0.05f, ROOM, 20), 0f, 0.69f, 0f))
+        for ((x, tilt, height, color) in listOf(
+            listOf(-0.05f, 0.3f, 0.2f, C.pink), listOf(0f, 0f, 0.26f, C.yellow), listOf(0.05f, -0.32f, 0.2f, "#ff7a7a"),
+        )) {
+            val h = height as Float
+            val stem = group(at(cyl(C.leaf, 0.01f, 0.01f, h, ROOM, 6), 0f, h / 2f, 0f), at(ball(color as String, 0.045f, 0.06f, 0.045f), 0f, h + 0.03f, 0f))
+            stem.position.set((x as Float) * 0.5f, 0.7f, 0f)
+            stem.rotation.z = tilt as Float
+            g.add(stem)
+        }
+        g
+    },
+    "baul" to {
+        val lid = group(at(box(C.tan, 0.7f, 0.07f, 0.4f, ROOM), 0f, 0.035f, 0.2f))
+        lid.position.set(0f, 0.36f, -0.2f)
+        lid.rotation.x = -0.55f
+        val star = at(ball(C.yellow, 0.07f, 0.07f, 0.025f), 0.14f, 0.42f, 0.04f)
+        star.rotation.z = 0.4f
+        group(
+            at(box(C.tan, 0.68f, 0.34f, 0.38f, ROOM), 0f, 0.17f, 0f),
+            at(box(C.brown, 0.7f, 0.05f, 0.4f, ROOM), 0f, 0.06f, 0f),
+            at(box(C.brown, 0.7f, 0.05f, 0.4f, ROOM), 0f, 0.3f, 0f),
+            at(box(C.gold, 0.08f, 0.1f, 0.02f, ROOM), 0f, 0.3f, 0.2f),
+            at(ball(C.pink, 0.11f), -0.16f, 0.38f, 0.02f),
+            star,
+            lid,
+        )
+    },
+    "camita" to {
+        val rim = Mesh(torusGeometry(0.33f, 0.11f, 14, 40), mat(C.blue, PLUSH))
+        rim.castShadow = true
+        rim.rotation.x = PI_F / 2f
+        rim.scale.set(1f, 0.8f, 0.9f)
+        rim.position.y = 0.1f
+        val blanket = at(box(C.yellow, 0.3f, 0.02f, 0.24f), 0.08f, 0.12f, 0.06f)
+        blanket.rotation.set(0f, 0.5f, 0.08f)
+        group(rim, at(ball(C.cream, 0.32f, 0.07f, 0.28f, PLUSH), 0f, 0.06f, 0f), blanket, at(ball(C.pink, 0.11f, 0.05f, 0.08f, PLUSH), -0.13f, 0.13f, -0.08f))
+    },
+)
+
+// Muestra de papel pintado enmarcada, para la tienda.
+private fun swatch(id: String): Object3D {
+    val face = Mesh(planeGeometry(0.9f, 0.9f), Material.basic(Color.hex("#ffffff")) { map = wallpaperTexture(id); uvScaleX = 1.25f; uvScaleY = 1.25f })
+    face.position.set(0f, 0.5f, 0.026f)
+    return group(at(box(C.white, 1f, 1f, 0.05f, ROOM), 0f, 0.5f, 0f), face)
+}
+
+// Alfombra de muestra, inclinada hacia la cámara para que se vea entera.
+private fun rugSample(id: String): Object3D {
+    val rug = buildRug(id).obj
+    rug.rotation.x = 0.95f
+    return group(rug)
+}
+
+fun buildDecor(itemId: String): Object3D? = when {
+    itemId in DECOR -> DECOR.getValue(itemId).invoke()
+    isWallpaper(itemId) -> swatch(itemId)
+    isRug(itemId) -> rugSample(itemId)
+    else -> null
+}
+
 // ── Ropa ──────────────────────────────────────────────────────
 // Cada prenda recibe los anclajes de la criatura y devuelve el objeto y
 // a qué parte se cuelga: 'head' (gira con la cabeza) o 'body'.
@@ -471,7 +654,7 @@ private val MANNEQUIN = Anchors(
 
 fun buildWear(itemId: String, anchors: Anchors = MANNEQUIN): Wear? = WEAR[itemId]?.invoke(anchors)
 
-fun buildItem(itemId: String): Object3D? = BUILDERS[itemId]?.invoke() ?: buildWear(itemId)?.obj
+fun buildItem(itemId: String): Object3D? = BUILDERS[itemId]?.invoke() ?: buildDecor(itemId) ?: buildWear(itemId)?.obj
 
 fun isWear(itemId: String): Boolean = itemId in WEAR
 

@@ -58,6 +58,7 @@ export const api = {
   toy: post('/creature/toy'),
   rename: post('/creature/rename'),
   equip: post('/creature/equip'),
+  decorate: post('/decor/place'),
   buy: post('/shop/buy'),
   collect: post('/income/collect'),
   startGame: post('/games/start'),

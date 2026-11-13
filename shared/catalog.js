@@ -5,12 +5,23 @@ export const CATEGORIES = [
   { id: 'cuidado', name: 'Cuidado' },
   { id: 'juguete', name: 'Juguetes' },
   { id: 'ropa', name: 'Ropa' },
+  { id: 'casa', name: 'Casa' },
 ];
 
 export const SLOTS = [
   { id: 'cabeza', name: 'Cabeza' },
   { id: 'cara', name: 'Cara' },
   { id: 'cuello', name: 'Cuello' },
+];
+
+// Sitios de la habitación que se pueden decorar. La habitación es del
+// jugador, no de la criatura: se queda igual cuando llega otra. `base` es
+// lo que hay si no se ha puesto nada (null: el sitio queda vacío).
+export const SPOTS = [
+  { id: 'pared', name: 'Pared', base: 'Lunares de cielo' },
+  { id: 'alfombra', name: 'Alfombra', base: 'Alfombra rosa' },
+  { id: 'rincon', name: 'Rincón', base: 'Planta' },
+  { id: 'ventana', name: 'Ventana', base: null },
 ];
 
 const food = (id, name, price, hunger, extra = {}) => ({
@@ -22,6 +33,9 @@ const toy = (id, name, price, fun, energy, blurb) => ({
 });
 const wear = (id, name, price, slot, blurb) => ({
   id, name, price, kind: 'ropa', slot, blurb, reusable: true,
+});
+const decor = (id, name, price, spot, blurb) => ({
+  id, name, price, kind: 'casa', spot, blurb, reusable: true,
 });
 
 export const ITEMS = [
@@ -58,6 +72,30 @@ export const ITEMS = [
   wear('pajarita', 'Pajarita', 75, 'cuello', 'Elegante.'),
   wear('bufanda', 'Bufanda', 85, 'cuello', 'Larga y a rayas.'),
   wear('cascabel', 'Cascabel', 100, 'cuello', 'Suena al andar.'),
+
+  // La decoración es lo más caro de la tienda: es la meta a largo plazo.
+  decor('papel-rayas', 'Rayas de menta', 180, 'pared', 'Rayas finas, frescas y tranquilas.'),
+  decor('papel-vichy', 'Cuadros rosa', 240, 'pared', 'Como un mantel de merienda.'),
+  decor('papel-flores', 'Florecitas', 300, 'pared', 'Margaritas por todas partes.'),
+  decor('papel-olas', 'Olas', 360, 'pared', 'Para soñar con el mar.'),
+  decor('papel-estrellas', 'Noche de estrellas', 450, 'pared', 'Lila, con estrellas de oro.'),
+
+  decor('alfombra-menta', 'Alfombra menta', 180, 'alfombra', 'Redonda y suave.'),
+  decor('alfombra-flor', 'Alfombra flor', 300, 'alfombra', 'Con pétalos alrededor.'),
+  decor('alfombra-arcoiris', 'Alfombra arcoíris', 380, 'alfombra', 'Un color en cada vuelta.'),
+  decor('alfombra-nube', 'Alfombra nube', 480, 'alfombra', 'Mullida como una nube.'),
+
+  // Junto a la ventana caben cosas altas; en el rincón, cosas bajas, que
+  // en el móvil quedan por debajo de los botones de la derecha.
+  decor('cactus', 'Cactus', 200, 'ventana', 'No hay que regarlo casi nunca.'),
+  decor('girasol', 'Girasol', 280, 'ventana', 'Siempre mira hacia la luz.'),
+  decor('lampara', 'Lámpara de pie', 420, 'ventana', 'Luz cálida para leer.'),
+  decor('pecera', 'Pecera', 650, 'ventana', 'Con un pez que saluda.'),
+
+  decor('cojin', 'Cojín grande', 160, 'rincon', 'Para tumbarse a descansar.'),
+  decor('mesita', 'Mesita con flores', 300, 'rincon', 'Un jarrón con tulipanes.'),
+  decor('baul', 'Baúl de juguetes', 450, 'rincon', 'Siempre se queda algo fuera.'),
+  decor('camita', 'Camita', 600, 'rincon', 'Un nido blandito con su manta.'),
 ];
 
 const BY_ID = new Map(ITEMS.map((item) => [item.id, item]));
@@ -68,6 +106,31 @@ export function getItem(id) {
 
 export function itemsOfKind(kind) {
   return ITEMS.filter((item) => item.kind === kind);
+}
+
+// Lo que hay puesto en cada sitio de la habitación (null: lo de base).
+// Limpia lo guardado: lo que ya no exista o no vaya ahí, fuera.
+export function cleanDecor(raw) {
+  const decor = {};
+  for (const spot of SPOTS) {
+    const item = getItem(raw?.[spot.id]);
+    decor[spot.id] = item && item.kind === 'casa' && item.spot === spot.id ? item.id : null;
+  }
+  return decor;
+}
+
+// Pone un artículo en su sitio, o deja el sitio como venía con null.
+// Devuelve { ok, error? }; quien llama comprueba que sea del jugador.
+export function placeDecor(decor, spot, itemId) {
+  if (!SPOTS.some((entry) => entry.id === spot)) return { ok: false, error: 'Ese sitio no existe.' };
+  if (itemId === null) {
+    decor[spot] = null;
+    return { ok: true };
+  }
+  const item = getItem(itemId);
+  if (!item || item.kind !== 'casa' || item.spot !== spot) return { ok: false, error: 'Eso no va ahí.' };
+  decor[spot] = item.id;
+  return { ok: true };
 }
 
 export const STARTING_COINS = 60;

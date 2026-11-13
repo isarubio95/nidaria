@@ -122,6 +122,7 @@ fun SheetHost(game: Game, safeBottom: Dp) {
                         Sheet.Food -> FoodSheet(game)
                         Sheet.Heal -> HealSheet(game)
                         Sheet.Wardrobe -> WardrobeSheet(game)
+                        is Sheet.House -> HouseSheet(game, sheet.spot)
                         Sheet.Criadex -> CriadexSheet(game)
                         is Sheet.Play -> PlaySheet(game, sheet.tab)
                         Sheet.Profile -> ProfileSheet(game)

@@ -16,6 +16,7 @@ import { openShop } from './shop.js';
 import { openFood, openHeal } from './care.js';
 import { openPlay } from './play.js';
 import { openWardrobe } from './wardrobe.js';
+import { openDecor } from './decor.js';
 import { openCriadex } from './criadex.js';
 import { openProfile } from './profile.js';
 import { openDaily, claimable } from './daily.js';
@@ -62,6 +63,7 @@ export function mountHome(app, room) {
   const side = h('nav', { class: 'side', 'aria-label': 'Más' },
     dailyButton,
     h('button', { class: 'side-btn', type: 'button', onclick: () => openWardrobe() }, icon('hanger'), 'Armario'),
+    h('button', { class: 'side-btn', type: 'button', onclick: () => openDecor() }, icon('home'), 'Casa'),
     h('button', { class: 'side-btn', type: 'button', onclick: () => openCriadex() }, icon('tree'), 'Criadex'),
   );
 

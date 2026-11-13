@@ -4,6 +4,7 @@
 package com.nidaria.app.ui
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.text.BasicText
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -34,6 +35,10 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -48,6 +53,7 @@ import com.nidaria.app.rules.BRANCH_INFO
 import com.nidaria.app.rules.CATEGORIES
 import com.nidaria.app.rules.Creature
 import com.nidaria.app.rules.DIFFICULTIES
+import com.nidaria.app.rules.FEATURED_MULT
 import com.nidaria.app.rules.FAMILIES
 import com.nidaria.app.rules.FAMILY_INFO
 import com.nidaria.app.rules.FORM_LIST
@@ -55,20 +61,25 @@ import com.nidaria.app.rules.Form
 import com.nidaria.app.rules.Item
 import com.nidaria.app.rules.MAX_STACK
 import com.nidaria.app.rules.MINIGAMES
+import com.nidaria.app.rules.PERKS
 import com.nidaria.app.rules.SHY_UNTIL
 import com.nidaria.app.rules.SLOTS
+import com.nidaria.app.rules.SPOTS
 import com.nidaria.app.rules.STAGE_INFO
 import com.nidaria.app.rules.TOY_COOLDOWN_MS
 import com.nidaria.app.rules.TRAITS
 import com.nidaria.app.rules.baseReward
 import com.nidaria.app.rules.bondLevel
 import com.nidaria.app.rules.canPlayGame
+import com.nidaria.app.rules.gameLock
+import com.nidaria.app.rules.perksFor
 import com.nidaria.app.rules.childrenOf
 import com.nidaria.app.rules.getForm
 import com.nidaria.app.rules.getItem
 import com.nidaria.app.rules.hintFor
 import com.nidaria.app.rules.itemsOfKind
 import com.nidaria.app.rules.secretsOf
+import com.nidaria.app.scene.BASE_DECOR
 import com.nidaria.app.scene.ThumbSpec
 import com.nidaria.app.scene.canonGenes
 import kotlin.math.abs
@@ -101,6 +112,7 @@ fun EffectChips(item: Item, limit: Int = 9, center: Boolean = false) {
             chips.add(Ic.Moon to if (item.energy != 0) "${signed(-item.energy)} energía" else "No cansa")
         }
         "ropa" -> chips.add(Ic.Hanger to SLOTS.first { it.id == item.slot }.name)
+        "casa" -> chips.add(Ic.Home to SPOTS.first { it.id == item.spot }.name)
     }
     Chips(center) { for ((icon, text) in chips.take(limit)) Chip(icon, text, tight = center) }
 }
@@ -183,6 +195,9 @@ private fun BuyBar(game: Game, state: GameState, item: Item, wanted: Int, onQty:
                 val wearing = creature?.equipped?.slot(item.slot!!) == item.id
                 val can = creature != null && creature.alive && creature.stage != "huevo"
                 Btn(if (wearing) "Lo lleva puesto" else "Ponérselo", { game.equip(item.slot!!, item, announce = true) }, wide, Tone.Mint, enabled = !wearing && can)
+            } else if (mine && item.kind == "casa") {
+                val there = state.decor.spot(item.spot!!) == item.id
+                Btn(if (there) "Ya está puesto" else "Colocar", { game.decorate(item.spot, item, announce = true) }, wide, Tone.Mint, enabled = !there)
             } else if (mine) {
                 Btn("Ya es tuyo", {}, wide, enabled = false)
             } else if (short > 0) {
@@ -279,6 +294,37 @@ fun WardrobeSheet(game: Game) {
                     ItemTile(item.name, ThumbSpec.Item(item.id), { game.equip(slot, item) }, selected = wearing == item.id)
                 }
             }
+        }
+    }
+}
+
+// ── Casa ──────────────────────────────────────────────────────
+
+// Cambiar el papel pintado, la alfombra y los muebles de la habitación
+// con lo que ya es del jugador.
+@Composable
+fun HouseSheet(game: Game, initial: String) {
+    val state = game.store.state ?: return
+    var spot by remember { mutableStateOf(initial) }
+    SheetFrame(
+        game, "Casa",
+        tabs = { ScrollTabs(SPOTS.map { it.id to it.name }, spot, { spot = it }) },
+        foot = { Btn("Comprar para la casa", { game.openSheet(Sheet.Shop("casa")) }, Modifier.fillMaxWidth(), tone = null) },
+    ) {
+        val info = SPOTS.first { it.id == spot }
+        val current = state.decor.spot(spot)
+        val owned = itemsOfKind("casa").filter { it.spot == spot && state.owned(it.id) > 0 }
+        Grid(owned.size + 1) { index ->
+            if (index == 0) {
+                val base = BASE_DECOR[spot]
+                ItemTile(info.base ?: "Nada", base?.let { ThumbSpec.Item(it) }, { game.decorate(spot, null) }, selected = current == null)
+            } else {
+                val item = owned[index - 1]
+                ItemTile(item.name, ThumbSpec.Item(item.id), { game.decorate(spot, item) }, selected = current == item.id)
+            }
+        }
+        if (owned.isEmpty()) {
+            T("En la tienda, en Casa, hay más cosas para este sitio.", Nd.smSoft, Modifier.fillMaxWidth().padding(top = 16.dp), align = TextAlign.Center)
         }
     }
 }
@@ -457,6 +503,11 @@ private fun GamesTab(game: Game) {
     val max = state.user.ticketsMax
     val blocked = canPlayGame(live)
     val levels = remember { DIFFICULTIES.values.map { it.id to it.name } }
+    val featured = state.daily?.featured
+    // Mientras crece aún puede tomar otra rama.
+    val growing = live.stage == "cria" || live.stage == "joven"
+    // El juego del día va primero.
+    val ordered = remember(featured) { MINIGAMES.sortedByDescending { it.id == featured } }
 
     Row(
         Modifier.fillMaxWidth().padding(bottom = 12.dp).surface(Nd.sunWash, Nd.rMd).padding(horizontal = 16.dp, vertical = 12.dp),
@@ -485,15 +536,44 @@ private fun GamesTab(game: Game) {
     }
     if (blocked != null) T(blocked, Nd.sm, Modifier.padding(bottom = 12.dp), color = Nd.danger)
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        for (mini in MINIGAMES) {
+        for (mini in ordered) {
             var level by remember(mini.id) { mutableStateOf(game.api.level(mini.id)) }
+            val mult = if (mini.id == featured) FEATURED_MULT else 1.0
+            val lock = gameLock(mini, live)
             Column(
-                Modifier.fillMaxWidth().surface(Nd.cream, Nd.rMd).padding(16.dp),
+                Modifier
+                    .fillMaxWidth()
+                    .surface(Nd.cream, Nd.rMd)
+                    .innerBorder(if (mult > 1.0) Nd.sun else Color.Transparent, 3.dp, Nd.rMd)
+                    .padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 Column {
+                    if (mult > 1.0) {
+                        Box(Modifier.padding(bottom = 6.dp).surface(Nd.sun, Nd.rPill).padding(start = 9.dp, end = 9.dp, top = 3.dp, bottom = 4.dp)) {
+                            T("Juego del día · paga ×1,5", Nd.xsBlack)
+                        }
+                    }
                     T(mini.name, Nd.lg)
                     T(mini.blurb, Nd.smSoft, Modifier.padding(top = 2.dp))
+                    for (trait in perksFor(mini.id, live.genes.traits)) {
+                        val text = PERKS.getValue(trait).text.replaceFirstChar { it.lowercase() }
+                        BasicText(
+                            buildAnnotatedString {
+                                withStyle(SpanStyle(fontWeight = FontWeight.Black)) { append("${TRAITS.getValue(trait).name}: ") }
+                                append(text)
+                            },
+                            Modifier.padding(top = 6.dp),
+                            Nd.sm,
+                        )
+                    }
+                    if (lock != null) {
+                        T(
+                            lock + if (growing) " Si juegas mucho con ella, puede que lo sea al crecer." else "",
+                            Nd.sm,
+                            Modifier.padding(top = 6.dp).fillMaxWidth().surface(Nd.track, Nd.rSm).padding(start = 10.dp, end = 10.dp, top = 6.dp, bottom = 7.dp),
+                        )
+                    }
                 }
                 FlowRow(
                     Modifier.fillMaxWidth(),
@@ -502,10 +582,13 @@ private fun GamesTab(game: Game) {
                     itemVerticalAlignment = Alignment.CenterVertically,
                 ) {
                     Tabs(levels, level, { level = game.api.level(mini.id, it) }, height = 36.dp, padX = 12.dp)
-                    Btn({ game.launchGame(mini.id, level) }, Modifier.widthIn(min = 132.dp), Tone.Pink, enabled = tickets.tickets >= 1 && blocked == null) {
+                    Btn(
+                        { game.launchGame(mini.id, level) }, Modifier.widthIn(min = 132.dp), Tone.Pink,
+                        enabled = tickets.tickets >= 1 && blocked == null && lock == null,
+                    ) {
                         BtnText("Jugar")
                         Coin(20.dp)
-                        T(fmt(baseReward(mini, level)), Nd.strong.num)
+                        T(fmt(baseReward(mini, level, mult)), Nd.strong.num)
                     }
                 }
             }

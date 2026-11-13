@@ -276,6 +276,14 @@ fun simulate(original: Creature, now: Double, scale: Double = 1.0): SimResult {
     return SimResult(creature, events)
 }
 
+// Juegos de una rama: solo para criaturas que se han criado por ella, de
+// jóvenes o de adultas. Devuelve el motivo o null.
+fun gameLock(game: MiniGame, creature: Creature?): String? {
+    val branch = game.branch ?: return null
+    if (creature != null && branch in getForm(creature.formId).path) return null
+    return "Solo lo juegan las criaturas ${BRANCH_INFO.getValue(branch).name.lowercase()}s."
+}
+
 // Requisitos para empezar un minijuego. Devuelve el motivo o null.
 fun canPlayGame(creature: Creature): String? {
     if (!creature.alive) return "Ya no está aquí."

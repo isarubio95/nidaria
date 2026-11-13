@@ -5,7 +5,8 @@ import { gsap } from 'gsap';
 import { h, icon, coin, fmt, reducedMotion } from '../dom.js';
 import { api } from '../api.js';
 import { store, run } from '../store.js';
-import { getGame, DIFFICULTIES, baseReward } from '/shared/economy.js';
+import { getGame, DIFFICULTIES, FEATURED_MULT, baseReward, levelFor, perksFor } from '/shared/economy.js';
+import { TRAITS } from '/shared/dna.js';
 import { dialog } from '../ui/dialog.js';
 import { line } from '../ui/speech.js';
 import { creatureThumb } from '../scene/thumbs.js';
@@ -17,6 +18,7 @@ const MODULES = {
   charcos: () => import('./charcos.js'),
   eco: () => import('./eco.js'),
   burbujas: () => import('./burbujas.js'),
+  escondite: () => import('./escondite.js'),
 };
 
 const root = document.getElementById('games');
@@ -24,11 +26,13 @@ const app = document.getElementById('app');
 
 export async function launchGame(gameId, difficulty, { room, say }) {
   const game = getGame(gameId);
-  const level = game.levels[difficulty];
   const started = await run(api.startGame({ gameId, difficulty }));
   if (!started) return;
-  const { playId } = started.result;
+  const { playId, featured } = started.result;
   const creature = store.state.creature;
+  // Las ventajas del carácter de la criatura ya van dentro del nivel.
+  const level = levelFor(game, difficulty, creature.genes);
+  const perks = perksFor(gameId, creature.genes);
 
   const scoreText = h('span', { class: 'num' });
   const timeText = h('span', { class: 'num' });
@@ -54,7 +58,9 @@ export async function launchGame(gameId, difficulty, { room, say }) {
     h('div', { class: 'dialog' },
       h('h2', {}, game.name),
       h('p', {}, game.blurb),
-      h('p', {}, `Dificultad ${DIFFICULTIES[difficulty].name.toLowerCase()}: llega a ${level.target} para ganar ${fmt(baseReward(game, difficulty))} monedas.`),
+      h('p', {}, `Dificultad ${DIFFICULTIES[difficulty].name.toLowerCase()}: llega a ${level.target} para ganar ${fmt(baseReward(game, difficulty, featured ? FEATURED_MULT : 1))} monedas.`),
+      featured ? h('p', { class: 'cover-note' }, 'Hoy es el juego del día: paga un 50 % más.') : null,
+      perks.map(({ trait, text }) => h('p', { class: 'cover-note' }, h('strong', {}, `Por ser ${TRAITS[trait].name.toLowerCase()}: `), text.charAt(0).toLowerCase() + text.slice(1))),
       h('div', { class: 'dialog-actions' }, startButton),
     ),
   );
@@ -90,7 +96,7 @@ export async function launchGame(gameId, difficulty, { room, say }) {
     const shown = dialog({
       title: won ? '¡Has ganado!' : 'No ha podido ser',
       text: won
-        ? `Has hecho ${score} y el objetivo era ${target}.`
+        ? `Has hecho ${score} y el objetivo era ${target}.${finished.result.featured ? ' Como es el juego del día, el premio sube un 50 %.' : ''}`
         : `Has hecho ${score} y hacían falta ${target}. La energía de juego se ha gastado igual.`,
       extra: reward,
       actions: [{ label: won ? 'Recoger' : 'Volver', value: true, tone: won ? 'sun' : 'pink' }],

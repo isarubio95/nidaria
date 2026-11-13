@@ -11,6 +11,7 @@ import { FORM_LIST } from '/shared/forms.js';
 import { clamp } from '/shared/rng.js';
 import { buildCreature, Actor } from './creature.js';
 import { buildEgg, buildItem, buildWear } from './props.js';
+import { wallpaperTexture, buildRug, BASE_DECOR, RUG_NIGHT, TILE_METERS } from './decor.js';
 
 const FOV = 30;
 const FLOOR_Y = 0.03;
@@ -18,14 +19,17 @@ const EGG_SCALE = 1.08;
 
 const DAY = {
   wall: new THREE.Color('#ffffff'), floor: new THREE.Color('#ffffff'),
-  rug: new THREE.Color('#ff8fb1'), rugLight: new THREE.Color('#ffabc5'),
   trim: new THREE.Color('#fffdf8'), key: new THREE.Color('#fff4e2'), back: new THREE.Color('#bfe3ff'),
 };
 const NIGHT = {
   wall: new THREE.Color('#5c6ca8'), floor: new THREE.Color('#6d6b99'),
-  rug: new THREE.Color('#8d5884'), rugLight: new THREE.Color('#9d6a95'),
   trim: new THREE.Color('#8d93bd'), key: new THREE.Color('#aebfff'), back: new THREE.Color('#47619f'),
 };
+
+// Dónde va cada mueble: el rincón a la derecha de la criatura y el sitio
+// de la ventana a la izquierda. En el móvil, lo que pasa de medio metro en
+// el rincón queda detrás de los botones de la derecha.
+const SPOT_AT = { rincon: [1.0, 0, -1.8], ventana: [-0.8, 0, -1.85] };
 
 function canvasTexture(width, height, draw) {
   const canvas = document.createElement('canvas');
@@ -209,20 +213,17 @@ export function createRoom(canvas) {
   scene.add(hemi, key, key.target, rim);
 
   // ── Habitación ──
-  const wallMap = canvasTexture(96, 96, (ctx, w, h) => {
-    ctx.fillStyle = '#bfe3ff';
-    ctx.fillRect(0, 0, w, h);
-    ctx.fillStyle = '#cdeaff';
-    for (const [x, y] of [[w / 2, h / 2], [0, 0], [w, 0], [0, h], [w, h]]) {
-      ctx.beginPath();
-      ctx.arc(x, y, 7, 0, Math.PI * 2);
-      ctx.fill();
+  // El papel pintado cambia con la decoración (ver setDecor).
+  const wallMaps = new Map();
+  function wallMap(id) {
+    if (!wallMaps.has(id)) {
+      const map = wallpaperTexture(id, 60 / TILE_METERS, 24 / TILE_METERS);
+      map.anisotropy = renderer.capabilities.getMaxAnisotropy();
+      wallMaps.set(id, map);
     }
-  });
-  wallMap.wrapS = wallMap.wrapT = THREE.RepeatWrapping;
-  wallMap.repeat.set(60 / 0.5, 24 / 0.5);
-  wallMap.anisotropy = renderer.capabilities.getMaxAnisotropy();
-  const wallMat = new THREE.MeshBasicMaterial({ map: wallMap });
+    return wallMaps.get(id);
+  }
+  const wallMat = new THREE.MeshBasicMaterial({ map: wallMap(BASE_DECOR.pared) });
   const wall = new THREE.Mesh(new THREE.PlaneGeometry(60, 24), wallMat);
   wall.position.set(0, 12, -2.4);
 
@@ -244,16 +245,9 @@ export function createRoom(canvas) {
   const baseboard = new THREE.Mesh(new THREE.BoxGeometry(60, 0.16, 0.06), trimMat);
   baseboard.position.set(0, 0.08, -2.37);
 
-  const rugMat = new THREE.MeshBasicMaterial({ color: DAY.rug });
-  const rugLightMat = new THREE.MeshBasicMaterial({ color: DAY.rugLight });
+  // La alfombra va dentro de `rug`, que el encuadre escala.
   const rug = new THREE.Group();
-  const disc = new THREE.CylinderGeometry(1, 1, 0.01, 56);
-  [[1, rugMat, 0.02], [0.88, rugLightMat, 0.022], [0.78, rugMat, 0.024]].forEach(([scale, material, y]) => {
-    const mesh = new THREE.Mesh(disc, material);
-    mesh.scale.set(0.84 * scale, 1, 0.52 * scale - (1 - scale) * 0.1);
-    mesh.position.y = y;
-    rug.add(mesh);
-  });
+  let rugMaterials = [];
 
   const shadowMat = new THREE.ShadowMaterial({ color: '#5b3a29', opacity: 0.22 });
   const shadowPlane = new THREE.Mesh(new THREE.PlaneGeometry(12, 10), shadowMat);
@@ -301,32 +295,8 @@ export function createRoom(canvas) {
   const patch = new THREE.Mesh(patchGeo, patchMat);
   patch.position.set(-0.62, 0.006, -2.1);
 
-  // Muebles: solo asoman en pantallas anchas.
+  // Muebles fijos: solo asoman en pantallas anchas.
   const lit = (color, roughness = 0.7) => new THREE.MeshStandardMaterial({ color, roughness });
-  const plant = new THREE.Group();
-  const pot = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.15, 0.3, 24), lit('#fffdf8'));
-  pot.position.y = 0.15;
-  const band = new THREE.Mesh(new THREE.CylinderGeometry(0.205, 0.19, 0.08, 24), lit('#ffd166'));
-  band.position.y = 0.24;
-  plant.add(pot, band);
-  const leafShape = new THREE.Shape();
-  leafShape.moveTo(0, 0);
-  leafShape.bezierCurveTo(0.14, 0.12, 0.12, 0.5, 0, 0.62);
-  leafShape.bezierCurveTo(-0.12, 0.5, -0.14, 0.12, 0, 0);
-  const leafGeo = new THREE.ExtrudeGeometry(leafShape, { depth: 0.02, bevelEnabled: false, curveSegments: 10 });
-  for (let i = 0; i < 6; i++) {
-    const leaf = new THREE.Mesh(leafGeo, lit(i % 2 ? '#6cc47f' : '#4fae7c'));
-    leaf.position.y = 0.28;
-    leaf.rotation.order = 'YXZ';
-    leaf.rotation.y = (i / 6) * Math.PI * 2;
-    leaf.rotation.x = 0.35 + (i % 3) * 0.16;
-    leaf.scale.setScalar(0.9 + (i % 2) * 0.25);
-    leaf.castShadow = true;
-    plant.add(leaf);
-  }
-  pot.castShadow = true;
-  plant.position.set(1.0, 0, -1.8);
-
   const shelf = new THREE.Group();
   const board = new THREE.Mesh(new THREE.BoxGeometry(1.0, 0.05, 0.24), lit('#e2b279'));
   shelf.add(board);
@@ -351,7 +321,51 @@ export function createRoom(canvas) {
   pouf.add(cushion, button);
   pouf.position.set(-1.75, 0, -1.25);
 
-  scene.add(wall, floor, baseboard, patch, rug, shadowPlane, win, plant, shelf, pouf);
+  // Sitios para los muebles que pone el jugador.
+  const spots = {};
+  for (const [spot, [x, y, z]] of Object.entries(SPOT_AT)) {
+    spots[spot] = new THREE.Group();
+    spots[spot].position.set(x, y, z);
+  }
+
+  scene.add(wall, floor, baseboard, patch, rug, shadowPlane, win, spots.rincon, spots.ventana, shelf, pouf);
+
+  // ── Decoración ──
+  const placed = { pared: undefined, alfombra: undefined, rincon: undefined, ventana: undefined };
+
+  function freeObject(object) {
+    object.traverse((node) => {
+      if (node.geometry && !node.geometry.userData.shared) node.geometry.dispose();
+    });
+  }
+
+  // `decor` es lo que manda el servidor ({ pared: id | null, … }); lo que
+  // falta o vale null es lo de base.
+  function setDecor(decor = {}) {
+    const want = (spot) => decor?.[spot] ?? BASE_DECOR[spot];
+    if (placed.pared !== want('pared')) {
+      placed.pared = want('pared');
+      wallMat.map = wallMap(placed.pared);
+    }
+    if (placed.alfombra !== want('alfombra')) {
+      placed.alfombra = want('alfombra');
+      for (const child of [...rug.children]) rug.remove(child);
+      const built = buildRug(placed.alfombra);
+      rug.add(built.object);
+      rugMaterials = built.materials.map(({ material, day }) => ({ material, day, night: day.clone().multiply(RUG_NIGHT) }));
+    }
+    for (const spot of Object.keys(SPOT_AT)) {
+      if (placed[spot] === want(spot)) continue;
+      placed[spot] = want(spot);
+      for (const child of [...spots[spot].children]) {
+        spots[spot].remove(child);
+        freeObject(child);
+      }
+      const piece = placed[spot] ? buildItem(placed[spot]) : null;
+      if (piece) spots[spot].add(piece);
+    }
+    applyDim();
+  }
 
   // ── Soporte de la criatura ──
   const mount = new THREE.Group();
@@ -853,8 +867,7 @@ export function createRoom(canvas) {
     const k = dim.k;
     wallMat.color.lerpColors(DAY.wall, NIGHT.wall, k);
     floorMat.color.lerpColors(DAY.floor, NIGHT.floor, k);
-    rugMat.color.lerpColors(DAY.rug, NIGHT.rug, k);
-    rugLightMat.color.lerpColors(DAY.rugLight, NIGHT.rugLight, k);
+    for (const { material, day, night: dark } of rugMaterials) material.color.lerpColors(day, dark, k);
     trimMat.color.lerpColors(DAY.trim, NIGHT.trim, k);
     scene.background.lerpColors(DAY.back, NIGHT.back, k);
     key.color.lerpColors(DAY.key, NIGHT.key, k);
@@ -896,6 +909,7 @@ export function createRoom(canvas) {
     refreshSky();
   }
   refreshSky();
+  setDecor();
   const skyTimer = setInterval(refreshSky, 60 * 1000);
 
   // ── Encuadre ──
@@ -1097,6 +1111,7 @@ export function createRoom(canvas) {
     farewell,
     setNight,
     setWeather,
+    setDecor,
     setPaused(value) { paused = value; },
     destroy() {
       clearInterval(skyTimer);

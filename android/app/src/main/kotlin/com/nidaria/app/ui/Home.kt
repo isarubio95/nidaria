@@ -152,6 +152,7 @@ fun HomeScreen(game: Game, insets: Insets) {
                         val ready = state.daily?.claimable ?: 0
                         SideButton(Ic.Target, "Misiones", badge = ready) { game.openSheet(Sheet.Daily) }
                         SideButton(Ic.Hanger, "Armario") { game.openSheet(Sheet.Wardrobe) }
+                        SideButton(Ic.Home, "Casa") { game.openSheet(Sheet.House()) }
                         SideButton(Ic.Tree, "Criadex") { game.openSheet(Sheet.Criadex) }
                     }
                 }

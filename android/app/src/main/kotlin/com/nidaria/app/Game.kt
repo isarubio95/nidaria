@@ -19,6 +19,7 @@ import androidx.compose.runtime.setValue
 import com.nidaria.app.data.Api
 import com.nidaria.app.data.ApiError
 import com.nidaria.app.data.Daily
+import com.nidaria.app.data.Decor
 import com.nidaria.app.data.Mission
 import com.nidaria.app.data.GameEvent
 import com.nidaria.app.data.GameState
@@ -32,6 +33,7 @@ import com.nidaria.app.rules.BRANCH_INFO
 import com.nidaria.app.rules.Creature
 import com.nidaria.app.rules.FAMILY_INFO
 import com.nidaria.app.rules.Item
+import com.nidaria.app.rules.Level
 import com.nidaria.app.rules.MiniGame
 import com.nidaria.app.rules.SECRET_INFO
 import com.nidaria.app.rules.TRICKS
@@ -41,6 +43,7 @@ import com.nidaria.app.rules.TRICK_LINES
 import com.nidaria.app.rules.bondLevel
 import com.nidaria.app.rules.getForm
 import com.nidaria.app.rules.getGame
+import com.nidaria.app.rules.levelFor
 import com.nidaria.app.rules.moodOf
 import com.nidaria.app.rules.nextStageAt
 import com.nidaria.app.rules.stageDuration
@@ -69,6 +72,7 @@ sealed class Sheet {
     data object Food : Sheet()
     data object Heal : Sheet()
     data object Wardrobe : Sheet()
+    data class House(val spot: String = "pared") : Sheet()
     data object Criadex : Sheet()
     data class Play(val tab: String = "juegos") : Sheet()
     data object Profile : Sheet()
@@ -95,8 +99,17 @@ class ToastState(val id: Long, val message: String, val error: Boolean) {
     var open by mutableStateOf(false)
 }
 
-// Una partida de minijuego en pantalla.
-class PlaySession(val game: MiniGame, val difficulty: String, val playId: String, val avatar: ThumbSpec) {
+// Una partida de minijuego en pantalla. `level` ya lleva las ventajas
+// del carácter de la criatura (`traits`); `featured`: es el juego del día.
+class PlaySession(
+    val game: MiniGame,
+    val difficulty: String,
+    val playId: String,
+    val avatar: ThumbSpec,
+    val level: Level,
+    val traits: List<String>,
+    val featured: Boolean,
+) {
     var open by mutableStateOf(false)
     internal var closed = false
 }
@@ -325,11 +338,14 @@ class Game(context: Context, val room: RoomView, private val scope: CoroutineSco
             live = null
             bubbleOpen = false
             room.setNight(false)
+            room.setDecor(Decor())
             room.showDemo()
             show("auth", Screen.Auth)
             return
         }
 
+        // La habitación es del jugador: su decoración vale en todas las pantallas.
+        room.setDecor(state.decor)
         val creature = state.creature
         if (creature == null || (!creature.alive && creature.id in seenFarewell)) {
             if (screenName != "eggs") {
@@ -589,6 +605,12 @@ class Game(context: Context, val room: RoomView, private val scope: CoroutineSco
         if (announce && item != null) toast("${payload.state?.creature?.name} lleva puesto: ${item.name}.")
     }
 
+    // Pone algo suyo en un sitio de la habitación, o lo deja como venía.
+    fun decorate(spot: String, item: Item?, announce: Boolean = false): Job = scope.launch {
+        send { decorate(spot, item?.id) } ?: return@launch
+        if (announce && item != null) toast("Has puesto en la habitación: ${item.name}.")
+    }
+
     fun rename(name: String): Job = scope.launch {
         val payload = send { rename(name) } ?: return@launch
         toast("Ahora se llama ${payload.state?.creature?.name}.")
@@ -738,7 +760,11 @@ class Game(context: Context, val room: RoomView, private val scope: CoroutineSco
         val playId = started.text("playId") ?: return@launch
         val creature = store.state?.creature ?: return@launch
         bubbleOpen = false
-        play = PlaySession(game, difficulty, playId, ThumbSpec.creature(creature.formId, creature.genes))
+        val traits = creature.genes.traits
+        play = PlaySession(
+            game, difficulty, playId, ThumbSpec.creature(creature.formId, creature.genes),
+            levelFor(game, difficulty, traits), traits, started.flag("featured"),
+        )
         room.setPaused(true)
     }
 
@@ -759,8 +785,10 @@ class Game(context: Context, val room: RoomView, private val scope: CoroutineSco
         dialog(
             DialogSpec(
                 title = if (won) "¡Has ganado!" else "No ha podido ser",
-                text = if (won) "Has hecho $score y el objetivo era $target."
-                else "Has hecho $score y hacían falta $target. La energía de juego se ha gastado igual.",
+                text = if (won) {
+                    "Has hecho $score y el objetivo era $target." +
+                        if (finished.flag("featured")) " Como es el juego del día, el premio sube un 50 %." else ""
+                } else "Has hecho $score y hacían falta $target. La energía de juego se ha gastado igual.",
                 extra = if (won) ({ com.nidaria.app.ui.Reward(coins) }) else null,
                 actions = listOf(DialogAction(if (won) "Recoger" else "Volver", true, if (won) Tone.Sun else Tone.Pink)),
             ),

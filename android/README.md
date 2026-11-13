@@ -135,7 +135,7 @@ Todo el código está en `app/src/main/kotlin/com/nidaria/app/`.
 
 - `rules/`: las reglas del juego, portadas de `shared/`. El servidor sigue siendo la autoridad; la app las usa para mover las barras entre visitas y para dibujar cada criatura a partir de su ADN.
 - `gl/`: el motor 3D. Matemática y grafo de escena con los convenios de Three.js, geometrías generadas por código, animaciones con la semántica de GSAP y el renderizador (sombras, materiales físicos, luz de entorno).
-- `scene/`: la habitación, el generador de criaturas, los modelos de los artículos y las miniaturas. Es el equivalente de `public/js/scene/`.
+- `scene/`: la habitación, el generador de criaturas, los modelos de los artículos y las miniaturas. Es el equivalente de `public/js/scene/`. Los papeles pintados se pintan en `Decor.kt` con un lienzo propio en Kotlin, sin `android.graphics`, para que las pruebas puedan construir sus muestras.
 - `data/`: el cliente de la API, el estado de la partida y el clima real.
 - `notify/`: los avisos. `Alerts.kt` decide qué avisar (la misma regla que `server/game/alerts.js`) y `Notifier.kt` lo programa y lo enseña.
 - `ui/`: la interfaz. Tema, componentes, pantallas, hojas y minijuegos.
@@ -147,7 +147,7 @@ Todo el código está en `app/src/main/kotlin/com/nidaria/app/`.
 
 La app repite en Kotlin lo que la web hace en JavaScript, así que un cambio en un lado hay que llevarlo al otro. Hay dos ayudas para que no se desvíen sin avisar.
 
-**Reglas.** `tools/golden.mjs` ejecuta las reglas originales de `shared/` y guarda sus resultados en `app/src/test/resources/golden.json`. Las pruebas comparan las reglas de Kotlin con ese fichero: generador aleatorio, ADN, formas, simulación de necesidades, economía y catálogo. Tras tocar `shared/`:
+**Reglas.** `tools/golden.mjs` ejecuta las reglas originales de `shared/` y guarda sus resultados en `app/src/test/resources/golden.json`. Las pruebas comparan las reglas de Kotlin con ese fichero: generador aleatorio, ADN, formas, simulación de necesidades, economía (con el premio del juego del día, las ventajas del carácter y los juegos de una rama) y catálogo. Tras tocar `shared/`:
 
 ```bash
 node tools/golden.mjs          # con Node 22 o posterior

@@ -127,6 +127,7 @@ export function createApp(db, config, { push = createPush(db, config) } = {}) {
   api.post('/creature/rename', handle((req) => game.rename(req.userId, body(req).name)));
   api.post('/creature/equip', handle((req) => game.equip(req.userId, body(req).slot, body(req).itemId)));
   api.post('/shop/buy', handle((req) => game.buy(req.userId, body(req).itemId, body(req).qty)));
+  api.post('/decor/place', handle((req) => game.decorate(req.userId, body(req).spot, body(req).itemId)));
   api.post('/income/collect', handle((req) => game.collectIncome(req.userId)));
   api.post('/games/start', handle((req) => game.startGame(req.userId, body(req).gameId, body(req).difficulty)));
   api.post('/games/finish', handle((req) => game.finishGame(req.userId, body(req).playId, body(req).score)));

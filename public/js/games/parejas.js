@@ -17,6 +17,7 @@ export async function create({ area, level, hud, onEnd }) {
   let running = false;
   let ended = false;
   let timer = null;
+  let peekTimer = null;
 
   const paintHud = () => hud({ score: found, target: level.pairs, time: Math.ceil(time) });
 
@@ -80,19 +81,35 @@ export async function create({ area, level, hud, onEnd }) {
   fit();
   paintHud();
 
+  const tick = () => {
+    timer = setInterval(() => {
+      time -= 0.25;
+      if (time <= 0) {
+        time = 0;
+        finish();
+      }
+      paintHud();
+    }, 250);
+  };
+
   return {
     start() {
       running = true;
-      timer = setInterval(() => {
-        time -= 0.25;
-        if (time <= 0) {
-          time = 0;
-          finish();
-        }
-        paintHud();
-      }, 250);
+      // Las curiosas ven todas las cartas un momento antes de empezar.
+      if (!level.peek) {
+        tick();
+        return;
+      }
+      locked = true;
+      for (const card of cards) card.dataset.open = 'true';
+      peekTimer = setTimeout(() => {
+        for (const card of cards) card.dataset.open = 'false';
+        locked = false;
+        tick();
+      }, level.peek * 1000);
     },
     destroy() {
+      clearTimeout(peekTimer);
       clearInterval(timer);
       observer.disconnect();
       grid.remove();

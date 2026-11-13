@@ -149,6 +149,7 @@ class Api(context: Context) {
     suspend fun toy(itemId: String) = call("POST", "/creature/toy", body("itemId" to itemId))
     suspend fun rename(name: String) = call("POST", "/creature/rename", body("name" to name))
     suspend fun equip(slot: String, itemId: String?) = call("POST", "/creature/equip", body("slot" to slot, "itemId" to itemId))
+    suspend fun decorate(spot: String, itemId: String?) = call("POST", "/decor/place", body("spot" to spot, "itemId" to itemId))
     suspend fun buy(itemId: String, qty: Int) = call("POST", "/shop/buy", body("itemId" to itemId, "qty" to qty))
     suspend fun collect() = call("POST", "/income/collect", body())
     suspend fun startGame(gameId: String, difficulty: String) =

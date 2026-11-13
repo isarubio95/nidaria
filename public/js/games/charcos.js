@@ -17,9 +17,12 @@ export async function create({ area, level, avatar, hud, onEnd }) {
   let splash = 0;
   let scroll = 0;
   const puddles = [];
+  // Ventajas: las fuertes aguantan un charco y las traviesas saltan más.
+  let shields = level.shield ?? 0;
+  const lift = 620 * (level.jump ?? 1);
 
   const jump = () => {
-    if (running && y === 0) vy = 620;
+    if (running && y === 0) vy = lift;
   };
   const onPointer = (event) => {
     event.preventDefault();
@@ -33,7 +36,7 @@ export async function create({ area, level, avatar, hud, onEnd }) {
   };
   canvas.addEventListener('pointerdown', onPointer);
   window.addEventListener('keydown', onKey);
-  const paintHud = () => hud({ score, target: level.target });
+  const paintHud = () => hud({ score, target: level.target, lives: level.shield ? shields + 1 : undefined });
   paintHud();
 
   function finish() {
@@ -65,10 +68,18 @@ export async function create({ area, level, avatar, hud, onEnd }) {
         puddle.x -= speed * dt;
         const left = puddle.x - puddle.width / 2;
         const right = puddle.x + puddle.width / 2;
-        if (y < 8 && px + size * 0.16 > left && px - size * 0.16 < right) {
+        if (!puddle.passed && y < 8 && px + size * 0.16 > left && px - size * 0.16 < right) {
           splash = 0.5;
-          pops.add(px, ground - size, '¡Chof!', COLORS.blueEdge);
-          finish();
+          if (shields > 0) {
+            // Este charco ya no cuenta ni moja otra vez.
+            shields -= 1;
+            puddle.passed = true;
+            pops.add(px, ground - size, '¡Uf!', COLORS.blueEdge);
+            paintHud();
+          } else {
+            pops.add(px, ground - size, '¡Chof!', COLORS.blueEdge);
+            finish();
+          }
         } else if (!puddle.passed && right < px - size * 0.2) {
           puddle.passed = true;
           score += 1;

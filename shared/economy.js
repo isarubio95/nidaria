@@ -33,7 +33,8 @@ export const DIFFICULTIES = {
 };
 
 // `target` es la puntuación para ganar. `minMs` y `maxScore` son los
-// límites que el servidor acepta como partida creíble.
+// límites que el servidor acepta como partida creíble. `branch`: solo
+// pueden jugarlo las criaturas que se han criado por esa rama.
 export const MINIGAMES = [
   {
     id: 'fruta',
@@ -100,6 +101,22 @@ export const MINIGAMES = [
     minMs: 12000,
     maxScore: 80,
   },
+  {
+    id: 'escondite',
+    name: 'Al escondite',
+    blurb: 'Se esconde bajo un cojín y los cojines se mezclan. Encuéntrala.',
+    base: 18,
+    branch: 'jugueton',
+    // `swaps` son los cambios de sitio de la primera ronda, que dura
+    // `swapMs` cada uno; cada ronda añade uno más y va un poco más rápido.
+    levels: {
+      facil: { target: 5, cushions: 3, swaps: 3, swapMs: 560, lives: 1 },
+      normal: { target: 7, cushions: 4, swaps: 5, swapMs: 440, lives: 1 },
+      dificil: { target: 9, cushions: 5, swaps: 7, swapMs: 340, lives: 1 },
+    },
+    minMs: 10000,
+    maxScore: 9,
+  },
 ];
 
 const GAMES_BY_ID = new Map(MINIGAMES.map((game) => [game.id, game]));
@@ -108,16 +125,65 @@ export function getGame(id) {
   return GAMES_BY_ID.get(id) ?? null;
 }
 
-// Monedas por ganar con la puntuación justa, sin bonificación.
-export function baseReward(game, difficulty) {
-  return Math.round(game.base * DIFFICULTIES[difficulty].mult);
+// Juego del día: paga más y cambia cada día, para que no compense jugar
+// siempre al mismo. Rota por todos los juegos que puede jugar cualquier
+// criatura, así que dos días seguidos nunca toca el mismo.
+export const FEATURED_MULT = 1.5;
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+// `day` es la fecha local del jugador, 'AAAA-MM-DD'.
+export function featuredGame(day) {
+  const pool = MINIGAMES.filter((game) => !game.branch);
+  const n = Math.floor(Date.parse(`${day}T00:00:00Z`) / DAY_MS);
+  return pool[((n % pool.length) + pool.length) % pool.length].id;
+}
+
+// Monedas por ganar con la puntuación justa, sin bonificación. `mult`
+// es el extra del juego del día.
+export function baseReward(game, difficulty, mult = 1) {
+  return Math.round(game.base * DIFFICULTIES[difficulty].mult * mult);
 }
 
 // Resultado de una partida. Superar el objetivo da hasta un 50 % más.
-export function gameReward(game, difficulty, score) {
+export function gameReward(game, difficulty, score, mult = 1) {
   const level = game.levels[difficulty];
   const won = score >= level.target;
   if (!won) return { won: false, coins: 0 };
   const over = Math.min(1, (score - level.target) / level.target);
-  return { won: true, coins: Math.round(baseReward(game, difficulty) * (1 + 0.5 * over)) };
+  return { won: true, coins: Math.round(baseReward(game, difficulty, mult) * (1 + 0.5 * over)) };
+}
+
+// Ventajas según el carácter: cada rasgo ayuda en un juego. Cambian el
+// nivel (`set` pone un valor, `scale` multiplica uno que ya tiene), nunca
+// el objetivo ni el premio. Los valores que el nivel no trae valen:
+// basket 1, shield 0, jump 1, peek 0.
+export const PERKS = {
+  gloton: { game: 'fruta', text: 'Atrapa la fruta desde más lejos.', set: { basket: 1.35 } },
+  timido: { game: 'fruta', text: 'Cae menos fruta podrida.', scale: { rotten: 0.6 } },
+  fuerte: { game: 'charcos', text: 'Aguanta un charco sin caerse.', set: { shield: 1 } },
+  travieso: { game: 'charcos', text: 'Salta más alto.', set: { jump: 1.12 } },
+  curioso: { game: 'parejas', text: 'Mira todas las cartas un momento al empezar.', set: { peek: 1.6 } },
+  dormilon: { game: 'eco', text: 'La secuencia va más despacio.', scale: { beat: 1.2 } },
+  presumido: { game: 'burbujas', text: 'Salen menos burbujas grises.', scale: { grey: 0.5 } },
+  mimoso: { game: 'escondite', text: 'Si fallas una vez, te deja buscarla otra vez.', set: { lives: 2 } },
+};
+
+// Rasgos de la criatura que ayudan en este juego.
+export function perksFor(gameId, genes) {
+  if (!genes) return [];
+  return genes.traits
+    .filter((trait) => PERKS[trait]?.game === gameId)
+    .map((trait) => ({ trait, text: PERKS[trait].text }));
+}
+
+// Nivel con las ventajas de la criatura ya aplicadas.
+export function levelFor(game, difficulty, genes) {
+  const level = { ...game.levels[difficulty] };
+  for (const { trait } of perksFor(game.id, genes)) {
+    const perk = PERKS[trait];
+    for (const [key, value] of Object.entries(perk.set ?? {})) level[key] = value;
+    for (const [key, factor] of Object.entries(perk.scale ?? {})) level[key] = +(level[key] * factor).toFixed(4);
+  }
+  return level;
 }

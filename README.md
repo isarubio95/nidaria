@@ -123,7 +123,7 @@ TEST_DATABASE_URL=postgresql://... npm test
 - `shared/`: las reglas del juego. Las usan el servidor, como autoridad, y el navegador, para mover las barras entre visitas.
 - `server/`: servidor Express, cuentas, API y acceso a datos.
 - `public/`: la interfaz. HTML, CSS y módulos de JavaScript sin paso de compilación.
-- `public/js/scene/`: la habitación 3D y el generador de criaturas, con Three.js.
+- `public/js/scene/`: la habitación 3D y el generador de criaturas, con Three.js. Los papeles pintados y las alfombras están en `decor.js`; los muebles, con los demás artículos, en `props.js`.
 - `public/js/games/`: los minijuegos.
 - `test/`: las pruebas.
 
@@ -133,8 +133,8 @@ TEST_DATABASE_URL=postgresql://... npm test
 - Qué se avisa al móvil, sus textos y las horas de silencio: `server/game/alerts.js`.
 - Ritmo de las necesidades, enfermedad y muerte: `shared/needs.js`.
 - Duración de cada etapa y de la vida adulta, y reglas de evolución: `shared/forms.js`.
-- Precios y efectos de los artículos: `shared/catalog.js`.
-- Dinero pasivo, energía de juego y premios de los minijuegos: `shared/economy.js`.
+- Precios y efectos de los artículos, y los sitios de la habitación que se pueden decorar: `shared/catalog.js`.
+- Dinero pasivo, energía de juego y premios de los minijuegos: `shared/economy.js`. Ahí están también el juego del día (rota cada día y paga ×1,5), las ventajas que da cada rasgo de carácter en un juego y los juegos que solo puede jugar una rama, como Al escondite para las juguetonas.
 
 ## Acceso a datos
 

@@ -57,6 +57,9 @@ export async function create({ area, level, avatar, hud, onEnd }) {
     onEnd(score);
   }
 
+  // Con la ventaja de las glotonas atrapa la fruta desde más lejos.
+  const reach = level.basket ?? 1;
+
   const stop = loop((dt) => {
     const { ctx, w, h } = view;
     const ground = h - 46;
@@ -98,7 +101,7 @@ export async function create({ area, level, avatar, hud, onEnd }) {
         drop.angle += drop.spin * dt;
       }
       const dx = drop.x * w;
-      if (running && drop.y > ground - size * 0.8 && drop.y < ground - size * 0.2 && Math.abs(dx - px) < size * 0.5) {
+      if (running && drop.y > ground - size * 0.8 && drop.y < ground - size * 0.2 && Math.abs(dx - px) < size * 0.5 * reach) {
         drops.splice(i, 1);
         if (drop.bad) {
           lives -= 1;
@@ -125,7 +128,7 @@ export async function create({ area, level, avatar, hud, onEnd }) {
 
     ctx.fillStyle = 'rgba(91, 58, 41, 0.16)';
     ctx.beginPath();
-    ctx.ellipse(px, ground + 6, size * 0.36, 8, 0, 0, Math.PI * 2);
+    ctx.ellipse(px, ground + 6, size * 0.36 * reach, 8, 0, 0, Math.PI * 2);
     ctx.fill();
     if (avatar) ctx.drawImage(avatar, px - size / 2, ground - size * 0.92, size, size);
     pops.draw(ctx, dt);

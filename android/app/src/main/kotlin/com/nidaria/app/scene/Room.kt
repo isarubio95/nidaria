@@ -10,7 +10,6 @@ import com.nidaria.app.gl.Channel
 import com.nidaria.app.gl.Color
 import com.nidaria.app.gl.DirectionalLight
 import com.nidaria.app.gl.Eases
-import com.nidaria.app.gl.Euler
 import com.nidaria.app.gl.Geometry
 import com.nidaria.app.gl.Group
 import com.nidaria.app.gl.HemisphereLight
@@ -30,7 +29,6 @@ import com.nidaria.app.gl.Vec3
 import com.nidaria.app.gl.boxGeometry
 import com.nidaria.app.gl.by
 import com.nidaria.app.gl.clampF
-import com.nidaria.app.gl.cylinderGeometry
 import com.nidaria.app.gl.extrudeGeometry
 import com.nidaria.app.gl.planeGeometry
 import com.nidaria.app.gl.rayHitsUnitSphere
@@ -39,6 +37,7 @@ import com.nidaria.app.gl.sphereGeometry
 import com.nidaria.app.gl.tanDeg
 import com.nidaria.app.gl.to
 import com.nidaria.app.gl.toAll
+import com.nidaria.app.data.Decor
 import com.nidaria.app.rules.Creature
 import com.nidaria.app.rules.EggLook
 import com.nidaria.app.rules.Equipped
@@ -58,18 +57,22 @@ private const val FOV = 30f
 private const val FLOOR_Y = 0.03f
 private const val EGG_SCALE = 1.08f
 
-private class Palette(
-    val wall: Color, val floor: Color, val rug: Color, val rugLight: Color, val trim: Color, val key: Color, val back: Color,
-)
+private class Palette(val wall: Color, val floor: Color, val trim: Color, val key: Color, val back: Color)
 
 private val DAY = Palette(
-    Color.hex("#ffffff"), Color.hex("#ffffff"), Color.hex("#ff8fb1"), Color.hex("#ffabc5"),
-    Color.hex("#fffdf8"), Color.hex("#fff4e2"), Color.hex("#bfe3ff"),
+    Color.hex("#ffffff"), Color.hex("#ffffff"), Color.hex("#fffdf8"), Color.hex("#fff4e2"), Color.hex("#bfe3ff"),
 )
 private val NIGHT = Palette(
-    Color.hex("#5c6ca8"), Color.hex("#6d6b99"), Color.hex("#8d5884"), Color.hex("#9d6a95"),
-    Color.hex("#8d93bd"), Color.hex("#aebfff"), Color.hex("#47619f"),
+    Color.hex("#5c6ca8"), Color.hex("#6d6b99"), Color.hex("#8d93bd"), Color.hex("#aebfff"), Color.hex("#47619f"),
 )
+
+// Dónde va cada mueble: el rincón a la derecha de la criatura y el sitio
+// de la ventana a la izquierda. En el móvil, lo que pasa de medio metro en
+// el rincón queda detrás de los botones de la derecha.
+private val SPOT_AT = mapOf("rincon" to Vec3(1.0f, 0f, -1.8f), "ventana" to Vec3(-0.8f, 0f, -1.85f))
+
+// Una capa de la alfombra con su color de día y el de noche.
+private class RugTint(val material: Material, val day: Color, val night: Color)
 
 private fun archShape(width: Float, straight: Float): Shape {
     val r = width / 2f
@@ -111,12 +114,17 @@ class Room(private val painter: Painter, private val reduce: Boolean) {
     private val rim = DirectionalLight(Color.hex("#cfe6ff"), 0.7f)
 
     // ── Habitación ──
-    private val wallMat = Material.basic { map = painter.wall(); uvScaleX = 60f / 0.5f; uvScaleY = 24f / 0.5f }
+    // El papel pintado cambia con la decoración (ver setDecor).
+    private val wallMat = Material.basic { map = wallpaperTexture(BASE_DECOR.getValue("pared")!!); uvScaleX = 60f / TILE_METERS; uvScaleY = 24f / TILE_METERS }
     private val floorMat = Material.basic { map = painter.floor(); uvScaleX = 60f / 1.4f; uvScaleY = 40f / 1.4f }
     private val trimMat = Material.basic(DAY.trim)
-    private val rugMat = Material.basic(DAY.rug)
-    private val rugLightMat = Material.basic(DAY.rugLight)
+    // La alfombra va dentro de `rug`, que el encuadre escala.
     private val rug = Group()
+    private var rugTints: List<RugTint> = emptyList()
+
+    // Sitios para los muebles que pone el jugador, y lo que hay puesto.
+    private val spots = SPOT_AT.mapValues { (_, at) -> Group().also { it.position.copy(at) } }
+    private val placed = HashMap<String, String?>()
     private val shadowMat = Material(MaterialKind.Shadow).also {
         it.color.setHex("#5b3a29")
         it.opacity = 0.22f
@@ -221,13 +229,6 @@ class Room(private val painter: Painter, private val reduce: Boolean) {
         val baseboard = Mesh(boxGeometry(60f, 0.16f, 0.06f), trimMat)
         baseboard.position.set(0f, 0.08f, -2.37f)
 
-        val disc = cylinderGeometry(1f, 1f, 0.01f, 56)
-        for ((scale, material, y) in listOf(Triple(1f, rugMat, 0.02f), Triple(0.88f, rugLightMat, 0.022f), Triple(0.78f, rugMat, 0.024f))) {
-            val mesh = Mesh(disc, material)
-            mesh.scale.set(0.84f * scale, 1f, 0.52f * scale - (1f - scale) * 0.1f)
-            mesh.position.y = y
-            rug.add(mesh)
-        }
 
         val shadowPlane = Mesh(planeGeometry(12f, 10f), shadowMat)
         shadowPlane.rotation.x = -PI_F / 2f
@@ -269,31 +270,8 @@ class Room(private val painter: Painter, private val reduce: Boolean) {
         val patch = Mesh(patchGeo, patchMat)
         patch.position.set(-0.62f, 0.006f, -2.1f)
 
-        // Muebles: solo asoman en pantallas anchas.
+        // Muebles fijos: solo asoman en pantallas anchas.
         fun lit(color: String, roughness: Float = 0.7f) = Material.standard(Color.hex(color), roughness)
-        val plant = Group()
-        val pot = Mesh(cylinderGeometry(0.2f, 0.15f, 0.3f, 24), lit("#fffdf8"))
-        pot.position.y = 0.15f
-        pot.castShadow = true
-        val band = Mesh(cylinderGeometry(0.205f, 0.19f, 0.08f, 24), lit("#ffd166"))
-        band.position.y = 0.24f
-        plant.add(pot, band)
-        val leafGeo = extrudeGeometry(
-            Shape().moveTo(0f, 0f).bezierCurveTo(0.14f, 0.12f, 0.12f, 0.5f, 0f, 0.62f).bezierCurveTo(-0.12f, 0.5f, -0.14f, 0.12f, 0f, 0f),
-            0.02f, curveSegments = 10,
-        )
-        for (i in 0 until 6) {
-            val leaf = Mesh(leafGeo, lit(if (i % 2 == 1) "#6cc47f" else "#4fae7c"))
-            leaf.position.y = 0.28f
-            leaf.rotation.order = Euler.Order.YXZ
-            leaf.rotation.y = (i / 6f) * PI_F * 2f
-            leaf.rotation.x = 0.35f + (i % 3) * 0.16f
-            leaf.scale.setScalar(0.9f + (i % 2) * 0.25f)
-            leaf.castShadow = true
-            plant.add(leaf)
-        }
-        plant.position.set(1.0f, 0f, -1.8f)
-
         val shelf = Group()
         shelf.add(Mesh(boxGeometry(1.0f, 0.05f, 0.24f), lit("#e2b279")))
         val books = listOf(
@@ -322,7 +300,7 @@ class Room(private val painter: Painter, private val reduce: Boolean) {
         pouf.add(cushion, button)
         pouf.position.set(-1.75f, 0f, -1.25f)
 
-        scene.add(wall, floor, baseboard, patch, rug, shadowPlane, win, plant, shelf, pouf)
+        scene.add(wall, floor, baseboard, patch, rug, shadowPlane, win, spots.getValue("rincon"), spots.getValue("ventana"), shelf, pouf)
 
         mount.position.y = FLOOR_Y
         scene.add(mount, fx)
@@ -331,7 +309,39 @@ class Room(private val painter: Painter, private val reduce: Boolean) {
         blob.visible = false
         scene.add(blob)
 
+        setDecor(Decor())
         refreshSky()
+    }
+
+    // ── Decoración ──
+
+    // Lo que manda el servidor; lo que vale null es lo de base.
+    fun setDecor(decor: Decor) {
+        fun want(spot: String) = decor.spot(spot) ?: BASE_DECOR[spot]
+        val pared = want("pared")!!
+        if (placed["pared"] != pared) {
+            placed["pared"] = pared
+            wallMat.map = wallpaperTexture(pared)
+        }
+        val alfombra = want("alfombra")!!
+        if (placed["alfombra"] != alfombra) {
+            placed["alfombra"] = alfombra
+            for (child in rug.children.toList()) rug.remove(child)
+            val built = buildRug(alfombra)
+            rug.add(built.obj)
+            rugTints = built.layers.map { RugTint(it.material, it.day, Color(it.day.r * RUG_NIGHT.r, it.day.g * RUG_NIGHT.g, it.day.b * RUG_NIGHT.b)) }
+        }
+        for ((spot, holder) in spots) {
+            val id = want(spot)
+            if (spot in placed && placed[spot] == id) continue
+            placed[spot] = id
+            for (child in holder.children.toList()) {
+                holder.remove(child)
+                freeGeometries(child)
+            }
+            id?.let { buildItem(it) }?.let { holder.add(it) }
+        }
+        applyDim()
     }
 
     // ── Criatura y huevos sobre la alfombra ──
@@ -772,8 +782,7 @@ class Room(private val painter: Painter, private val reduce: Boolean) {
         val k = dimK
         wallMat.color.lerpColors(DAY.wall, NIGHT.wall, k)
         floorMat.color.lerpColors(DAY.floor, NIGHT.floor, k)
-        rugMat.color.lerpColors(DAY.rug, NIGHT.rug, k)
-        rugLightMat.color.lerpColors(DAY.rugLight, NIGHT.rugLight, k)
+        for (tint in rugTints) tint.material.color.lerpColors(tint.day, tint.night, k)
         trimMat.color.lerpColors(DAY.trim, NIGHT.trim, k)
         scene.background?.lerpColors(DAY.back, NIGHT.back, k)
         key.color.lerpColors(DAY.key, NIGHT.key, k)

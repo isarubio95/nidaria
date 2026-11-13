@@ -18,6 +18,7 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.core.content.res.ResourcesCompat
 import com.nidaria.app.R
 import com.nidaria.app.gl.Renderer
+import com.nidaria.app.data.Decor
 import com.nidaria.app.rules.Creature
 import com.nidaria.app.rules.EggLook
 import javax.microedition.khronos.egl.EGLConfig
@@ -176,6 +177,7 @@ class RoomView(context: Context) : GLSurfaceView(context), GLSurfaceView.Rendere
     fun setMood(mood: String) = post { setMood(mood) }
     fun say(seconds: Float) = post { say(seconds) }
     fun setNight(on: Boolean) = post { setNight(on) }
+    fun setDecor(decor: Decor) = post { setDecor(decor) }
     fun setWeather(kind: String?) = post { setWeather(kind) }
     fun setFocus(top: Float, bottom: Float, animate: Boolean = true) = post { setFocus(top, bottom, animate) }
     fun bath() = post { bath() }

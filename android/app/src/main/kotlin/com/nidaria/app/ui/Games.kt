@@ -1,6 +1,6 @@
-// Pantalla de minijuego y los cinco juegos. Los de lienzo (fruta,
-// charcos, burbujas) se dibujan en un Canvas con medidas en dp; parejas
-// y eco están hechos con piezas de la interfaz.
+// Pantalla de minijuego y los seis juegos. Los de lienzo (fruta,
+// charcos, burbujas, escondite) se dibujan en un Canvas con medidas en
+// dp; parejas y eco están hechos con piezas de la interfaz.
 
 package com.nidaria.app.ui
 
@@ -43,6 +43,7 @@ import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.BlendMode
@@ -51,6 +52,7 @@ import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.graphics.drawscope.rotate
@@ -76,8 +78,12 @@ import com.nidaria.app.Game
 import com.nidaria.app.PlaySession
 import com.nidaria.app.R
 import com.nidaria.app.rules.DIFFICULTIES
+import com.nidaria.app.rules.FEATURED_MULT
 import com.nidaria.app.rules.Level
+import com.nidaria.app.rules.PERKS
+import com.nidaria.app.rules.TRAITS
 import com.nidaria.app.rules.baseReward
+import com.nidaria.app.rules.perksFor
 import com.nidaria.app.scene.ThumbSpec
 import com.nidaria.app.scene.Thumbs
 import kotlin.math.PI
@@ -88,6 +94,7 @@ import kotlin.math.floor
 import kotlin.math.hypot
 import kotlin.math.max
 import kotlin.math.min
+import kotlin.math.pow
 import kotlin.math.roundToInt
 import kotlin.math.sin
 import kotlin.random.Random
@@ -109,7 +116,8 @@ fun GameScreen(game: Game, session: PlaySession, insets: Insets) {
     val shown by animateFloatAsState(if (session.open) 1f else 0f, tween(Nd.FAST, easing = Nd.ease), label = "juego")
     LaunchedEffect(session) { session.open = true }
     val mini = session.game
-    val level = mini.levels.getValue(session.difficulty)
+    // Con las ventajas del carácter de la criatura ya aplicadas.
+    val level = session.level
     var hud by remember { mutableStateOf(Hud(0, level.target)) }
     var started by remember { mutableStateOf(false) }
     var wanted by remember { mutableStateOf(false) }
@@ -152,6 +160,7 @@ fun GameScreen(game: Game, session: PlaySession, insets: Insets) {
                 "charcos" -> CharcosGame(level, avatar, running, onHud, onEnd)
                 "eco" -> EcoGame(level, running, onHud, onEnd)
                 "burbujas" -> BurbujasGame(level, running, onHud, onEnd)
+                "escondite" -> EsconditeGame(level, avatar, running, onHud, onEnd)
             }
             if (!started) {
                 Box(
@@ -170,10 +179,21 @@ fun GameScreen(game: Game, session: PlaySession, insets: Insets) {
                     ) {
                         T(mini.name, Nd.xl, align = TextAlign.Center)
                         T(mini.blurb, Nd.lead, Modifier.widthIn(max = 300.dp), align = TextAlign.Center)
+                        val prize = baseReward(mini, session.difficulty, if (session.featured) FEATURED_MULT else 1.0)
                         T(
-                            "Dificultad ${DIFFICULTIES.getValue(session.difficulty).name.lowercase()}: llega a ${level.target} para ganar ${fmt(baseReward(mini, session.difficulty))} monedas.",
+                            "Dificultad ${DIFFICULTIES.getValue(session.difficulty).name.lowercase()}: llega a ${level.target} para ganar ${fmt(prize)} monedas.",
                             Nd.lead, Modifier.widthIn(max = 300.dp), align = TextAlign.Center,
                         )
+                        if (session.featured) {
+                            T("Hoy es el juego del día: paga un 50 % más.", Nd.sm, Modifier.widthIn(max = 300.dp), align = TextAlign.Center)
+                        }
+                        for (trait in perksFor(mini.id, session.traits)) {
+                            val text = PERKS.getValue(trait).text.replaceFirstChar { it.lowercase() }
+                            T(
+                                "Por ser ${TRAITS.getValue(trait).name.lowercase()}: $text",
+                                Nd.sm, Modifier.widthIn(max = 300.dp), align = TextAlign.Center,
+                            )
+                        }
                         Btn(
                             if (wanted) "Cargando…" else "Empezar",
                             { if (ready) started = true else wanted = true },
@@ -317,6 +337,8 @@ private fun FrutaGame(level: Level, avatar: ImageBitmap?, running: Boolean, hud:
 
     fun paintHud() = hud(Hud(model.score, level.target, ceil(model.time).toInt(), model.lives))
     LaunchedEffect(Unit) { paintHud() }
+    // Con la ventaja de las glotonas atrapa la fruta desde más lejos.
+    val reach = level.numOr("basket", 1.0).toFloat()
 
     fun finish() {
         if (model.ended) return
@@ -355,7 +377,7 @@ private fun FrutaGame(level: Level, avatar: ImageBitmap?, running: Boolean, hud:
                 drop.angle += drop.spin * dt
             }
             val dx = drop.x * m.w
-            if (active && drop.y > ground - size * 0.8f && drop.y < ground - size * 0.2f && abs(dx - px) < size * 0.5f) {
+            if (active && drop.y > ground - size * 0.8f && drop.y < ground - size * 0.2f && abs(dx - px) < size * 0.5f * reach) {
                 each.remove()
                 if (drop.bad) {
                     m.lives -= 1
@@ -407,7 +429,7 @@ private fun FrutaGame(level: Level, avatar: ImageBitmap?, running: Boolean, hud:
                 rotate(drop.angle * 180f / PI.toFloat(), Offset.Zero)
             }) { image(img, -26f, -26f, 52f, 52f, if (drop.bad) rotten else null) }
         }
-        oval(SHADE, px, ground + 6f, size * 0.36f, 8f)
+        oval(SHADE, px, ground + 6f, size * 0.36f * reach, 8f)
         if (avatar != null) image(avatar, px - size / 2f, ground - size * 0.92f, size, size)
         model.pops.draw(this, paint)
     }
@@ -433,13 +455,18 @@ private fun CharcosGame(level: Level, avatar: ImageBitmap?, running: Boolean, hu
             var h = 1f
             val puddles = ArrayList<Puddle>()
             val pops = Pops()
+
+            // Ventajas: las fuertes aguantan un charco y las traviesas saltan más.
+            var shields = level.numOr("shield", 0.0).toInt()
         }
     }
     val paint = rememberPopPaint()
     val scope = rememberCoroutineScope()
     val runningNow by rememberUpdatedState(running)
+    val lift = 620f * level.numOr("jump", 1.0).toFloat()
+    val guarded = level.numOr("shield", 0.0) > 0.0
 
-    fun paintHud() = hud(Hud(model.score, level.target))
+    fun paintHud() = hud(Hud(model.score, level.target, lives = if (guarded) model.shields + 1 else null))
     LaunchedEffect(Unit) { paintHud() }
 
     fun finish() {
@@ -474,10 +501,18 @@ private fun CharcosGame(level: Level, avatar: ImageBitmap?, running: Boolean, hu
                 puddle.x -= speed * dt
                 val left = puddle.x - puddle.width / 2f
                 val right = puddle.x + puddle.width / 2f
-                if (m.y < 8f && px + size * 0.16f > left && px - size * 0.16f < right) {
+                if (!puddle.passed && m.y < 8f && px + size * 0.16f > left && px - size * 0.16f < right) {
                     m.splash = 0.5f
-                    m.pops.add(px, ground - size, "¡Chof!", Nd.energyEdge)
-                    finish()
+                    if (m.shields > 0) {
+                        // Este charco ya no cuenta ni moja otra vez.
+                        m.shields -= 1
+                        puddle.passed = true
+                        m.pops.add(px, ground - size, "¡Uf!", Nd.energyEdge)
+                        paintHud()
+                    } else {
+                        m.pops.add(px, ground - size, "¡Chof!", Nd.energyEdge)
+                        finish()
+                    }
                 } else if (!puddle.passed && right < px - size * 0.2f) {
                     puddle.passed = true
                     m.score += 1
@@ -499,7 +534,7 @@ private fun CharcosGame(level: Level, avatar: ImageBitmap?, running: Boolean, hu
         Modifier.pointerInput(Unit) {
             awaitEachGesture {
                 awaitFirstDown().consume()
-                if (runningNow && !model.ended && model.y == 0f) model.vy = 620f
+                if (runningNow && !model.ended && model.y == 0f) model.vy = lift
             }
         },
         onSize = { w, h ->
@@ -685,6 +720,245 @@ private fun BurbujasGame(level: Level, running: Boolean, hud: (Hud) -> Unit, onE
     }
 }
 
+// ── Al escondite ──────────────────────────────────────────────
+
+private fun easeInOut(t: Float) = if (t < 0.5f) 2f * t * t else 1f - (-2f * t + 2f).let { it * it } / 2f
+private fun easeOut(t: Float) = 1f - (1f - t).let { it * it * it }
+private fun clamp01(t: Float) = t.coerceIn(0f, 1f)
+
+// La criatura se mete bajo un cojín, los cojines se mezclan y hay que
+// tocar el suyo. Solo lo juegan las criaturas juguetonas.
+@Composable
+private fun EsconditeGame(level: Level, avatar: ImageBitmap?, running: Boolean, hud: (Hud) -> Unit, onEnd: (Int) -> Unit) {
+    val n = level.int("cushions")
+    val maxLives = level.int("lives")
+
+    val model = remember {
+        object {
+            var score = 0
+            var lives = maxLives
+            var round = 0
+            var ended = false
+            // `slot[c]` es dónde está el cojín c (con decimales mientras se mueve).
+            val slot = FloatArray(n) { it.toFloat() }
+            val arc = FloatArray(n)
+            val lift = FloatArray(n)
+            var hidden = 0
+            var peek = 0f
+            var phase = "idle"
+            var clock = 0f
+            var swaps: List<Pair<Int, Int>> = emptyList()
+            var swapIndex = 0
+            var swapTime = 0.5f
+
+            // Los dos cojines del cambio en curso: se fijan al empezarlo,
+            // porque a mitad de camino ya no se sabe por su sitio cuál es cuál.
+            var moving: Pair<Int, Int>? = null
+            var picked = -1
+            var message = "Mira dónde se esconde"
+            var w = 1f
+            var h = 1f
+            val pops = Pops()
+        }
+    }
+    val paint = rememberPopPaint()
+    val messagePaint = rememberPopPaint()
+    val scope = rememberCoroutineScope()
+    val runningNow by rememberUpdatedState(running)
+    val density = LocalDensity.current.density
+
+    fun paintHud() = hud(Hud(model.score, level.target, lives = if (maxLives > 1) model.lives else null))
+    LaunchedEffect(Unit) { paintHud() }
+
+    fun finish() {
+        if (model.ended) return
+        model.ended = true
+        scope.launch {
+            delay(600)
+            onEnd(model.score)
+        }
+    }
+
+    // Cada ronda se esconde en uno al azar y hay un cambio más, algo más rápido.
+    fun startRound() {
+        val m = model
+        m.hidden = Random.nextInt(n)
+        m.lift.fill(0f)
+        m.peek = 0f
+        m.picked = -1
+        val base = level.num("swapMs").toFloat()
+        m.swapTime = max(base * 0.6f, base * 0.94f.pow(m.round)) / 1000f
+        m.swaps = List(level.int("swaps") + m.round) {
+            val a = Random.nextInt(n)
+            var b = Random.nextInt(n - 1)
+            if (b >= a) b += 1
+            a to b
+        }
+        m.swapIndex = 0
+        m.moving = null
+        m.phase = "show"
+        m.clock = 0f
+        m.message = "Mira dónde se esconde"
+    }
+
+    fun cushionAt(place: Int) = model.slot.indexOfFirst { it.roundToInt() == place }
+
+    // Medidas que dependen del tamaño del lienzo.
+    class Layout(val cw: Float, val ch: Float, val ground: Float, val size: Float, val spacing: Float, val w: Float) {
+        fun xOf(place: Float) = w / 2f + (place - (n - 1) / 2f) * spacing
+    }
+    fun layout(w: Float, h: Float): Layout {
+        val spacing = min(150f, (w - 24f) / n)
+        val cw = spacing * 0.86f
+        return Layout(cw, cw * 0.6f, (h * 0.64f).roundToInt().toFloat(), min(160f, cw * 1.35f), spacing, w)
+    }
+
+    fun pick(cushion: Int) {
+        val m = model
+        if (!runningNow || m.ended || m.phase != "pick" || cushion < 0) return
+        m.picked = cushion
+        m.phase = "reveal"
+        m.clock = 0f
+        if (cushion == m.hidden) {
+            m.score += 1
+            m.message = "¡La has encontrado!"
+        } else {
+            m.lives -= 1
+            m.message = "Ahí no estaba"
+        }
+        paintHud()
+    }
+
+    LaunchedEffect(running) { if (running && model.phase == "idle") startRound() }
+
+    val frame = rememberFrames { dt, _ ->
+        val m = model
+        if (running && !m.ended) {
+            m.clock += dt
+            when (m.phase) {
+                "show" -> {
+                    m.peek = when {
+                        m.clock < 0.45f -> easeOut(m.clock / 0.45f)
+                        m.clock < 1.1f -> 1f
+                        else -> 1f - clamp01((m.clock - 1.1f) / 0.3f)
+                    }
+                    if (m.clock >= 1.65f) {
+                        m.phase = "shuffle"
+                        m.clock = 0f
+                        m.message = "¡Que no se te escape!"
+                    }
+                }
+                "shuffle" -> {
+                    val (a, b) = m.swaps[m.swapIndex]
+                    val pair = m.moving ?: (cushionAt(a) to cushionAt(b)).also { m.moving = it }
+                    val (ca, cb) = pair
+                    val t = clamp01(m.clock / m.swapTime)
+                    val k = easeInOut(t)
+                    m.slot[ca] = a + (b - a) * k
+                    m.slot[cb] = b + (a - b) * k
+                    m.arc[ca] = sin(PI.toFloat() * t)
+                    m.arc[cb] = -sin(PI.toFloat() * t) * 0.35f
+                    if (t >= 1f) {
+                        m.slot[ca] = b.toFloat()
+                        m.slot[cb] = a.toFloat()
+                        m.arc[ca] = 0f
+                        m.arc[cb] = 0f
+                        m.moving = null
+                        m.swapIndex += 1
+                        m.clock = 0f
+                        if (m.swapIndex >= m.swaps.size) {
+                            m.phase = "pick"
+                            m.message = "¿Dónde está?"
+                        }
+                    }
+                }
+                "reveal" -> {
+                    val found = m.picked == m.hidden
+                    m.lift[m.picked] = easeOut(clamp01(m.clock / 0.25f))
+                    if (!found) m.lift[m.hidden] = easeOut(clamp01((m.clock - 0.45f) / 0.25f))
+                    if (found && m.clock - dt < 0.2f && m.clock >= 0.2f) {
+                        val l = layout(m.w, m.h)
+                        m.pops.add(l.xOf(m.slot[m.hidden]), l.ground - l.ch - l.size - 14f, "+1")
+                    }
+                    if (m.clock >= if (found) 0.95f else 1.5f) {
+                        if (m.score >= level.target || m.lives <= 0) {
+                            m.phase = "done"
+                            finish()
+                        } else {
+                            m.round += 1
+                            startRound()
+                        }
+                    }
+                }
+            }
+        }
+        m.pops.update(dt)
+    }
+
+    DpCanvas(
+        Modifier.pointerInput(Unit) {
+            awaitEachGesture {
+                val down = awaitFirstDown()
+                down.consume()
+                val x = down.position.x / density
+                val y = down.position.y / density
+                val l = layout(model.w, model.h)
+                if (y < l.ground - l.ch * 2.2f || y > l.ground + l.ch) return@awaitEachGesture
+                var best = -1
+                var gap = l.cw * 0.62f
+                for (c in 0 until n) {
+                    val d = abs(x - l.xOf(model.slot[c]))
+                    if (d < gap) {
+                        gap = d
+                        best = c
+                    }
+                }
+                pick(best)
+            }
+        },
+        onSize = { w, h ->
+            model.w = w
+            model.h = h
+        },
+    ) { w, h ->
+        frame.value
+        val m = model
+        val l = layout(w, h)
+        drawRect(Nd.sky, Offset.Zero, Size(w, h))
+        val floor = (h * 0.46f).roundToInt().toFloat()
+        drawRect(Nd.cream, Offset(0f, floor), Size(w, h - floor))
+        drawRect(Nd.track, Offset(0f, floor), Size(w, 6f))
+        oval(Nd.mint, w / 2f, l.ground + 4f, min(w * 0.48f, n * l.cw * 0.72f), 26f)
+        if (m.phase != "idle") {
+            messagePaint.color = Nd.ink.toArgb()
+            drawIntoCanvas { it.nativeCanvas.drawText(m.message, w / 2f, max(36f, floor * 0.45f), messagePaint) }
+        }
+
+        // Primero las sombras, luego la criatura (que asoma por detrás de
+        // su cojín) y al final los cojines, los que van por delante los últimos.
+        for (c in 0 until n) oval(SHADE, l.xOf(m.slot[c]), l.ground + 4f, l.cw * 0.46f * (1f - m.lift[c] * 0.3f), 8f)
+        // Escondida, solo asoma por encima de la mitad de su cojín; con el
+        // cojín levantado se la ve entera, sentada en el suelo.
+        val out = m.lift[m.hidden] > 0.02f
+        if (avatar != null && (out || m.peek > 0f)) {
+            val x = l.xOf(m.slot[m.hidden])
+            val edge = if (out) l.ground + 2f else l.ground - l.ch * 0.5f
+            val top = if (out) l.ground - l.size * 0.9f else edge - l.size * 0.92f * m.peek
+            clipRect(0f, 0f, w, edge) { image(avatar, x - l.size / 2f, top, l.size, l.size) }
+        }
+        for (c in (0 until n).sortedByDescending { m.arc[it] }) {
+            val x = l.xOf(m.slot[c])
+            val top = l.ground - l.ch - m.arc[c] * l.ch * 0.9f - m.lift[c] * l.size
+            val corner = CornerRadius(l.ch * 0.46f)
+            drawRoundRect(Nd.pinkEdge, Offset(x - l.cw / 2f, top + 5f), Size(l.cw, l.ch), corner)
+            drawRoundRect(Nd.pink, Offset(x - l.cw / 2f, top), Size(l.cw, l.ch), corner)
+            oval(Nd.paper.copy(alpha = 0.35f), x - l.cw * 0.12f, top + l.ch * 0.3f, l.cw * 0.24f, l.ch * 0.12f)
+            drawCircle(Nd.pinkEdge, l.ch * 0.08f, Offset(x, top + l.ch * 0.52f))
+        }
+        m.pops.draw(this, paint)
+    }
+}
+
 // ── Parejas ───────────────────────────────────────────────────
 
 // Destapa dos cartas iguales hasta encontrarlas todas.
@@ -719,6 +993,15 @@ private fun ParejasGame(level: Level, running: Boolean, safeBottom: Dp, hud: (Hu
 
     LaunchedEffect(running) {
         if (!running) return@LaunchedEffect
+        // Las curiosas ven todas las cartas un momento antes de empezar.
+        val peek = level.numOr("peek", 0.0)
+        if (peek > 0.0) {
+            locked = true
+            for (i in deck.indices) open[i] = true
+            delay((peek * 1000).toLong())
+            for (i in deck.indices) open[i] = false
+            locked = false
+        }
         while (!ended) {
             delay(250)
             time -= 0.25f

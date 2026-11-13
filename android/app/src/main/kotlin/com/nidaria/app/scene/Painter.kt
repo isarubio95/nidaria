@@ -1,6 +1,6 @@
-// Texturas pintadas por código, como los lienzos de la versión web: el
-// papel de la pared, las tablas del suelo, el cielo de la ventana, la
-// sombra redonda y la «z» de los ronquidos.
+// Texturas pintadas por código, como los lienzos de la versión web: las
+// tablas del suelo, el cielo de la ventana, la sombra redonda y la «z» de
+// los ronquidos. Los papeles pintados están en Decor.kt.
 
 package com.nidaria.app.scene
 
@@ -43,18 +43,6 @@ class Painter(private val black: Typeface?) {
         val bytes = bytesOf(bitmap)
         bitmap.recycle()
         return bytes
-    }
-
-    fun wall(): Texture {
-        val texture = Texture(96, 96, repeat = true, mipmaps = true)
-        texture.update(
-            paint(96, 96) { canvas, p ->
-                canvas.drawColor(color("#bfe3ff"))
-                p.color = color("#cdeaff")
-                for ((x, y) in listOf(48f to 48f, 0f to 0f, 96f to 0f, 0f to 96f, 96f to 96f)) canvas.drawCircle(x, y, 7f, p)
-            },
-        )
-        return texture
     }
 
     fun floor(): Texture {

@@ -146,11 +146,14 @@ function route(state, payload = {}) {
     linked = false;
     closeSheet();
     room.setNight(false);
+    room.setDecor(null);
     room.showDemo();
     show('auth', () => mountAuth(app));
     return;
   }
 
+  // La habitación es del jugador: su decoración vale en todas las pantallas.
+  room.setDecor(state.decor);
   const creature = state.creature;
   if (!creature || (!creature.alive && seenFarewell.has(creature.id))) {
     if (screenName !== 'eggs') {

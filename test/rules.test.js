@@ -8,10 +8,14 @@ import { gainBond, bondLevel, lifeEnd, BOND_DAILY_CAP, BOND_LIFE_MS } from '../s
 import { simulate, newCreature, moodOf } from '../shared/needs.js';
 import * as actions from '../shared/actions.js';
 import {
-  pendingIncome, ticketsNow, gameReward, baseReward, getGame,
-  INCOME_CAP, TICKETS_MAX, TICKET_REGEN_MS, MINIGAMES, DIFFICULTIES,
+  pendingIncome, ticketsNow, gameReward, baseReward, getGame, featuredGame, levelFor, perksFor,
+  INCOME_CAP, TICKETS_MAX, TICKET_REGEN_MS, MINIGAMES, DIFFICULTIES, FEATURED_MULT, PERKS,
 } from '../shared/economy.js';
-import { ITEMS, getItem } from '../shared/catalog.js';
+import { TRAITS } from '../shared/dna.js';
+import { dayAfter } from '../shared/daily.js';
+import {
+  ITEMS, getItem, itemsOfKind, SPOTS, CATEGORIES, cleanDecor, placeDecor,
+} from '../shared/catalog.js';
 
 const HOUR = 60 * 60 * 1000;
 const T0 = 1_800_000_000_000;
@@ -289,9 +293,89 @@ test('a más dificultad, más recompensa; perder no paga', () => {
 
 test('el catálogo es coherente', () => {
   assert.equal(new Set(ITEMS.map((item) => item.id)).size, ITEMS.length);
+  for (const item of ITEMS) assert.ok(CATEGORIES.some((category) => category.id === item.kind), item.id);
   for (const family of FAMILIES) {
     const genes = createGenes(5, family);
     assert.ok(getItem(genes.favFood));
     assert.ok(getItem(genes.hateFood));
   }
+});
+
+test('la decoración: cada sitio tiene donde elegir y es lo más caro', () => {
+  const decor = itemsOfKind('casa');
+  for (const spot of SPOTS) assert.ok(decor.filter((item) => item.spot === spot.id).length >= 4, spot.id);
+  for (const item of decor) {
+    assert.ok(SPOTS.some((spot) => spot.id === item.spot), item.id);
+    assert.ok(item.reusable, item.id);
+  }
+  const clothes = itemsOfKind('ropa').reduce((sum, item) => sum + item.price, 0);
+  assert.ok(decor.reduce((sum, item) => sum + item.price, 0) > clothes * 3);
+
+  const placed = cleanDecor(null);
+  assert.deepEqual(placed, { pared: null, alfombra: null, rincon: null, ventana: null });
+  assert.deepEqual(placeDecor(placed, 'rincon', 'baul'), { ok: true });
+  assert.equal(placed.rincon, 'baul');
+  assert.equal(placeDecor(placed, 'pared', 'baul').ok, false);
+  assert.equal(placeDecor(placed, 'techo', null).ok, false);
+  assert.equal(placeDecor(placed, 'pared', 'corona').ok, false);
+  assert.deepEqual(placeDecor(placed, 'rincon', null), { ok: true });
+  assert.equal(placed.rincon, null);
+  // Lo guardado que ya no vale se descarta.
+  assert.deepEqual(cleanDecor({ pared: 'papel-olas', rincon: 'papel-olas', ventana: 'nada', otro: 'x' }),
+    { pared: 'papel-olas', alfombra: null, rincon: null, ventana: null });
+});
+
+test('el juego del día rota y paga más', () => {
+  const pool = MINIGAMES.filter((game) => !game.branch).map((game) => game.id);
+  let day = '2026-11-13';
+  const seen = [];
+  for (let i = 0; i < pool.length * 3; i++) {
+    seen.push(featuredGame(day));
+    day = dayAfter(day);
+  }
+  assert.deepEqual(new Set(seen), new Set(pool));
+  for (let i = 1; i < seen.length; i++) assert.notEqual(seen[i], seen[i - 1]);
+  assert.ok(!seen.includes('escondite'), 'el juego de una rama no sale: no todas pueden jugarlo');
+  const eco = getGame('eco');
+  assert.equal(baseReward(eco, 'normal', FEATURED_MULT), Math.round(eco.base * 2 * 1.5));
+  const plain = gameReward(eco, 'dificil', 9).coins;
+  assert.equal(gameReward(eco, 'dificil', 9, FEATURED_MULT).coins, baseReward(eco, 'dificil', FEATURED_MULT));
+  assert.ok(gameReward(eco, 'dificil', 9, FEATURED_MULT).coins > plain);
+  assert.equal(gameReward(eco, 'facil', 1, FEATURED_MULT).coins, 0);
+});
+
+test('cada rasgo ayuda en un juego sin cambiar el objetivo', () => {
+  for (const trait of Object.keys(TRAITS)) {
+    const perk = PERKS[trait];
+    assert.ok(perk && getGame(perk.game), trait);
+  }
+  const genes = { ...createGenes(7), traits: ['gloton', 'timido'] };
+  const fruit = getGame('fruta');
+  assert.deepEqual(perksFor('fruta', genes).map((perk) => perk.trait), ['gloton', 'timido']);
+  assert.deepEqual(perksFor('eco', genes), []);
+  const level = levelFor(fruit, 'normal', genes);
+  assert.equal(level.basket, 1.35);
+  assert.equal(level.rotten, 0.12);
+  assert.equal(level.target, fruit.levels.normal.target);
+  assert.equal(fruit.levels.normal.rotten, 0.2, 'no toca el nivel original');
+  assert.deepEqual(levelFor(fruit, 'normal', null), fruit.levels.normal);
+  const sleepy = levelFor(getGame('eco'), 'facil', { ...genes, traits: ['dormilon', 'fuerte'] });
+  assert.equal(sleepy.beat, 744);
+});
+
+test('el escondite solo lo juegan las juguetonas', () => {
+  const game = getGame('escondite');
+  assert.equal(game.branch, 'jugueton');
+  const creature = hatched();
+  assert.match(actions.gameLock(game, creature), /juguetonas/);
+  assert.equal(actions.gameLock(getGame('eco'), creature), null);
+  creature.formId = 'joven-pelusa-jugueton';
+  assert.equal(actions.gameLock(game, creature), null);
+  creature.formId = 'adulto-pelusa-jugueton-gloton';
+  assert.equal(actions.gameLock(game, creature), null, 'de joven fue juguetona');
+  creature.formId = 'adulto-pelusa-gloton-tranquilo';
+  assert.ok(actions.gameLock(game, creature));
+  creature.formId = 'oculta-pelusa-radiante';
+  assert.ok(actions.gameLock(game, creature));
+  for (const difficulty of Object.keys(DIFFICULTIES)) assert.ok(game.levels[difficulty].target <= game.maxScore);
 });

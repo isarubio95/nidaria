@@ -47,6 +47,26 @@ class DataDecodeTest {
         assertTrue(daily.resetAt > fixture().state!!.now)
     }
 
+    // La decoración y el juego del día. Una respuesta sin ellos (como la
+    // de payload.json, anterior) deja la habitación de base.
+    @Test
+    fun decodesTheRoomAndTheGameOfTheDay() {
+        val payload = NidJson.decodeFromString(
+            Payload.serializer(),
+            """{"state":{"now":1,"decor":{"pared":"papel-olas","alfombra":null,"rincon":"baul","ventana":null},"daily":{"day":"2026-11-13","featured":"eco"}},"result":{"playId":"p","featured":true}}""",
+        )
+        val state = payload.state!!
+        assertEquals("papel-olas", state.decor.spot("pared"))
+        assertEquals("baul", state.decor.rincon)
+        assertNull(state.decor.spot("alfombra"))
+        assertNull(state.decor.spot("techo"))
+        assertEquals("eco", state.daily!!.featured)
+        assertTrue(payload.flag("featured"))
+        val old = fixture().state!!
+        assertNull(old.decor.pared)
+        assertNull(old.daily!!.featured)
+    }
+
     @Test
     fun toleratesFieldsItDoesNotKnow() {
         val payload = NidJson.decodeFromString(

@@ -8,8 +8,12 @@ import { createRng, hashString, mix, roll } from '../../shared/rng.js';
 import { createGenes } from '../../shared/dna.js';
 import { FORM_LIST, chooseBranch, branchScores, hintFor, nextFormId, emptyCare } from '../../shared/forms.js';
 import { simulate, newCreature, moodOf } from '../../shared/needs.js';
-import { pendingIncome, ticketsNow, MINIGAMES, DIFFICULTIES, baseReward } from '../../shared/economy.js';
+import {
+  pendingIncome, ticketsNow, MINIGAMES, DIFFICULTIES, FEATURED_MULT, baseReward, levelFor,
+} from '../../shared/economy.js';
 import { ITEMS } from '../../shared/catalog.js';
+import { gameLock } from '../../shared/actions.js';
+import { TRAITS } from '../../shared/dna.js';
 
 const seeds = [1, 2, 7, 101, 202, 303, 12345, 987654321, 2654435769, 4294967295];
 const rng = seeds.map((seed) => {
@@ -144,12 +148,32 @@ const economy = {
     .map(([tickets, at, now, scale]) => ({ tickets, at, now, scale, value: ticketsNow(tickets, at, now, scale) })),
   rewards: MINIGAMES.flatMap((game) => Object.keys(DIFFICULTIES).map((difficulty) => ({
     game: game.id, difficulty, reward: baseReward(game, difficulty), target: game.levels[difficulty].target,
+    featured: baseReward(game, difficulty, FEATURED_MULT),
   }))),
 };
 
-const items = ITEMS.map((item) => ({ id: item.id, name: item.name, price: item.price, kind: item.kind }));
+// Niveles con las ventajas del carácter: cada juego con cada pareja de rasgos.
+const traitIds = Object.keys(TRAITS);
+const perks = [];
+for (const game of MINIGAMES) {
+  for (const difficulty of Object.keys(DIFFICULTIES)) {
+    for (let a = 0; a < traitIds.length; a++) {
+      for (let b = a + 1; b < traitIds.length; b++) {
+        const traits = [traitIds[a], traitIds[b]];
+        perks.push({ game: game.id, difficulty, traits, level: levelFor(game, difficulty, { traits }) });
+      }
+    }
+  }
+}
+
+// Qué formas pueden jugar a los juegos de una rama.
+const locks = MINIGAMES.flatMap((game) => FORM_LIST.filter((form) => form.stage !== 'huevo').map((form) => ({
+  game: game.id, formId: form.id, lock: gameLock(game, { formId: form.id }),
+})));
+
+const items = ITEMS.map((item) => ({ id: item.id, name: item.name, price: item.price, kind: item.kind, spot: item.spot ?? null }));
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const file = path.join(here, '..', 'app', 'src', 'test', 'resources', 'golden.json');
-fs.writeFileSync(file, JSON.stringify({ rng, hashes, mixes, genes, forms, sims, branches, secrets, economy, items }));
+fs.writeFileSync(file, JSON.stringify({ rng, hashes, mixes, genes, forms, sims, branches, secrets, economy, items, perks, locks }));
 console.log('golden.json', fs.statSync(file).size, 'bytes;', sims.length, 'simulaciones');

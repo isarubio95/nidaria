@@ -7,6 +7,7 @@ import { createPostgresDb, poolConfig } from '../server/db/postgres.js';
 import { migrate } from '../server/db/migrate.js';
 import { createApp } from '../server/app.js';
 import { createPush } from '../server/push.js';
+import { getGame, baseReward, FEATURED_MULT, MINIGAMES } from '../shared/economy.js';
 
 // Con TEST_DATABASE_URL las pruebas corren contra PostgreSQL, cada una en
 // un esquema propio que se borra al acabar. Sin ella, SQLite en memoria.
@@ -308,6 +309,84 @@ test('misiones del día: progreso, premio y racha', async () => {
     const broken = await app.call('POST', '/api/dev/skip', { hours: 24 });
     assert.equal(broken.data.state.daily.streak, 0);
     assert.equal(broken.data.state.daily.best, 1);
+  } finally {
+    await app.close();
+  }
+});
+
+test('decoración: comprar, colocar en su sitio y volver a lo de base', async () => {
+  const app = await startServer();
+  try {
+    const created = await app.call('POST', '/api/auth/register', { name: 'Decoradora', password: 'secreta123' });
+    assert.deepEqual(created.data.state.decor, { pared: null, alfombra: null, rincon: null, ventana: null });
+    // La habitación es del jugador: se decora aunque aún no haya criatura.
+    const notMine = await app.call('POST', '/api/decor/place', { spot: 'pared', itemId: 'papel-rayas' });
+    assert.equal(notMine.status, 400);
+    assert.match(notMine.data.error, /no es tuyo/);
+
+    const userId = (await app.db.get('SELECT id FROM users WHERE name = ?', ['Decoradora'])).id;
+    await app.db.run('UPDATE users SET coins = 1000 WHERE id = ?', [userId]);
+    const bought = await app.call('POST', '/api/shop/buy', { itemId: 'papel-rayas' });
+    assert.equal(bought.data.state.user.coins, 820);
+    assert.equal((await app.call('POST', '/api/shop/buy', { itemId: 'papel-rayas' })).status, 400);
+    await app.call('POST', '/api/shop/buy', { itemId: 'baul' });
+
+    const placed = await app.call('POST', '/api/decor/place', { spot: 'pared', itemId: 'papel-rayas' });
+    assert.equal(placed.status, 200, JSON.stringify(placed.data));
+    assert.deepEqual(placed.data.result, { spot: 'pared', itemId: 'papel-rayas' });
+    const chest = await app.call('POST', '/api/decor/place', { spot: 'rincon', itemId: 'baul' });
+    assert.deepEqual(chest.data.state.decor, { pared: 'papel-rayas', alfombra: null, rincon: 'baul', ventana: null });
+
+    assert.equal((await app.call('POST', '/api/decor/place', { spot: 'ventana', itemId: 'baul' })).status, 400);
+    assert.equal((await app.call('POST', '/api/decor/place', { spot: 'techo', itemId: null })).status, 400);
+
+    // Se queda puesta al cambiar de criatura y se puede volver a la de base.
+    await app.call('POST', '/api/egg/pick', { index: 0, name: 'Nube' });
+    const back = await app.call('POST', '/api/decor/place', { spot: 'pared', itemId: null });
+    assert.deepEqual(back.data.state.decor, { pared: null, alfombra: null, rincon: 'baul', ventana: null });
+  } finally {
+    await app.close();
+  }
+});
+
+test('el juego del día paga más y el escondite pide una criatura juguetona', async () => {
+  const app = await startServer();
+  try {
+    const first = await hatchedPlayer(app, 'Jugona');
+    const featured = getGame(first.daily.featured);
+    assert.ok(featured && !featured.branch, `juego del día: ${first.daily.featured}`);
+    const userId = (await app.db.get('SELECT id FROM users WHERE name = ?', ['Jugona'])).id;
+    // Partidas que ya han durado un minuto, para que sean creíbles.
+    const play = async (gameId) => {
+      const started = await app.call('POST', '/api/games/start', { gameId, difficulty: 'normal' });
+      assert.equal(started.status, 200, JSON.stringify(started.data));
+      await app.db.run('UPDATE plays SET started_at = started_at - 60000 WHERE id = ?', [started.data.result.playId]);
+      const target = getGame(gameId).levels.normal.target;
+      const finished = await app.call('POST', '/api/games/finish', { playId: started.data.result.playId, score: target });
+      return { started: started.data.result, finished: finished.data.result };
+    };
+
+    const best = await play(featured.id);
+    assert.equal(best.started.featured, true);
+    assert.equal(best.finished.featured, true);
+    assert.equal(best.finished.coins, baseReward(featured, 'normal', FEATURED_MULT));
+    const other = MINIGAMES.find((game) => game.id !== featured.id && !game.branch);
+    const plain = await play(other.id);
+    assert.equal(plain.started.featured, false);
+    assert.equal(plain.finished.coins, baseReward(other, 'normal'));
+
+    const before = (await app.call('GET', '/api/state')).data.state;
+    const locked = await app.call('POST', '/api/games/start', { gameId: 'escondite', difficulty: 'facil' });
+    assert.equal(locked.status, 400);
+    assert.match(locked.data.error, /juguetonas/);
+    assert.equal((await app.call('GET', '/api/state')).data.state.user.tickets, before.user.tickets);
+
+    const row = await app.db.get('SELECT id, data FROM creatures WHERE user_id = ? AND active = 1', [userId]);
+    const creature = JSON.parse(row.data);
+    Object.assign(creature, { formId: `joven-${creature.genes.family}-jugueton`, stage: 'joven', energy: 90, sick: false });
+    await app.db.run('UPDATE creatures SET data = ? WHERE id = ?', [JSON.stringify(creature), row.id]);
+    const hide = await play('escondite');
+    assert.equal(hide.finished.won, true);
   } finally {
     await app.close();
   }

@@ -219,7 +219,7 @@ Pastel saturado sobre crema, con tinta cacao. Los colores hacen trabajo: dicen q
 
 ## Layout
 
-Móvil primero, con una mano. La escena 3D va a sangre y la interfaz se ancla a los bordes: arriba, monedas a la izquierda y tienda a la derecha; debajo, centrada, la placa con el nombre; a la derecha, dos accesos pequeños; abajo, un muelle con la tarjeta de necesidades y la fila de acciones.
+Móvil primero, con una mano. La escena 3D va a sangre y la interfaz se ancla a los bordes: arriba, monedas a la izquierda y tienda a la derecha; debajo, centrada, la placa con el nombre; a la derecha, una columna de accesos pequeños (Misiones, Armario, Casa y Criadex); abajo, un muelle con la tarjeta de necesidades y la fila de acciones.
 
 - **Margen lateral:** 16px. El muelle mide como mucho 520px y se centra.
 - **Ritmo:** múltiplos de 4px. Grupos apretados (4 a 8px) y separación generosa entre grupos (12 a 24px).
@@ -292,7 +292,7 @@ Campo crema con borde de 2px en `line` y radio de 16px. Con foco, el borde pasa 
 
 - **Pestañas:** carril con una píldora de papel que se desliza hasta la opción activa.
 - **Placa:** el nombre de la criatura y su estado en una píldora centrada; al pulsarla abre su ficha.
-- **Accesos laterales:** dos casillas pequeñas con icono y nombre.
+- **Accesos laterales:** casillas pequeñas con icono y nombre, en columna. En el móvil tapan el rincón derecho de la habitación por encima de medio metro: lo que se ponga ahí debe ser bajo.
 
 ### Need bars
 

@@ -5,6 +5,7 @@
 import { clamp } from './rng.js';
 import { getItem, TOY_COOLDOWN_MS, BATH_COOLDOWN_MS } from './catalog.js';
 import { gainBond, BOND_GAINS } from './bond.js';
+import { getForm, BRANCH_INFO } from './forms.js';
 
 const fail = (error) => ({ ok: false, error });
 const add = (creature, need, amount) => {
@@ -147,6 +148,14 @@ export function canPlayGame(creature) {
   if (creature.sick) return 'Está enferma y no tiene ganas de jugar.';
   if (creature.energy < 12) return 'Está demasiado cansada para jugar.';
   return null;
+}
+
+// Juegos de una rama: solo para criaturas que se han criado por ella, de
+// jóvenes o de adultas. Devuelve el motivo o null.
+export function gameLock(game, creature) {
+  if (!game.branch) return null;
+  if (creature && getForm(creature.formId).path.includes(game.branch)) return null;
+  return `Solo lo juegan las criaturas ${BRANCH_INFO[game.branch].name.toLowerCase()}s.`;
 }
 
 export function applyGameResult(creature, won, now = Date.now(), scale = 1) {

@@ -4,7 +4,7 @@
 import { h, icon, coin, fmt } from '../dom.js';
 import { api } from '../api.js';
 import { store, run } from '../store.js';
-import { CATEGORIES, SLOTS, itemsOfKind, getItem, MAX_STACK } from '/shared/catalog.js';
+import { CATEGORIES, SLOTS, SPOTS, itemsOfKind, getItem, MAX_STACK } from '/shared/catalog.js';
 import { openSheet } from './sheet.js';
 import { tabs } from './widgets.js';
 import { toast } from './toast.js';
@@ -30,6 +30,8 @@ export function effectChips(item, limit = 9) {
     chips.push(chip('moon', item.energy ? `${signed(-item.energy)} energía` : 'No cansa'));
   } else if (item.kind === 'ropa') {
     chips.push(chip('hanger', SLOTS.find((slot) => slot.id === item.slot).name));
+  } else if (item.kind === 'casa') {
+    chips.push(chip('home', SPOTS.find((spot) => spot.id === item.spot).name));
   }
   return h('div', { class: 'chips' }, chips.slice(0, limit));
 }
@@ -114,6 +116,15 @@ export function openShop(initial = 'comida') {
           if (payload) toast(`${store.state.creature.name} lleva puesto: ${item.name}.`);
         },
       }, wearing ? 'Lo lleva puesto' : 'Ponérselo');
+    } else if (mine && item.kind === 'casa') {
+      const there = store.state.decor?.[item.spot] === item.id;
+      action = h('button', {
+        class: 'btn btn-mint', type: 'button', disabled: there,
+        onclick: async () => {
+          const payload = await run(api.decorate({ spot: item.spot, itemId: item.id }));
+          if (payload) toast(`Has puesto en la habitación: ${item.name}.`);
+        },
+      }, there ? 'Ya está puesto' : 'Colocar');
     } else if (mine) {
       action = h('button', { class: 'btn', type: 'button', disabled: true }, 'Ya es tuyo');
     } else {

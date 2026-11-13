@@ -6,9 +6,22 @@ class Category(val id: String, val name: String)
 
 val CATEGORIES = listOf(
     Category("comida", "Comida"), Category("cuidado", "Cuidado"), Category("juguete", "Juguetes"), Category("ropa", "Ropa"),
+    Category("casa", "Casa"),
 )
 
 val SLOTS = listOf(Category("cabeza", "Cabeza"), Category("cara", "Cara"), Category("cuello", "Cuello"))
+
+// Sitios de la habitación que se pueden decorar. La habitación es del
+// jugador, no de la criatura. `base` es lo que hay si no se ha puesto
+// nada (null: el sitio queda vacío).
+class Spot(val id: String, val name: String, val base: String?)
+
+val SPOTS = listOf(
+    Spot("pared", "Pared", "Lunares de cielo"),
+    Spot("alfombra", "Alfombra", "Alfombra rosa"),
+    Spot("rincon", "Rincón", "Planta"),
+    Spot("ventana", "Ventana", null),
+)
 
 class Item(
     val id: String,
@@ -25,6 +38,7 @@ class Item(
     val bath: Boolean = false,
     val slot: String? = null,
     val reusable: Boolean = false,
+    val spot: String? = null,
 )
 
 private fun food(id: String, name: String, price: Int, hunger: Int, blurb: String, fun_: Int = 0, health: Int = 0, sweet: Boolean = false) =
@@ -35,6 +49,9 @@ private fun toy(id: String, name: String, price: Int, fun_: Int, energy: Int, bl
 
 private fun wear(id: String, name: String, price: Int, slot: String, blurb: String) =
     Item(id, name, price, "ropa", blurb, slot = slot, reusable = true)
+
+private fun decor(id: String, name: String, price: Int, spot: String, blurb: String) =
+    Item(id, name, price, "casa", blurb, spot = spot, reusable = true)
 
 val ITEMS = listOf(
     food("manzana", "Manzana", 4, 14, "Crujiente y sana.", health = 1),
@@ -70,6 +87,27 @@ val ITEMS = listOf(
     wear("pajarita", "Pajarita", 75, "cuello", "Elegante."),
     wear("bufanda", "Bufanda", 85, "cuello", "Larga y a rayas."),
     wear("cascabel", "Cascabel", 100, "cuello", "Suena al andar."),
+
+    decor("papel-rayas", "Rayas de menta", 180, "pared", "Rayas finas, frescas y tranquilas."),
+    decor("papel-vichy", "Cuadros rosa", 240, "pared", "Como un mantel de merienda."),
+    decor("papel-flores", "Florecitas", 300, "pared", "Margaritas por todas partes."),
+    decor("papel-olas", "Olas", 360, "pared", "Para soñar con el mar."),
+    decor("papel-estrellas", "Noche de estrellas", 450, "pared", "Lila, con estrellas de oro."),
+
+    decor("alfombra-menta", "Alfombra menta", 180, "alfombra", "Redonda y suave."),
+    decor("alfombra-flor", "Alfombra flor", 300, "alfombra", "Con pétalos alrededor."),
+    decor("alfombra-arcoiris", "Alfombra arcoíris", 380, "alfombra", "Un color en cada vuelta."),
+    decor("alfombra-nube", "Alfombra nube", 480, "alfombra", "Mullida como una nube."),
+
+    decor("cactus", "Cactus", 200, "ventana", "No hay que regarlo casi nunca."),
+    decor("girasol", "Girasol", 280, "ventana", "Siempre mira hacia la luz."),
+    decor("lampara", "Lámpara de pie", 420, "ventana", "Luz cálida para leer."),
+    decor("pecera", "Pecera", 650, "ventana", "Con un pez que saluda."),
+
+    decor("cojin", "Cojín grande", 160, "rincon", "Para tumbarse a descansar."),
+    decor("mesita", "Mesita con flores", 300, "rincon", "Un jarrón con tulipanes."),
+    decor("baul", "Baúl de juguetes", 450, "rincon", "Siempre se queda algo fuera."),
+    decor("camita", "Camita", 600, "rincon", "Un nido blandito con su manta."),
 )
 
 private val BY_ID = ITEMS.associateBy { it.id }

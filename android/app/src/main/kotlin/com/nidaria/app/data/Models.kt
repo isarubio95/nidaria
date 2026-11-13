@@ -64,6 +64,8 @@ data class Daily(
     val best: Int = 0,
     val doneToday: Boolean = false,
     val bonus: Int = 0,
+    // El minijuego que hoy paga más (ver FEATURED_MULT).
+    val featured: String? = null,
 ) {
     val claimable get() = missions.count { it.done && !it.claimed }
 }
@@ -91,6 +93,24 @@ data class AlertPrefs(
 @Serializable
 data class PushInfo(val key: String? = null, val prefs: AlertPrefs = AlertPrefs())
 
+// Lo que el jugador ha puesto en cada sitio de su habitación. null es lo
+// de base (ver SPOTS).
+@Serializable
+data class Decor(
+    val pared: String? = null,
+    val alfombra: String? = null,
+    val rincon: String? = null,
+    val ventana: String? = null,
+) {
+    fun spot(id: String): String? = when (id) {
+        "pared" -> pared
+        "alfombra" -> alfombra
+        "rincon" -> rincon
+        "ventana" -> ventana
+        else -> null
+    }
+}
+
 @Serializable
 data class GameState(
     val now: Double = 0.0,
@@ -100,6 +120,7 @@ data class GameState(
     val creature: Creature? = null,
     val eggOffer: List<EggLook>? = null,
     val inventory: Map<String, Int> = emptyMap(),
+    val decor: Decor = Decor(),
     val criadex: Map<String, DexEntry> = emptyMap(),
     val daily: Daily? = null,
     val push: PushInfo? = null,
