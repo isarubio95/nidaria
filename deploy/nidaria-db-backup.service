@@ -1,0 +1,10 @@
+# Copia de la base de datos. La lanza nidaria-db-backup.timer.
+# Va en /etc/systemd/system/nidaria-db-backup.service.
+[Unit]
+Description=Nidaria: copia de la base de datos
+Requires=nidaria-db.service
+After=nidaria-db.service
+
+[Service]
+Type=oneshot
+ExecStart=/opt/nidaria/postgres/backup.sh

@@ -1,0 +1,38 @@
+# PostgreSQL 18 del juego. Va en /opt/nidaria/postgres/compose.yaml y lo
+# instala deploy/db-setup.sh. Lo arranca nidaria-db.service, antes que el
+# juego.
+#
+# Solo escucha en 127.0.0.1: desde fuera del servidor no se llega.
+# Corre con el usuario nidaria-db del servidor (PG_UID y PG_GID, en el .env
+# de al lado) y no con el 999 de la imagen, que en el servidor es Caddy.
+name: nidaria
+
+services:
+  postgres:
+    image: postgres:18
+    restart: unless-stopped
+    user: "${PG_UID:?falta PG_UID en .env}:${PG_GID:?falta PG_GID en .env}"
+    environment:
+      POSTGRES_PASSWORD_FILE: /run/secrets/postgres_password
+    secrets:
+      - postgres_password
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      # Desde la 18, la imagen guarda los datos en /var/lib/postgresql/18/docker.
+      - ./data:/var/lib/postgresql
+    shm_size: 256mb
+    stop_grace_period: 1m
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "postgres", "-d", "postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+      start_interval: 1s
+    logging:
+      driver: local
+
+secrets:
+  postgres_password:
+    file: ./secrets/postgres_password

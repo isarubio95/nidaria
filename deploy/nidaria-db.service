@@ -1,0 +1,21 @@
+# PostgreSQL del juego, en Docker. Va en /etc/systemd/system/nidaria-db.service
+# y lo instala deploy/db-setup.sh. Arranca el contenedor y espera a que la
+# base responda; nidaria.service arranca después.
+[Unit]
+Description=Nidaria: PostgreSQL 18 (Docker)
+Requires=docker.service
+After=docker.service network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+WorkingDirectory=/opt/nidaria/postgres
+ExecStart=/usr/bin/docker compose up --detach --wait
+ExecStop=/usr/bin/docker compose stop
+# La primera vez descarga la imagen.
+TimeoutStartSec=5min
+TimeoutStopSec=90
+
+[Install]
+WantedBy=multi-user.target

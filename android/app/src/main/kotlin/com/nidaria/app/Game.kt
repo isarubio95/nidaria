@@ -27,11 +27,18 @@ import com.nidaria.app.data.Store
 import com.nidaria.app.data.Weather
 import com.nidaria.app.data.WeatherNow
 import com.nidaria.app.notify.Notifier
+import com.nidaria.app.rules.BOND_LEVELS
 import com.nidaria.app.rules.BRANCH_INFO
 import com.nidaria.app.rules.Creature
 import com.nidaria.app.rules.FAMILY_INFO
 import com.nidaria.app.rules.Item
 import com.nidaria.app.rules.MiniGame
+import com.nidaria.app.rules.SECRET_INFO
+import com.nidaria.app.rules.TRICKS
+import com.nidaria.app.rules.TRICK_CHANCE
+import com.nidaria.app.rules.TRICK_GAP_MS
+import com.nidaria.app.rules.TRICK_LINES
+import com.nidaria.app.rules.bondLevel
 import com.nidaria.app.rules.getForm
 import com.nidaria.app.rules.getGame
 import com.nidaria.app.rules.moodOf
@@ -40,6 +47,7 @@ import com.nidaria.app.rules.stageDuration
 import com.nidaria.app.scene.RoomView
 import com.nidaria.app.scene.ThumbSpec
 import com.nidaria.app.ui.Tone
+import com.nidaria.app.ui.bondLine
 import com.nidaria.app.ui.fmt
 import com.nidaria.app.ui.idleLine
 import com.nidaria.app.ui.line
@@ -157,6 +165,7 @@ class Game(context: Context, val room: RoomView, private val scope: CoroutineSco
     private var lastSync = 0L
     private var lastPet = 0L
     private var petLine = 0L
+    private var lastTrick = 0L
     private var eggTaps = 0
     private var eggJob: Job? = null
     private var bubbleJob: Job? = null
@@ -285,6 +294,17 @@ class Game(context: Context, val room: RoomView, private val scope: CoroutineSco
             )
             return
         }
+        if (form.secret != null) {
+            dialog(
+                DialogSpec(
+                    title = "¡Una forma oculta!",
+                    text = "${creature.name} ahora es ${form.name}. ${SECRET_INFO.getValue(form.secret).reason}",
+                    art = art,
+                    actions = listOf(DialogAction("Verla", true, Tone.Pink)),
+                ),
+            )
+            return
+        }
         val branch = form.branch?.let { BRANCH_INFO.getValue(it).name.lowercase() } ?: ""
         dialog(
             DialogSpec(
@@ -369,6 +389,12 @@ class Game(context: Context, val room: RoomView, private val scope: CoroutineSco
                 "sick" -> toast("${creature.name} se ha puesto enferma. Dale medicina.", error = true, holdMs = 4200)
                 "collapsed" -> toast("${creature.name} se ha dormido de puro cansancio.", holdMs = 3600)
                 "woke" -> toast("${creature.name} se ha despertado.")
+                "bond" -> {
+                    val level = BOND_LEVELS.getOrNull(event.level) ?: continue
+                    toast(level.reached.replace("{name}", creature.name), holdMs = 4000)
+                    val fond = bondLine(creature, state.user.name, event.level)
+                    if (fond != null && !animating) say(fond)
+                }
             }
         }
     }
@@ -411,7 +437,7 @@ class Game(context: Context, val room: RoomView, private val scope: CoroutineSco
         val creature = result.creature
         val quiet = sheet == null && dialogs.isEmpty() && play == null && resumed
         if (now > chatterAt && quiet && creature.alive && !creature.asleep && creature.stage != "huevo") {
-            say(idleLine(creature, moodOf(creature), weather))
+            say(idleLine(creature, moodOf(creature), weather, store.state?.user?.name))
         }
     }
 
@@ -466,7 +492,22 @@ class Game(context: Context, val room: RoomView, private val scope: CoroutineSco
     private fun tap() {
         val creature = live ?: return
         if (!creature.alive) return
-        if (creature.asleep) say("Zzz…", 1.4f) else say(idleLine(creature, moodOf(creature), weather))
+        when {
+            creature.asleep -> say("Zzz…", 1.4f)
+            creature.stage != "huevo" && trick(creature) -> Unit
+            else -> say(idleLine(creature, moodOf(creature), weather, store.state?.user?.name))
+        }
+    }
+
+    // Con confianza, al tocarla a veces enseña un truco.
+    private fun trick(creature: Creature): Boolean {
+        val known = TRICKS[min(3, bondLevel(creature.bond))] ?: return false
+        val now = clockNow()
+        if (now - lastTrick < TRICK_GAP_MS || Random.nextDouble() >= TRICK_CHANCE) return false
+        lastTrick = now
+        room.trick(known.random())
+        say(TRICK_LINES.random(), 1.8f)
+        return true
     }
 
     // Los toques al huevo se juntan y se mandan de una vez.

@@ -13,20 +13,59 @@ npm install
 npm start
 ```
 
-El juego queda en http://localhost:3000. Sin configurar nada usa SQLite en `data/nidaria.db`; para usar Supabase, mira la sección siguiente.
+El juego queda en http://localhost:3000. Sin configurar nada usa SQLite en `data/nidaria.db`; para usar PostgreSQL, mira la sección siguiente.
 
 Para probar en el móvil, abre desde él `http://<IP de tu ordenador>:3000` estando en la misma red.
 
-## Base de datos en Supabase
+## Base de datos
 
-1. Crea un proyecto en Supabase.
-2. En *Project Settings > Database > Connect*, copia la cadena de conexión del *Session pooler* (o la directa si tu servidor tiene IPv6). El *Transaction pooler* (puerto 6543) también funciona, pero para un servidor que está siempre encendido es mejor el de sesión.
-3. Copia `.env.example` como `.env` y pon esa cadena en `DATABASE_URL`, con tu contraseña.
-4. `npm start`. Las tablas se crean solas al arrancar.
+Con `DATABASE_URL` el juego usa PostgreSQL; sin ella, SQLite. Las tablas se crean solas al arrancar. El servidor se conecta como dueño de las tablas y lleva sus propias cuentas y sesiones.
 
-El servidor se conecta como propietario de las tablas y lleva sus propias cuentas y sesiones: no usa Supabase Auth ni la API REST. Por eso todas las tablas tienen RLS activado sin políticas, para que nadie pueda leerlas con la clave `anon` del proyecto.
+### En el servidor
 
-Para que la conexión cifrada verifique el certificado, descárgalo en *Database > SSL Configuration* y pon su ruta en `DATABASE_CA_FILE`.
+En producción la base es un PostgreSQL 18 en Docker, en el mismo servidor que el juego. Se monta con:
+
+```bash
+deploy/db-setup.sh
+```
+
+El script instala Docker si falta y deja en el servidor:
+
+- `/opt/nidaria/postgres/`: el `compose.yaml`, los datos (`data/`) y las contraseñas (`secrets/`, solo root).
+- `nidaria-db.service`: arranca la base y espera a que responda. `nidaria.service` arranca después.
+- `nidaria-db-backup.timer`: una copia cada noche en `/var/backups/nidaria`. Guarda las de los últimos 14 días.
+
+Se puede repetir sin miedo: no toca los datos, las contraseñas ni el rol que ya existan. No cambia el `DATABASE_URL` del juego; al terminar dice cómo ponerlo en `/etc/nidaria/nidaria.env`.
+
+La base solo escucha en `127.0.0.1:5432`, así que desde fuera del servidor no se puede llegar. El juego entra con el rol `nidaria`, que no es superusuario: solo es dueño de su base. El contenedor corre con el usuario `nidaria-db` del servidor y no con el 999 de la imagen, que en el servidor es el de Caddy.
+
+Las copias están en el mismo servidor: si se pierde el disco, se pierden con él. Conviene bajarlas de vez en cuando:
+
+```bash
+rsync -a vps:/var/backups/nidaria/ copias-nidaria/
+```
+
+Para hacer una copia a mano, entrar en la base o restaurar una copia (en el servidor):
+
+```bash
+systemctl start nidaria-db-backup.service
+docker compose -f /opt/nidaria/postgres/compose.yaml exec postgres psql -U nidaria
+
+# Restaurar: para el juego, sustituye el contenido de la base y arráncalo.
+systemctl stop nidaria
+docker compose -f /opt/nidaria/postgres/compose.yaml exec -T postgres \
+  pg_restore -U nidaria -d nidaria --clean --if-exists --no-owner --single-transaction \
+  </var/backups/nidaria/nidaria-AAAAMMDD-HHMMSS.dump
+systemctl start nidaria
+```
+
+Para pasar a otra versión menor de PostgreSQL 18, en `/opt/nidaria/postgres`: `docker compose pull && docker compose up -d --wait`. Para cambiar de versión mayor hace falta volcar y restaurar, o usar `pg_upgrade`.
+
+### Otro PostgreSQL
+
+Vale cualquier PostgreSQL. Pon su cadena de conexión en `DATABASE_URL` (en `.env` para desarrollo). Si el servidor no está en la misma máquina, la conexión va cifrada. Para que además se verifique el certificado, pon en `DATABASE_CA_FILE` el de la autoridad que lo firma.
+
+Si usas Supabase, coge la cadena del *Session pooler*. Las tablas tienen RLS activado sin políticas, para que no se puedan leer con la clave `anon` del proyecto. En un PostgreSQL propio ese RLS no estorba: el dueño de las tablas no lo pasa.
 
 ## Opciones
 
@@ -35,8 +74,8 @@ Se pasan como variables de entorno o en un fichero `.env` (ver `.env.example`).
 | Variable | Por defecto | Para qué sirve |
 | --- | --- | --- |
 | `PORT` | `3000` | Puerto del servidor. |
-| `DATABASE_URL` | sin definir | Cadena de conexión de PostgreSQL (Supabase). Si está, se usa en lugar de SQLite. |
-| `DATABASE_CA_FILE` | sin definir | Certificado de Supabase para verificar la conexión. |
+| `DATABASE_URL` | sin definir | Cadena de conexión de PostgreSQL. Si está, se usa en lugar de SQLite. |
+| `DATABASE_CA_FILE` | sin definir | Certificado de la autoridad que firma el servidor de PostgreSQL, para verificar la conexión cifrada. |
 | `DB_FILE` | `data/nidaria.db` | Fichero de la base de datos SQLite, si no hay `DATABASE_URL`. |
 | `TIME_SCALE` | `1` | Acelera el tiempo del juego. Con `60`, una hora pasa en un minuto. |
 | `DEV_TOOLS` | sin activar | Con `1`, la ficha de la criatura muestra botones para adelantar el tiempo. No lo actives en producción. |
@@ -99,7 +138,7 @@ TEST_DATABASE_URL=postgresql://... npm test
 
 ## Acceso a datos
 
-Todo el SQL pasa por la interfaz de `server/db/` (`get`, `all`, `run`, `exec`, `tx`) y usa tipos y sintaxis que aceptan SQLite y PostgreSQL. Hay un adaptador para cada uno: `index.js` (SQLite) y `postgres.js` (PostgreSQL/Supabase), que convierte los `?` en `$1`, `$2`… En PostgreSQL las transacciones van en modo `SERIALIZABLE` y se repiten solas si chocan con otra.
+Todo el SQL pasa por la interfaz de `server/db/` (`get`, `all`, `run`, `exec`, `tx`) y usa tipos y sintaxis que aceptan SQLite y PostgreSQL. Hay un adaptador para cada uno: `index.js` (SQLite) y `postgres.js` (PostgreSQL), que convierte los `?` en `$1`, `$2`… En PostgreSQL las transacciones van en modo `SERIALIZABLE` y se repiten solas si chocan con otra.
 
 Las migraciones están en `server/db/migrations/`. Un fichero `*.pg.sql` solo se aplica en PostgreSQL y uno `*.sqlite.sql` solo en SQLite.
 

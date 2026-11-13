@@ -17,7 +17,9 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -26,7 +28,10 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.ImeAction
@@ -38,6 +43,7 @@ import com.nidaria.app.DialogSpec
 import com.nidaria.app.Game
 import com.nidaria.app.Sheet
 import com.nidaria.app.data.GameState
+import com.nidaria.app.rules.BOND_LEVELS
 import com.nidaria.app.rules.BRANCH_INFO
 import com.nidaria.app.rules.CATEGORIES
 import com.nidaria.app.rules.Creature
@@ -49,17 +55,20 @@ import com.nidaria.app.rules.Form
 import com.nidaria.app.rules.Item
 import com.nidaria.app.rules.MAX_STACK
 import com.nidaria.app.rules.MINIGAMES
+import com.nidaria.app.rules.SHY_UNTIL
 import com.nidaria.app.rules.SLOTS
 import com.nidaria.app.rules.STAGE_INFO
 import com.nidaria.app.rules.TOY_COOLDOWN_MS
 import com.nidaria.app.rules.TRAITS
 import com.nidaria.app.rules.baseReward
+import com.nidaria.app.rules.bondLevel
 import com.nidaria.app.rules.canPlayGame
 import com.nidaria.app.rules.childrenOf
 import com.nidaria.app.rules.getForm
 import com.nidaria.app.rules.getItem
 import com.nidaria.app.rules.hintFor
 import com.nidaria.app.rules.itemsOfKind
+import com.nidaria.app.rules.secretsOf
 import com.nidaria.app.scene.ThumbSpec
 import com.nidaria.app.scene.canonGenes
 import kotlin.math.abs
@@ -277,13 +286,37 @@ fun WardrobeSheet(game: Game) {
 // ── Criadex ───────────────────────────────────────────────────
 
 // El árbol genealógico como colección. Cada familia parte de su cría; de
-// ella salen cuatro jóvenes y de cada joven, cuatro adultas.
+// ella salen cuatro jóvenes y de cada joven, cuatro adultas. Aparte, las
+// formas ocultas de cada familia. En la otra pestaña, los recuerdos de
+// las criaturas que ya se fueron.
 @Composable
 fun CriadexSheet(game: Game) {
     val state = game.store.state ?: return
+    var tab by remember { mutableStateOf("formas") }
+    val scroll = rememberScrollState()
+    LaunchedEffect(tab) { scroll.scrollTo(0) }
+    val sub = if (tab == "formas") {
+        val known = state.criadex
+        val (secret, regular) = FORM_LIST.partition { it.secret != null }
+        "Has descubierto ${regular.count { it.id in known }} de ${regular.size} formas y ${secret.count { it.id in known }} de ${secret.size} ocultas. " +
+            "La crianza decide por qué rama sigue cada criatura."
+    } else {
+        "Las criaturas que cuidaste y ya se fueron."
+    }
+    SheetFrame(
+        game, "Criadex",
+        sub = sub,
+        tabs = { Tabs(listOf("formas" to "Formas", "recuerdos" to "Recuerdos"), tab, { tab = it }) },
+        scroll = scroll,
+    ) {
+        if (tab == "formas") FormsTab(game, state) else MemoriesTab(game)
+    }
+}
+
+@Composable
+private fun FormsTab(game: Game, state: GameState) {
     val creature = state.creature
     val known = state.criadex
-    val found = FORM_LIST.count { it.id in known }
 
     // Las formas por las que ha pasado tu criatura se ven con sus colores.
     fun thumbFor(form: Form, silhouette: Boolean): ThumbSpec {
@@ -294,13 +327,14 @@ fun CriadexSheet(game: Game) {
 
     fun show(form: Form, isKnown: Boolean) {
         if (!isKnown) {
+            val family = form.family?.let { FAMILY_INFO.getValue(it).name }
             game.showDialog(
                 DialogSpec(
-                    title = "Forma sin descubrir",
-                    text = if (form.family != null) {
-                        "${STAGE_INFO.getValue(form.stage).name} de la familia ${FAMILY_INFO.getValue(form.family).name}. ${hintFor(form.id)}"
-                    } else {
-                        "Elige un huevo para descubrirla."
+                    title = if (form.secret != null) "Forma oculta" else "Forma sin descubrir",
+                    text = when {
+                        form.secret != null -> "Una forma oculta de la familia $family. ${hintFor(form.id)}"
+                        family != null -> "${STAGE_INFO.getValue(form.stage).name} de la familia $family. ${hintFor(form.id)}"
+                        else -> "Elige un huevo para descubrirla."
                     },
                     art = thumbFor(form, true),
                     actions = listOf(DialogAction("Entendido", true, Tone.Pink)),
@@ -309,11 +343,16 @@ fun CriadexSheet(game: Game) {
             return
         }
         val times = known[form.id]?.times ?: 1
-        val how = form.branch?.let { "Rama ${BRANCH_INFO.getValue(it).name.lowercase()}. ${BRANCH_INFO.getValue(it).hint}" } ?: ""
+        val how = when {
+            form.secret != null -> "Forma oculta. ${hintFor(form.id)}"
+            form.branch != null -> BRANCH_INFO.getValue(form.branch).let { "Rama ${it.name.lowercase()}. ${it.hint}" }
+            form.stage == "huevo" -> "De aquí sale todo."
+            else -> ""
+        }
         game.showDialog(
             DialogSpec(
                 title = form.name,
-                text = "${if (form.stage == "huevo") "De aquí sale todo." else how} La has tenido ${if (times == 1) "una vez" else "$times veces"}.".trim(),
+                text = "$how La has tenido ${if (times == 1) "una vez" else "$times veces"}.".trim(),
                 art = thumbFor(form, false),
                 actions = listOf(DialogAction("Cerrar", true, Tone.Pink)),
             ),
@@ -324,10 +363,15 @@ fun CriadexSheet(game: Game) {
     fun Tile(form: Form, modifier: Modifier = Modifier, young: Boolean = false) {
         val isKnown = form.id in known
         val current = creature != null && creature.alive && creature.formId == form.id
+        val label = when {
+            isKnown -> form.name
+            form.secret != null -> "Forma oculta sin descubrir"
+            else -> "Forma sin descubrir"
+        }
         Column(
             modifier
                 .fillMaxWidth()
-                .pressable({ show(form, isKnown) }, label = if (isKnown) form.name else "Forma sin descubrir")
+                .pressable({ show(form, isKnown) }, label = label)
                 .surface(if (current) Nd.pinkWash else if (young) Nd.cream else Color.Transparent, Nd.rSm)
                 .innerBorder(if (current) Nd.pinkEdge else Color.Transparent, 2.dp, Nd.rSm)
                 .padding(start = 2.dp, end = 2.dp, top = 4.dp, bottom = 6.dp),
@@ -335,7 +379,11 @@ fun CriadexSheet(game: Game) {
             verticalArrangement = Arrangement.spacedBy(2.dp),
         ) {
             Thumb(thumbFor(form, !isKnown), Modifier.widthIn(max = 72.dp).fillMaxWidth().aspectRatio(1f), alpha = if (isKnown) 1f else 0.5f)
-            T(if (isKnown) form.name else "¿?", Nd.xs, color = if (isKnown) Nd.ink else Nd.inkSoft, align = TextAlign.Center)
+            when {
+                isKnown -> T(form.name, Nd.xs, align = TextAlign.Center)
+                form.secret != null -> T("?", Nd.strong, color = Nd.inkSoft, align = TextAlign.Center)
+                else -> T("¿?", Nd.xs, color = Nd.inkSoft, align = TextAlign.Center)
+            }
         }
     }
 
@@ -348,33 +396,41 @@ fun CriadexSheet(game: Game) {
         }
     }
 
-    SheetFrame(
-        game, "Criadex",
-        sub = "Has descubierto $found de ${FORM_LIST.size} formas. La crianza decide por qué rama sigue cada criatura.",
-    ) {
-        // El huevo es la raíz común de las tres familias.
-        Family("El origen", "Todas las criaturas salen de un huevo. Su familia viene en el ADN.", true) {
-            Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) { Tile(getForm("huevo"), Modifier.width(96.dp)) }
-        }
-        for (family in FAMILIES) {
-            val info = FAMILY_INFO.getValue(family)
-            val baby = getForm("cria-$family")
-            Family("Familia ${info.name}", info.blurb, false) {
-                Box(Modifier.fillMaxWidth().padding(bottom = 8.dp), contentAlignment = Alignment.Center) { Tile(baby, Modifier.width(96.dp)) }
-                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    for (young in childrenOf(baby.id)) {
-                        Column(Modifier.weight(1f)) {
-                            Box(Modifier.fillMaxWidth().height(3.dp).background(Nd.line))
-                            Column(Modifier.padding(top = 8.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                                Tile(young, young = true)
-                                for (adult in childrenOf(young.id)) Tile(adult)
-                            }
+    // El huevo es la raíz común de las tres familias.
+    Family("El origen", "Todas las criaturas salen de un huevo. Su familia viene en el ADN.", true) {
+        Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) { Tile(getForm("huevo"), Modifier.width(96.dp)) }
+    }
+    for (family in FAMILIES) {
+        val info = FAMILY_INFO.getValue(family)
+        val baby = getForm("cria-$family")
+        Family("Familia ${info.name}", info.blurb, false) {
+            Box(Modifier.fillMaxWidth().padding(bottom = 8.dp), contentAlignment = Alignment.Center) { Tile(baby, Modifier.width(96.dp)) }
+            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                for (young in childrenOf(baby.id)) {
+                    Column(Modifier.weight(1f)) {
+                        Box(Modifier.fillMaxWidth().height(3.dp).background(Nd.line))
+                        Column(Modifier.padding(top = 8.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                            Tile(young, young = true)
+                            for (adult in childrenOf(young.id)) Tile(adult)
                         }
                     }
                 }
             }
+            // Las ocultas cuelgan aparte, tras una raya discontinua.
+            T("Formas ocultas", Nd.smSoft, Modifier.padding(top = 16.dp, bottom = 8.dp))
+            Box(Modifier.fillMaxWidth().height(3.dp).dashed(Nd.line))
+            Row(Modifier.padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                for (form in secretsOf(family)) Box(Modifier.weight(1f)) { Tile(form) }
+            }
         }
     }
+}
+
+// Raya discontinua horizontal del alto del elemento.
+private fun Modifier.dashed(color: Color): Modifier = drawBehind {
+    val dash = 8.dp.toPx()
+    val y = size.height / 2
+    drawLine(color, Offset(0f, y), Offset(size.width, y), size.height, pathEffect = PathEffect.dashPathEffect(floatArrayOf(dash, dash * 0.75f)))
 }
 
 // ── Jugar ─────────────────────────────────────────────────────
@@ -498,6 +554,19 @@ private fun Fact(label: String, value: String, note: String? = null, code: Boole
     }
 }
 
+// Nivel de vínculo y lo que falta para el siguiente.
+@Composable
+private fun BondFact(creature: Creature) {
+    val bond = creature.bond
+    val level = bondLevel(bond)
+    val next = BOND_LEVELS.getOrNull(level + 1)
+    val points = "${floor(bond).toInt()} de 100."
+    var note = if (next != null) "$points Con ${next.min.toInt()}: ${next.unlocks.replaceFirstChar { it.lowercase() }}"
+    else "$points Cuanto más os queráis, más vivirá."
+    if ("timido" in creature.genes.traits && bond < SHY_UNTIL) note += " Es tímida: le cuesta coger confianza."
+    Fact("Vínculo", BOND_LEVELS[level].name, note)
+}
+
 // Ficha de la criatura, y debajo la cuenta del jugador.
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -535,6 +604,7 @@ fun ProfileSheet(game: Game) {
                 "Edad", if (days == 0) "Menos de un día" else duration(days * DAY),
                 if (creature.generation > 1) "Generación ${creature.generation}" else null,
             )
+            BondFact(creature)
             val traits = creature.genes.traits.mapNotNull { TRAITS[it] }
             Fact(
                 "Carácter",

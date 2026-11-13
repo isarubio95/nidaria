@@ -3,8 +3,10 @@
 package com.nidaria.app.ui
 
 import com.nidaria.app.data.WeatherNow
+import com.nidaria.app.rules.BOND_LINES
 import com.nidaria.app.rules.Creature
 import com.nidaria.app.rules.LOW
+import com.nidaria.app.rules.bondLevel
 import java.time.LocalTime
 import kotlin.random.Random
 
@@ -80,11 +82,20 @@ private fun contextLines(creature: Creature, weather: WeatherNow?, hour: Int = L
 
 fun line(kind: String?): String = pick(LINES[kind] ?: LINES.getValue("calm"))
 
-// Frase espontánea: primero lo que más le falta, luego su carácter.
-fun idleLine(creature: Creature, mood: String, weather: WeatherNow? = null): String {
+// Lo que dice por el cariño que te tiene, de su nivel y los anteriores.
+fun bondLine(creature: Creature, player: String?, level: Int = bondLevel(creature.bond)): String? {
+    val lines = (1..level).flatMap { BOND_LINES[it].orEmpty() }
+    return if (lines.isEmpty()) null else pick(lines).replace("{player}", player ?: "")
+}
+
+// Frase espontánea: primero lo que más le falta, luego el cariño que te
+// tiene, lo que pasa fuera y su carácter. `player` es quien la cuida.
+fun idleLine(creature: Creature, mood: String, weather: WeatherNow? = null, player: String? = null): String {
     if (creature.sick) return pick(LINES.getValue("sick"))
     val worst = listOf("hunger", "energy", "hygiene", "fun").minBy { creature.need(it) }
     if (creature.need(worst) < LOW) return pick(LINES.getValue(worst))
+    val fond = bondLine(creature, player)
+    if (fond != null && Random.nextFloat() < 0.3f) return fond
     val context = contextLines(creature, weather)
     if (context.isNotEmpty() && Random.nextFloat() < 0.35f) return pick(context)
     if (Random.nextFloat() < 0.5f) {

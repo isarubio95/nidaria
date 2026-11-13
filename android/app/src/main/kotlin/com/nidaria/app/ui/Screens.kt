@@ -201,25 +201,17 @@ fun EggsScreen(game: Game, insets: Insets) {
     }
 }
 
-private val CAUSES = mapOf(
-    "hambre" to "Pasó hambre demasiado tiempo.",
-    "enfermedad" to "Estuvo enferma demasiado tiempo sin medicina.",
-    "abandono" to "Le faltaron cuidados demasiado tiempo.",
-    "vejez" to "Vivió su vida entera y se fue tranquila.",
-)
-private const val DAY_MS = 24.0 * 60 * 60 * 1000
-
 // Despedida: la criatura se ha ido. Explica por qué y da paso al huevo.
 @Composable
 fun FarewellScreen(game: Game, insets: Insets) {
     val state = game.store.state ?: return
     val creature = state.creature ?: return
     val lived = ((creature.diedAt ?: creature.bornAt) - creature.bornAt) * state.timeScale
-    val span = if (lived < DAY_MS) "menos de un día" else duration(lived)
+    val bond = bondPhrase(creature.bond)
     CardScreen(insets) {
         T("${creature.name} se ha ido", Nd.xl)
-        T("${CAUSES[creature.deathCause] ?: CAUSES.getValue("abandono")} Vivió $span y llegó a ser ${creature.formName}.", Nd.lead)
-        T("Ha dejado un huevo que hereda parte de sus rasgos. Tus monedas, tus cosas y tu Criadex siguen contigo.", Nd.lead)
+        T("${causeText(creature.deathCause)} Vivió ${livedSpan(lived)} y llegó a ser ${creature.formName}.${if (bond.isNotEmpty()) " $bond" else ""}", Nd.lead)
+        T("Ha dejado un huevo que hereda parte de sus rasgos. Tus monedas y tus cosas siguen contigo, y podrás recordarla en el Criadex.", Nd.lead)
         Btn("Ver los huevos", { game.continueFromFarewell() }, Modifier.fillMaxWidth(), tone = Tone.Pink)
     }
 }

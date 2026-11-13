@@ -13,6 +13,7 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
@@ -141,6 +142,7 @@ fun SheetFrame(
     sub: String? = null,
     tabs: (@Composable () -> Unit)? = null,
     foot: (@Composable () -> Unit)? = null,
+    scroll: ScrollState = rememberScrollState(),
     body: @Composable ColumnScope.() -> Unit,
 ) {
     Column(Modifier.fillMaxWidth()) {
@@ -158,7 +160,7 @@ fun SheetFrame(
             Modifier
                 .weight(1f, fill = false)
                 .fillMaxWidth()
-                .verticalScroll(rememberScrollState())
+                .verticalScroll(scroll)
                 .padding(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 20.dp),
             content = body,
         )

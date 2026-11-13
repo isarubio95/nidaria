@@ -1,4 +1,4 @@
-// Adaptador de PostgreSQL (Supabase). Ofrece la misma interfaz que el de
+// Adaptador de PostgreSQL. Ofrece la misma interfaz que el de
 // SQLite, así que las consultas no cambian: los `?` se convierten aquí en
 // `$1`, `$2`…
 //

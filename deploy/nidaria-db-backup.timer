@@ -1,0 +1,13 @@
+# Copia diaria de la base de datos, de madrugada. Si el servidor estaba
+# apagado a esa hora, se hace al arrancar.
+# Va en /etc/systemd/system/nidaria-db-backup.timer.
+[Unit]
+Description=Nidaria: copia diaria de la base de datos
+
+[Timer]
+OnCalendar=*-*-* 04:30:00
+RandomizedDelaySec=15min
+Persistent=true
+
+[Install]
+WantedBy=timers.target

@@ -1,10 +1,10 @@
 # Servicio de systemd del juego. Va en /etc/systemd/system/nidaria.service.
 # La configuración (DATABASE_URL, etc.) está en /etc/nidaria/nidaria.env,
-# que solo puede leer root.
+# que solo puede leer root. La base de datos es nidaria-db.service.
 [Unit]
 Description=Nidaria
-After=network-online.target
-Wants=network-online.target
+After=network-online.target nidaria-db.service
+Wants=network-online.target nidaria-db.service
 
 [Service]
 Type=simple
