@@ -1,11 +1,40 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import crypto from 'node:crypto';
+import pg from 'pg';
 import { createSqliteDb } from '../server/db/index.js';
+import { createPostgresDb, poolConfig } from '../server/db/postgres.js';
 import { migrate } from '../server/db/migrate.js';
 import { createApp } from '../server/app.js';
 
+// Con TEST_DATABASE_URL las pruebas corren contra PostgreSQL, cada una en
+// un esquema propio que se borra al acabar. Sin ella, SQLite en memoria.
+const PG_URL = process.env.TEST_DATABASE_URL;
+
+async function openDb() {
+  if (!PG_URL) {
+    const db = createSqliteDb(':memory:');
+    return { db, drop: async () => db.close() };
+  }
+  const schema = `test_${crypto.randomBytes(6).toString('hex')}`;
+  const admin = new pg.Client(poolConfig(PG_URL));
+  await admin.connect();
+  await admin.query(`CREATE SCHEMA ${schema}`);
+  const url = new URL(PG_URL);
+  url.searchParams.set('options', `-c search_path=${schema}`);
+  const db = createPostgresDb(url.toString());
+  return {
+    db,
+    drop: async () => {
+      await db.close();
+      await admin.query(`DROP SCHEMA ${schema} CASCADE`);
+      await admin.end();
+    },
+  };
+}
+
 async function startServer(overrides = {}) {
-  const db = createSqliteDb(':memory:');
+  const { db, drop } = await openDb();
   await migrate(db);
   const config = { timeScale: 1, devTools: true, secureCookies: false, sessionDays: 30, ...overrides };
   const server = createApp(db, config).listen(0);
@@ -25,7 +54,7 @@ async function startServer(overrides = {}) {
   return {
     call,
     dropCookie: () => { cookie = ''; },
-    close: () => new Promise((resolve) => server.close(() => { db.close(); resolve(); })),
+    close: () => new Promise((resolve) => server.close(resolve)).then(drop),
   };
 }
 

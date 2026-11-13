@@ -1,11 +1,15 @@
 import { loadConfig } from './config.js';
 import { createSqliteDb } from './db/index.js';
+import { createPostgresDb } from './db/postgres.js';
 import { migrate } from './db/migrate.js';
 import { createApp } from './app.js';
 
 const config = loadConfig();
-const db = createSqliteDb(config.dbFile);
+const db = config.databaseUrl
+  ? createPostgresDb(config.databaseUrl, { caFile: config.databaseCaFile })
+  : createSqliteDb(config.dbFile);
 await migrate(db);
+console.log(db.dialect === 'postgres' ? 'Base de datos: PostgreSQL' : `Base de datos: SQLite (${config.dbFile})`);
 
 const app = createApp(db, config);
 const server = app.listen(config.port, config.host, () => {
@@ -14,8 +18,8 @@ const server = app.listen(config.port, config.host, () => {
   if (config.devTools) console.log('Herramientas de desarrollo activadas');
 });
 
-const stop = () => server.close(() => {
-  db.close();
+const stop = () => server.close(async () => {
+  await db.close();
   process.exit(0);
 });
 process.on('SIGINT', stop);

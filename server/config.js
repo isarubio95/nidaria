@@ -7,6 +7,10 @@ export function loadConfig(env = process.env) {
   return {
     port: Number(env.PORT ?? 3000),
     host: env.HOST ?? '0.0.0.0',
+    // Con DATABASE_URL se usa PostgreSQL (Supabase); sin ella, SQLite.
+    databaseUrl: env.DATABASE_URL || null,
+    // Certificado de Supabase para verificar la conexión cifrada.
+    databaseCaFile: env.DATABASE_CA_FILE || null,
     dbFile: env.DB_FILE ?? path.join(ROOT, 'data', 'nidaria.db'),
     // Multiplica la velocidad del tiempo del juego. 60 hace que una hora
     // pase en un minuto: útil para probar evoluciones.
