@@ -59,7 +59,7 @@ export function openDecor(initial = SPOTS[0].id) {
       h('div', { class: 'items', role: 'radiogroup', 'aria-label': info.name }, tiles),
       owned.length ? null : h('p', { class: 'sheet-note' }, 'En la tienda, en Casa, hay más cosas para este sitio.'),
     ].filter(Boolean));
-    stopThumbs = lazyThumbs(jobs, 3);
+    stopThumbs = lazyThumbs(jobs);
   }
 
   off = store.onChange((state) => {

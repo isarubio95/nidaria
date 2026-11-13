@@ -134,7 +134,7 @@ TEST_DATABASE_URL=postgresql://... npm test
 - `shared/`: las reglas del juego. Las usan el servidor, como autoridad, y el navegador, para mover las barras entre visitas.
 - `server/`: servidor Express, cuentas, API y acceso a datos.
 - `public/`: la interfaz. HTML, CSS y módulos de JavaScript sin paso de compilación.
-- `public/js/scene/`: la habitación 3D y el generador de criaturas, con Three.js. Los papeles pintados y las alfombras están en `decor.js`; los muebles, con los demás artículos, en `props.js`.
+- `public/js/scene/`: la habitación 3D y el generador de criaturas, con Three.js. `sdf.js` es el escultor: las criaturas y los objetos se describen como formas blandas que se funden y se convierten en una malla lisa con su color y sus sombras de pliegue. La habitación fija (pared, friso, tarima, ventana, cortinas) está en `house.js`; los papeles pintados y las alfombras, en `decor.js`; los muebles, con los demás artículos, en `props.js`; los materiales compartidos, en `materials.js`.
 - `public/js/games/`: los minijuegos.
 - `public/js/audio/`: los efectos de sonido. Se generan con código (`sounds.js`), sin ficheros de audio; la app de Android tiene una copia en Kotlin que una prueba compara con esta.
 - `test/`: las pruebas.

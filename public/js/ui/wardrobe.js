@@ -53,7 +53,7 @@ export function openWardrobe() {
       }),
     ];
     body.replaceChildren(h('div', { class: 'items', role: 'radiogroup', 'aria-label': 'Prendas' }, tiles));
-    lazyThumbs(jobs, 3);
+    lazyThumbs(jobs);
   }
 
   off = store.onChange((state) => {

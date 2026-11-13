@@ -22,7 +22,7 @@ export function ownedTiles(items, onPick) {
       h('span', { class: 'item-count num', 'aria-label': `Tienes ${store.state.inventory[item.id]}` }, `×${store.state.inventory[item.id]}`),
     );
   });
-  lazyThumbs(jobs, 3);
+  lazyThumbs(jobs);
   return tiles;
 }
 

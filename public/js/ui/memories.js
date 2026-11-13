@@ -81,7 +81,7 @@ export function mountMemories(el) {
         ));
     });
     el.replaceChildren(h('ul', { class: 'memories', 'aria-label': 'Criaturas que se fueron' }, rows));
-    stop = lazyThumbs(jobs, 2);
+    stop = lazyThumbs(jobs);
   });
 
   return () => {

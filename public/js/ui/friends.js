@@ -226,7 +226,7 @@ export function openFriends() {
       h('button', { class: 'text-link', type: 'button', onclick: busy(renewCode) }, 'Cambiar mi código'),
       ...(outgoing.length ? [title('Esperando respuesta'), list('Solicitudes enviadas', outgoing)] : []),
     );
-    stop = lazyThumbs(jobs, 2);
+    stop = lazyThumbs(jobs);
   }
 
   load();

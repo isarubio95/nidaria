@@ -158,7 +158,7 @@ La criatura es la pantalla. Vive en una escena 3D a sangre y la interfaz es un m
 
 **Key Characteristics:**
 
-- Una escena 3D de materiales mates de juguete ocupa todo el fondo; la interfaz flota encima en paneles blancos.
+- Una habitación 3D con acabado de juguete de vinilo ocupa todo el fondo: luz de sol suave, tarima clara, friso de madera y criaturas esculpidas como figuras de arcilla. La interfaz flota encima en paneles blancos.
 - Todo lo pulsable lleva un canto más oscuro por abajo y se hunde en él al tocarlo.
 - Una sola tinta, marrón cacao, para todo el texto y todos los iconos.
 - Cada necesidad tiene un color fijo que comparten su barra, su icono y su botón.
@@ -184,7 +184,7 @@ Pastel saturado sobre crema, con tinta cacao. Los colores hacen trabajo: dicen q
 ### Neutral
 
 - **Cielo** (`sky`): la pared de la habitación y el fondo de la página antes de que cargue la escena.
-- **Crema** (`cream`, `cream-deep`): el suelo, las casillas de artículo y los campos de texto.
+- **Crema** (`cream`, `cream-deep`): el friso de la habitación, las casillas de artículo y los campos de texto. El suelo es tarima de arce claro, del mismo tono cálido.
 - **Papel** (`paper`): paneles, hojas, píldoras y diálogos.
 - **Cacao** (`ink`, `ink-soft`, `ink-faint`): texto principal, texto secundario y detalles apagados.
 - **Línea y carril** (`line`, `track`): separadores, bordes de campo y el fondo de barras y pestañas.
@@ -304,6 +304,16 @@ Barra de 14px sobre carril, del color de su necesidad y con canto. Cuando la nec
 ### Share card
 
 Imagen vertical de 1080 × 1350 sobre crema, para mandar fuera del juego. Arriba, la foto real de la habitación desde la escena 3D, con radio de 40px y canto de papel; nunca un dibujo aparte. Debajo, el nombre en peso 900, la forma y la etapa en cacao suave, una ficha de familia en lavado menta y una por rasgo de carácter en lavado sol. Cierra un pie sobre una línea: el ADN a la izquierda y, a la derecha, la dirección del juego y «Nidaria». En la app se enseña dentro de un diálogo, con radio de 16px y sombra baja.
+
+## La escena 3D
+
+**Creative North Star de la escena: "Figuras de vinilo en su cuarto".** Las criaturas y los objetos parecen juguetes de colección de arcilla o vinilo blando: formas redondas que se funden entre sí sin costuras, colores pastel mates y una luz que envuelve.
+
+- **Escultura, no primitivas.** Criaturas, comida, juguetes, muebles y ropa se esculpen por código como plastilina (`scene/sdf.js`): las piezas se funden con un pliegue suave y la malla lleva pintado su color y horneada la sombra de sus pliegues. Nada de esferas y conos sueltos que se cruzan.
+- **La cara se pinta.** Ojos de cuenta negra con su brillo blanco, separados y algo bajos; boca de trazo fino en cacao; coloretes difuminados. Los ojos cerrados son arcos (◡ dormida o tranquila, ^ cuando ríe).
+- **Una luz, la del sol.** El sol entra cálido por arriba a la izquierda con sombras suaves; el cielo rellena y un contraluz frío recorta a la criatura contra la pared. De noche, luna fría por la ventana y una lámpara cálida dentro. Tono neutro (sin quemar los pastel).
+- **Materiales por familia.** Pelusa, aterciopelada; hoja, arcilla mate; gota, vinilo con algo de barniz. Cerámica con barniz, madera mate, tela con brillo de fibra y metal dorado solo en coronas y cascabeles.
+- **Todo se apoya.** Cada mueble lleva su sombra de contacto y el rincón entre suelo y pared se oscurece un poco.
 
 ## Do's and Don'ts
 

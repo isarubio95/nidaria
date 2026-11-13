@@ -126,7 +126,7 @@ export function openCriadex(initial = 'formas') {
       const jobs = [];
       body.replaceChildren(...formsTab(jobs));
       sub.textContent = formsSummary();
-      stop = lazyThumbs(jobs, 2);
+      stop = lazyThumbs(jobs);
     } else {
       sub.textContent = MEMORIES_SUB;
       stop = mountMemories(body);

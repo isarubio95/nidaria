@@ -88,7 +88,7 @@ export function openShop(initial = 'comida') {
       );
     });
     grid.replaceChildren(...tiles);
-    stopThumbs = lazyThumbs(jobs, 3);
+    stopThumbs = lazyThumbs(jobs);
     renderFoot();
   }
 

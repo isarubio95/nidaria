@@ -138,7 +138,7 @@ export function openPlay(room, say, initial = 'juegos') {
       );
     });
     body.replaceChildren(h('div', { class: 'items' }, tiles));
-    lazyThumbs(jobs, 3);
+    lazyThumbs(jobs);
   }
 
   function render() {

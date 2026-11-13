@@ -11,20 +11,26 @@ import { FORM_LIST } from '/shared/forms.js';
 import { clamp } from '/shared/rng.js';
 import { buildCreature, Actor } from './creature.js';
 import { buildEgg, buildItem, buildWear } from './props.js';
-import { wallpaperTexture, buildRug, BASE_DECOR, RUG_NIGHT, TILE_METERS } from './decor.js';
+import { wallpaperTexture, buildRug, BASE_DECOR, TILE_METERS } from './decor.js';
+import { buildHouse, WINDOW, WALL_Z } from './house.js';
+import { contactShadow } from './materials.js';
 import { sfx } from '../audio/sfx.js';
 
 const FOV = 30;
 const FLOOR_Y = 0.03;
 const EGG_SCALE = 1.08;
 
+// De día manda el sol que entra por la ventana; de noche, la luna fría
+// por la ventana y una lámpara cálida dentro.
 const DAY = {
-  wall: new THREE.Color('#ffffff'), floor: new THREE.Color('#ffffff'),
-  trim: new THREE.Color('#fffdf8'), key: new THREE.Color('#fff4e2'), back: new THREE.Color('#bfe3ff'),
+  wall: new THREE.Color('#ffffff'), floor: new THREE.Color('#ffffff'), trim: new THREE.Color('#ffffff'),
+  key: new THREE.Color('#fff0dc'), sky: new THREE.Color('#e8f3ff'), ground: new THREE.Color('#f2d7b8'),
+  back: new THREE.Color('#bfe3ff'),
 };
 const NIGHT = {
-  wall: new THREE.Color('#5c6ca8'), floor: new THREE.Color('#6d6b99'),
-  trim: new THREE.Color('#8d93bd'), key: new THREE.Color('#aebfff'), back: new THREE.Color('#47619f'),
+  wall: new THREE.Color('#c6cdf0'), floor: new THREE.Color('#d2c8e2'), trim: new THREE.Color('#d8d8f0'),
+  key: new THREE.Color('#a9bcff'), sky: new THREE.Color('#8090d0'), ground: new THREE.Color('#7a6a8c'),
+  back: new THREE.Color('#47619f'),
 };
 
 // Dónde va cada mueble: el rincón a la derecha de la criatura y el sitio
@@ -41,17 +47,6 @@ function canvasTexture(width, height, draw) {
   const texture = new THREE.CanvasTexture(canvas);
   texture.colorSpace = THREE.SRGBColorSpace;
   return texture;
-}
-
-function archShape(width, straight) {
-  const r = width / 2;
-  const shape = new THREE.Shape();
-  shape.moveTo(-r, 0);
-  shape.lineTo(-r, straight);
-  shape.absarc(0, straight, r, Math.PI, 0, true);
-  shape.lineTo(r, 0);
-  shape.closePath();
-  return shape;
 }
 
 // Cielo de la ventana según la hora del jugador y, si lo ha activado,
@@ -180,147 +175,77 @@ function drawWeather(ctx, w, h, phase, weather, t, still, cloud) {
 export function createRoom(canvas) {
   const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+  // En aparatos con pocos núcleos se baja un poco la resolución y la
+  // sombra para que vaya fluido.
+  const modest = (navigator.hardwareConcurrency ?? 8) <= 4;
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, modest ? 1.5 : 2));
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFShadowMap;
-  renderer.toneMapping = THREE.NoToneMapping;
+  // Tono neutro: respeta los pastel y suaviza las luces altas.
+  renderer.toneMapping = THREE.NeutralToneMapping;
+  renderer.toneMappingExposure = 1.02;
 
   const scene = new THREE.Scene();
   scene.background = DAY.back.clone();
   const pmrem = new THREE.PMREMGenerator(renderer);
   scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
-  scene.environmentIntensity = 0.5;
+  scene.environmentIntensity = 0.36;
   pmrem.dispose();
 
   const camera = new THREE.PerspectiveCamera(FOV, 1, 0.1, 80);
+  const anisotropy = renderer.capabilities.getMaxAnisotropy();
 
   // ── Luces ──
-  const hemi = new THREE.HemisphereLight('#ffffff', '#ffe6cc', 1.05);
-  const key = new THREE.DirectionalLight(DAY.key, 2.1);
+  // El sol entra por la ventana (arriba a la izquierda) y proyecta sombras
+  // suaves; el cielo y el suelo rellenan; un contraluz frío recorta a la
+  // criatura contra la pared.
+  const hemi = new THREE.HemisphereLight(DAY.sky, DAY.ground, 0.5);
+  const key = new THREE.DirectionalLight(DAY.key, 3.0);
   key.position.set(-2.6, 5.2, 4.2);
   key.target.position.set(0, 0.5, 0);
   key.castShadow = true;
-  key.shadow.mapSize.set(1024, 1024);
-  key.shadow.camera.left = -2.4;
-  key.shadow.camera.right = 2.4;
-  key.shadow.camera.top = 2.6;
-  key.shadow.camera.bottom = -1.6;
+  key.shadow.mapSize.setScalar(modest ? 1024 : 2048);
+  key.shadow.camera.left = -3.2;
+  key.shadow.camera.right = 3.2;
+  key.shadow.camera.top = 3.2;
+  key.shadow.camera.bottom = -2;
   key.shadow.camera.near = 1;
-  key.shadow.camera.far = 14;
-  key.shadow.bias = -0.0006;
-  key.shadow.normalBias = 0.02;
-  const rim = new THREE.DirectionalLight('#cfe6ff', 0.7);
+  key.shadow.camera.far = 16;
+  key.shadow.bias = -0.0004;
+  key.shadow.normalBias = 0.025;
+  key.shadow.radius = 3.5;
+  const rim = new THREE.DirectionalLight('#d6e8ff', 0.85);
   rim.position.set(3.2, 2.6, -2.2);
-  scene.add(hemi, key, key.target, rim);
+  // Lámpara de la noche: cálida, desde arriba a la derecha.
+  const lamp = new THREE.PointLight('#ffc48a', 0, 9, 1.3);
+  lamp.position.set(0.9, 1.9, 1.4);
+  scene.add(hemi, key, key.target, rim, lamp);
 
   // ── Habitación ──
-  // El papel pintado cambia con la decoración (ver setDecor).
+  // El cielo de la ventana se dibuja en un lienzo (ver drawSky).
+  const skyCanvas = document.createElement('canvas');
+  skyCanvas.width = 256;
+  skyCanvas.height = 320;
+  const skyMap = new THREE.CanvasTexture(skyCanvas);
+  skyMap.colorSpace = THREE.SRGBColorSpace;
+  const house = buildHouse({ anisotropy, sky: skyMap });
+  const { wallMat, floorMat, trimMat, patchMat, beamMat } = house;
+
+  // El papel pintado cambia con la decoración (ver setDecor). La pared usa
+  // metros como coordenadas de textura.
   const wallMaps = new Map();
   function wallMap(id) {
     if (!wallMaps.has(id)) {
-      const map = wallpaperTexture(id, 60 / TILE_METERS, 24 / TILE_METERS);
-      map.anisotropy = renderer.capabilities.getMaxAnisotropy();
+      const map = wallpaperTexture(id, 1 / TILE_METERS, 1 / TILE_METERS);
+      map.anisotropy = anisotropy;
       wallMaps.set(id, map);
     }
     return wallMaps.get(id);
   }
-  const wallMat = new THREE.MeshBasicMaterial({ map: wallMap(BASE_DECOR.pared) });
-  const wall = new THREE.Mesh(new THREE.PlaneGeometry(60, 24), wallMat);
-  wall.position.set(0, 12, -2.4);
-
-  const floorMap = canvasTexture(256, 256, (ctx, w, h) => {
-    ctx.fillStyle = '#fff8ec';
-    ctx.fillRect(0, 0, w, h);
-    ctx.fillStyle = '#f5ead6';
-    for (let x = 0; x < w; x += 64) ctx.fillRect(x, 0, 3, h);
-  });
-  floorMap.wrapS = floorMap.wrapT = THREE.RepeatWrapping;
-  floorMap.repeat.set(60 / 1.4, 40 / 1.4);
-  floorMap.anisotropy = renderer.capabilities.getMaxAnisotropy();
-  const floorMat = new THREE.MeshBasicMaterial({ map: floorMap });
-  const floor = new THREE.Mesh(new THREE.PlaneGeometry(60, 40), floorMat);
-  floor.rotation.x = -Math.PI / 2;
-  floor.position.z = 17.6;
-
-  const trimMat = new THREE.MeshBasicMaterial({ color: DAY.trim });
-  const baseboard = new THREE.Mesh(new THREE.BoxGeometry(60, 0.16, 0.06), trimMat);
-  baseboard.position.set(0, 0.08, -2.37);
+  wallMat.map = wallMap(BASE_DECOR.pared);
 
   // La alfombra va dentro de `rug`, que el encuadre escala.
   const rug = new THREE.Group();
-  let rugMaterials = [];
-
-  const shadowMat = new THREE.ShadowMaterial({ color: '#5b3a29', opacity: 0.22 });
-  const shadowPlane = new THREE.Mesh(new THREE.PlaneGeometry(12, 10), shadowMat);
-  shadowPlane.rotation.x = -Math.PI / 2;
-  shadowPlane.position.y = FLOOR_Y + 0.004;
-  shadowPlane.receiveShadow = true;
-
-  // Ventana de arco
-  const win = new THREE.Group();
-  win.position.set(-0.68, 0.98, -2.39);
-  const paneShape = archShape(0.86, 0.62);
-  const paneGeo = new THREE.ShapeGeometry(paneShape, 20);
-  {
-    const pos = paneGeo.attributes.position;
-    const uv = paneGeo.attributes.uv;
-    for (let i = 0; i < pos.count; i++) uv.setXY(i, (pos.getX(i) + 0.43) / 0.86, pos.getY(i) / 1.05);
-  }
-  const skyCanvas = document.createElement('canvas');
-  skyCanvas.width = 128;
-  skyCanvas.height = 160;
-  const skyMap = new THREE.CanvasTexture(skyCanvas);
-  skyMap.colorSpace = THREE.SRGBColorSpace;
-  const pane = new THREE.Mesh(paneGeo, new THREE.MeshBasicMaterial({ map: skyMap }));
-  pane.position.z = 0.012;
-  const frameShape = archShape(1.02, 0.62);
-  frameShape.holes.push(new THREE.Path(archShape(0.86, 0.62).getPoints(20)));
-  const frameMat = new THREE.MeshStandardMaterial({ color: '#fffdf8', roughness: 0.75 });
-  const casing = new THREE.Mesh(new THREE.ExtrudeGeometry(frameShape, { depth: 0.07, bevelEnabled: false, curveSegments: 20 }), frameMat);
-  const barV = new THREE.Mesh(new THREE.BoxGeometry(0.035, 1.04, 0.035), frameMat);
-  barV.position.set(0, 0.52, 0.04);
-  const barH = new THREE.Mesh(new THREE.BoxGeometry(0.86, 0.035, 0.035), frameMat);
-  barH.position.set(0, 0.62, 0.04);
-  const sill = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.07, 0.18), frameMat);
-  sill.position.set(0, -0.035, 0.07);
-  win.add(pane, casing, barV, barH, sill);
-
-  // Luz de la ventana sobre el suelo
-  const patchGeo = new THREE.ShapeGeometry(archShape(0.8, 0.5), 16);
-  patchGeo.rotateX(Math.PI / 2);
-  {
-    const pos = patchGeo.attributes.position;
-    for (let i = 0; i < pos.count; i++) pos.setX(i, pos.getX(i) + pos.getZ(i) * 0.55);
-  }
-  const patchMat = new THREE.MeshBasicMaterial({ color: '#fffdf2', transparent: true, opacity: 0.5, side: THREE.DoubleSide, depthWrite: false });
-  const patch = new THREE.Mesh(patchGeo, patchMat);
-  patch.position.set(-0.62, 0.006, -2.1);
-
-  // Muebles fijos: solo asoman en pantallas anchas.
-  const lit = (color, roughness = 0.7) => new THREE.MeshStandardMaterial({ color, roughness });
-  const shelf = new THREE.Group();
-  const board = new THREE.Mesh(new THREE.BoxGeometry(1.0, 0.05, 0.24), lit('#e2b279'));
-  shelf.add(board);
-  [['#ff8fb1', 0.26, -0.34, 0], ['#9db7ff', 0.3, -0.24, 0], ['#ffd166', 0.22, -0.15, 0], ['#7ed6a5', 0.26, -0.02, 0.32]].forEach(([color, tall, x, tilt]) => {
-    const book = new THREE.Mesh(new THREE.BoxGeometry(0.07, tall, 0.17), lit(color));
-    book.position.set(x, 0.025 + tall / 2, 0);
-    book.rotation.z = -tilt;
-    shelf.add(book);
-  });
-  const globe = new THREE.Mesh(new THREE.SphereGeometry(0.1, 20, 14), lit('#ff7a7a', 0.5));
-  globe.position.set(0.3, 0.125, 0);
-  shelf.add(globe);
-  shelf.position.set(1.9, 1.5, -2.27);
-
-  const pouf = new THREE.Group();
-  const cushion = new THREE.Mesh(new THREE.SphereGeometry(1, 28, 18), lit('#7ed6a5', 0.9));
-  cushion.scale.set(0.42, 0.24, 0.42);
-  cushion.position.y = 0.24;
-  cushion.castShadow = true;
-  const button = new THREE.Mesh(new THREE.SphereGeometry(0.05, 12, 8), lit('#4fae7c'));
-  button.position.y = 0.47;
-  pouf.add(cushion, button);
-  pouf.position.set(-1.75, 0, -1.25);
 
   // Sitios para los muebles que pone el jugador.
   const spots = {};
@@ -329,7 +254,7 @@ export function createRoom(canvas) {
     spots[spot].position.set(x, y, z);
   }
 
-  scene.add(wall, floor, baseboard, patch, rug, shadowPlane, win, spots.rincon, spots.ventana, shelf, pouf);
+  scene.add(house.group, rug, spots.rincon, spots.ventana);
 
   // ── Decoración ──
   const placed = { pared: undefined, alfombra: undefined, rincon: undefined, ventana: undefined };
@@ -337,6 +262,7 @@ export function createRoom(canvas) {
   function freeObject(object) {
     object.traverse((node) => {
       if (node.geometry && !node.geometry.userData.shared) node.geometry.dispose();
+      if (node.userData.contact) node.material.dispose();
     });
   }
 
@@ -350,10 +276,11 @@ export function createRoom(canvas) {
     }
     if (placed.alfombra !== want('alfombra')) {
       placed.alfombra = want('alfombra');
-      for (const child of [...rug.children]) rug.remove(child);
-      const built = buildRug(placed.alfombra);
-      rug.add(built.object);
-      rugMaterials = built.materials.map(({ material, day }) => ({ material, day, night: day.clone().multiply(RUG_NIGHT) }));
+      for (const child of [...rug.children]) {
+        rug.remove(child);
+        child.traverse((node) => node.material?.dispose?.());
+      }
+      rug.add(buildRug(placed.alfombra).object);
     }
     for (const spot of Object.keys(SPOT_AT)) {
       if (placed[spot] === want(spot)) continue;
@@ -363,7 +290,21 @@ export function createRoom(canvas) {
         freeObject(child);
       }
       const piece = placed[spot] ? buildItem(placed[spot]) : null;
-      if (piece) spots[spot].add(piece);
+      if (piece) {
+        piece.traverse((node) => {
+          if (node.isMesh) {
+            node.castShadow = true;
+            node.receiveShadow = true;
+          }
+        });
+        // Sombra de contacto: el mueble se apoya en el suelo.
+        const box = new THREE.Box3().setFromObject(piece);
+        const size = box.getSize(new THREE.Vector3());
+        const shade = contactShadow(Math.max(0.3, size.x * 1.35), Math.max(0.3, size.z * 1.6), 0.85);
+        shade.position.x = (box.min.x + box.max.x) / 2;
+        shade.position.z = (box.min.z + box.max.z) / 2;
+        spots[spot].add(shade, piece);
+      }
     }
     applyDim();
   }
@@ -795,7 +736,7 @@ export function createRoom(canvas) {
       }
       mode = 'busy';
       for (const delay of [0, 0.35, 0.7]) sfx('crac', { delay });
-      const shellColor = egg.children[0].material.color.clone();
+      const shellColor = egg.userData.shellColor?.clone() ?? egg.children[0].material.color.clone();
       gsap.timeline({ onComplete: resolve })
         .to(egg.rotation, { z: 0.16, duration: 0.07, ease: 'sine.inOut', yoyo: true, repeat: 13 })
         .to(egg.scale, { x: EGG_SCALE * 1.1, y: EGG_SCALE * 0.9, z: EGG_SCALE * 1.1, duration: 0.12, ease: 'power2.in' })
@@ -884,7 +825,7 @@ export function createRoom(canvas) {
       })
         .to(gone.rig.root.scale, { x: 0.001, y: 0.001, z: 0.001, duration: 1.1, ease: 'power2.in' }, 0)
         .to(light.material, { opacity: 0.95, duration: 0.8 }, 0.2)
-        .to(light.position, { x: -0.68, y: 1.7, z: -2.2, duration: 1.8, ease: 'power1.inOut' }, 1.0)
+        .to(light.position, { x: WINDOW.x, y: WINDOW.y + 0.7, z: WALL_Z + 0.2, duration: 1.8, ease: 'power1.inOut' }, 1.0)
         .to(light.scale, { x: 0.08, y: 0.08, z: 0.08, duration: 1.8, ease: 'power1.in' }, 1.0)
         .to(light.material, { opacity: 0, duration: 0.4 }, 2.5);
     });
@@ -897,19 +838,22 @@ export function createRoom(canvas) {
     const k = dim.k;
     wallMat.color.lerpColors(DAY.wall, NIGHT.wall, k);
     floorMat.color.lerpColors(DAY.floor, NIGHT.floor, k);
-    for (const { material, day, night: dark } of rugMaterials) material.color.lerpColors(day, dark, k);
     trimMat.color.lerpColors(DAY.trim, NIGHT.trim, k);
     scene.background.lerpColors(DAY.back, NIGHT.back, k);
     key.color.lerpColors(DAY.key, NIGHT.key, k);
-    key.intensity = 2.1 - 1.55 * k;
-    hemi.intensity = 1.05 - 0.6 * k;
-    rim.intensity = 0.7 + 0.2 * k;
-    scene.environmentIntensity = 0.5 - 0.36 * k;
-    shadowMat.opacity = 0.22 - 0.1 * k;
-    const sun = skyPhase === 'day' ? 0.5 : skyPhase === 'night' ? 0.14 : 0.3;
-    // Con el cielo tapado entra menos luz por la ventana.
-    const cover = GREY_SKIES.has(weather) ? 0.4 : 1;
-    patchMat.opacity = sun * cover * (1 - k * 0.5);
+    hemi.color.lerpColors(DAY.sky, NIGHT.sky, k);
+    hemi.groundColor.lerpColors(DAY.ground, NIGHT.ground, k);
+    // Con el cielo tapado entra menos sol por la ventana.
+    const cover = GREY_SKIES.has(weather) ? 0.55 : 1;
+    const sun = skyPhase === 'day' ? 1 : skyPhase === 'night' ? 0.3 : 0.7;
+    key.intensity = (3.0 * (0.55 + 0.45 * cover)) * (1 - k) + 0.75 * k;
+    hemi.intensity = 0.5 - 0.16 * k;
+    rim.intensity = 0.85 + 0.25 * k;
+    lamp.intensity = 6.5 * k;
+    scene.environmentIntensity = 0.36 - 0.24 * k;
+    key.shadow.intensity = 1 - 0.35 * k;
+    patchMat.opacity = 0.22 * sun * cover * (1 - k * 0.6);
+    beamMat.opacity = 0.12 * sun * cover * (1 - k * 0.7);
   }
 
   function setNight(on) {
@@ -921,14 +865,18 @@ export function createRoom(canvas) {
   let weather = null;
   let skyDrawnAt = 0;
   function drawWindow(t = performance.now() / 1000) {
-    skyPhase = drawSky(skyCanvas.getContext('2d'), skyCanvas.width, skyCanvas.height, new Date(), weather, t, reduce);
+    const ctx = skyCanvas.getContext('2d');
+    // Se dibuja a 128 × 160 y el lienzo tiene el doble: sale más nítido.
+    ctx.setTransform(2, 0, 0, 2, 0, 0);
+    skyPhase = drawSky(ctx, skyCanvas.width / 2, skyCanvas.height / 2, new Date(), weather, t, reduce);
     skyMap.needsUpdate = true;
     skyDrawnAt = t;
   }
 
   function refreshSky() {
     drawWindow();
-    patchMat.color.set(skyPhase === 'night' ? '#cfdcff' : skyPhase === 'day' ? '#fffdf2' : '#ffe9cf');
+    patchMat.color.set(skyPhase === 'night' ? '#b9c8ff' : skyPhase === 'day' ? '#fff2d2' : '#ffd9b0');
+    beamMat.color.copy(patchMat.color);
     applyDim();
   }
 
@@ -1095,7 +1043,7 @@ export function createRoom(canvas) {
       handlers.eggPick?.(index);
     } else if (mode === 'egg' && handlers.eggTap) warm();
     else if (mode === 'creature' || mode === 'demo') {
-      if (actor && actor.mood !== 'dormida' && !actor.busy) {
+      if (actor && actor.mood !== 'dormida' && (!actor.busy || actor.fidgeting)) {
         actor.hop(1, 0.16);
         sfx('toque');
       }

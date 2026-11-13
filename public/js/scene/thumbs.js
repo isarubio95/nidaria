@@ -19,14 +19,20 @@ function setup() {
   renderer.setPixelRatio(1);
   renderer.setSize(SIZE, SIZE, false);
   renderer.setClearColor(0x000000, 0);
+  renderer.toneMapping = THREE.NeutralToneMapping;
+  renderer.toneMappingExposure = 1.05;
   const scene = new THREE.Scene();
   const pmrem = new THREE.PMREMGenerator(renderer);
   scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
-  scene.environmentIntensity = 0.5;
+  scene.environmentIntensity = 0.45;
   pmrem.dispose();
-  const key = new THREE.DirectionalLight('#fff4e2', 2.1);
+  // La misma luz que la habitación: sol cálido arriba a la izquierda,
+  // relleno de cielo y un contraluz frío que recorta el borde.
+  const key = new THREE.DirectionalLight('#fff0dc', 2.9);
   key.position.set(-2.4, 4.5, 4);
-  scene.add(new THREE.HemisphereLight('#ffffff', '#ffe6cc', 1.05), key);
+  const rim = new THREE.DirectionalLight('#d6e8ff', 1.1);
+  rim.position.set(3, 2.4, -2.6);
+  scene.add(new THREE.HemisphereLight('#e8f3ff', '#f2d7b8', 0.7), key, rim);
   const camera = new THREE.PerspectiveCamera(24, 1, 0.1, 50);
   const flat = document.createElement('canvas');
   flat.width = flat.height = SIZE;
@@ -60,6 +66,7 @@ function render(object, view, silhouette) {
 function free(object) {
   object.traverse((node) => {
     if (node.geometry && !node.geometry.userData.shared) node.geometry.dispose();
+    if (node.material && !node.material.userData?.shared && node.material.map?.isCanvasTexture !== true) node.material.dispose?.();
   });
 }
 
@@ -107,23 +114,26 @@ export function creatureThumb(formId, genes, silhouette = false) {
     });
   }
   return cached(`form:${formId}:${genes.seed}:${genes.hue}:${silhouette}`, () => {
-    const built = buildCreature(formId, genes);
+    const built = buildCreature(formId, genes, { detail: silhouette ? 'tiny' : 'low' });
     const url = render(built.object, [0.28, 0.16], silhouette);
     built.dispose();
     return url;
   });
 }
 
-// Rellena imágenes poco a poco para no bloquear la interfaz.
-export function lazyThumbs(jobs, perFrame = 4) {
+// Rellena imágenes poco a poco para no bloquear la interfaz: en cada
+// fotograma hace las que caben en `budgetMs` milisegundos (al menos una).
+export function lazyThumbs(jobs, budgetMs = 12) {
   let index = 0;
   let stopped = false;
   const step = () => {
     if (stopped) return;
-    for (let n = 0; n < perFrame && index < jobs.length; n++, index++) {
-      const { img, make } = jobs[index];
+    const start = performance.now();
+    while (index < jobs.length) {
+      const { img, make } = jobs[index++];
       const url = make();
       if (url) img.src = url;
+      if (performance.now() - start > budgetMs) break;
     }
     if (index < jobs.length) requestAnimationFrame(step);
   };
