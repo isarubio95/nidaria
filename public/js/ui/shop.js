@@ -9,6 +9,7 @@ import { openSheet } from './sheet.js';
 import { tabs } from './widgets.js';
 import { toast } from './toast.js';
 import { itemThumb, lazyThumbs } from '../scene/thumbs.js';
+import { sfx } from '../audio/sfx.js';
 
 const chip = (iconName, text) => h('span', { class: 'chip' }, icon(iconName), text);
 const signed = (value) => (value > 0 ? `+${value}` : `−${Math.abs(value)}`);
@@ -133,6 +134,7 @@ export function openShop(initial = 'comida') {
         onclick: async (event) => {
           event.currentTarget.disabled = true;
           const payload = await run(api.buy({ itemId: item.id, qty }));
+          if (payload) sfx('monedas');
           if (payload) toast(qty > 1 ? `Has comprado ${qty} de ${item.name}.` : `Has comprado: ${item.name}.`);
         },
       }, short > 0 ? `Te faltan ${fmt(short)}` : ['Comprar', coin(true), h('span', { class: 'num' }, fmt(cost))]);

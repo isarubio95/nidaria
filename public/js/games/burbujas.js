@@ -1,6 +1,7 @@
 // Explota burbujas: toca las de color antes de que se vayan.
 
 import { COLORS, fitCanvas, loop, pointerX, rand, createPops } from './common.js';
+import { sfx } from '../audio/sfx.js';
 
 const PALETTE = [
   [COLORS.pink, COLORS.pinkEdge], [COLORS.mint, COLORS.mintEdge], [COLORS.sun, COLORS.sunEdge],
@@ -35,9 +36,11 @@ export async function create({ area, level, hud, onEnd }) {
       if (bubble.grey) {
         score = Math.max(0, score - 2);
         pops.add(bubble.x, bubble.y - bubble.r, '−2', COLORS.coralEdge);
+        sfx('fallo');
       } else {
         score += 1;
         pops.add(bubble.x, bubble.y - bubble.r, '+1');
+        sfx('pompa');
       }
       paintHud();
       return;

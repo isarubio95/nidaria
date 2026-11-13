@@ -77,6 +77,7 @@ import androidx.core.content.res.ResourcesCompat
 import com.nidaria.app.Game
 import com.nidaria.app.PlaySession
 import com.nidaria.app.R
+import com.nidaria.app.audio.Sfx
 import com.nidaria.app.rules.DIFFICULTIES
 import com.nidaria.app.rules.FEATURED_MULT
 import com.nidaria.app.rules.Level
@@ -383,10 +384,12 @@ private fun FrutaGame(level: Level, avatar: ImageBitmap?, running: Boolean, hud:
                     m.lives -= 1
                     m.shake = 0.35f
                     m.pops.add(dx, drop.y - 10f, "Puaj", Nd.healthEdge)
+                    Sfx.play("fallo")
                     if (m.lives <= 0) finish()
                 } else {
                     m.score += 1
                     m.pops.add(dx, drop.y - 10f, "+1")
+                    Sfx.play("punto")
                 }
                 paintHud()
             } else if (drop.y > m.h + 40f) {
@@ -508,15 +511,18 @@ private fun CharcosGame(level: Level, avatar: ImageBitmap?, running: Boolean, hu
                         m.shields -= 1
                         puddle.passed = true
                         m.pops.add(px, ground - size, "¡Uf!", Nd.energyEdge)
+                        Sfx.play("fallo", volume = 0.6f)
                         paintHud()
                     } else {
                         m.pops.add(px, ground - size, "¡Chof!", Nd.energyEdge)
+                        Sfx.play("fallo")
                         finish()
                     }
                 } else if (!puddle.passed && right < px - size * 0.2f) {
                     puddle.passed = true
                     m.score += 1
                     m.pops.add(px, ground - size - m.y - 8f, "+1")
+                    Sfx.play("punto")
                     paintHud()
                     if (m.score >= level.target) finish()
                 }
@@ -534,7 +540,10 @@ private fun CharcosGame(level: Level, avatar: ImageBitmap?, running: Boolean, hu
         Modifier.pointerInput(Unit) {
             awaitEachGesture {
                 awaitFirstDown().consume()
-                if (runningNow && !model.ended && model.y == 0f) model.vy = lift
+                if (runningNow && !model.ended && model.y == 0f) {
+                    model.vy = lift
+                    Sfx.play("salto")
+                }
             }
         },
         onSize = { w, h ->
@@ -673,9 +682,11 @@ private fun BurbujasGame(level: Level, running: Boolean, hud: (Hud) -> Unit, onE
                     if (bubble.grey) {
                         model.score = max(0, model.score - 2)
                         model.pops.add(bubble.x, bubble.y - bubble.r, "−2", Nd.healthEdge)
+                        Sfx.play("fallo")
                     } else {
                         model.score += 1
                         model.pops.add(bubble.x, bubble.y - bubble.r, "+1")
+                        Sfx.play("pompa")
                     }
                     paintHud()
                     break
@@ -822,9 +833,11 @@ private fun EsconditeGame(level: Level, avatar: ImageBitmap?, running: Boolean, 
         if (cushion == m.hidden) {
             m.score += 1
             m.message = "¡La has encontrado!"
+            Sfx.play("punto")
         } else {
             m.lives -= 1
             m.message = "Ahí no estaba"
+            Sfx.play("fallo")
         }
         paintHud()
     }
@@ -850,7 +863,10 @@ private fun EsconditeGame(level: Level, avatar: ImageBitmap?, running: Boolean, 
                 }
                 "shuffle" -> {
                     val (a, b) = m.swaps[m.swapIndex]
-                    val pair = m.moving ?: (cushionAt(a) to cushionAt(b)).also { m.moving = it }
+                    val pair = m.moving ?: (cushionAt(a) to cushionAt(b)).also {
+                        m.moving = it
+                        Sfx.play("carta", volume = 0.5f)
+                    }
                     val (ca, cb) = pair
                     val t = clamp01(m.clock / m.swapTime)
                     val k = easeInOut(t)
@@ -1016,6 +1032,7 @@ private fun ParejasGame(level: Level, running: Boolean, safeBottom: Dp, hud: (Hu
     fun tap(index: Int) {
         if (!running || ended || locked || open[index]) return
         open[index] = true
+        Sfx.play("carta")
         picked.add(index)
         if (picked.size < 2) return
         val a = picked[0]
@@ -1025,6 +1042,7 @@ private fun ParejasGame(level: Level, running: Boolean, safeBottom: Dp, hud: (Hu
             done[a] = true
             done[b] = true
             found += 1
+            Sfx.play("punto", delay = 0.12f)
             paintHud()
             if (found >= pairs) finish()
             return
@@ -1109,6 +1127,7 @@ private fun EcoGame(level: Level, running: Boolean, hud: (Hud) -> Unit, onEnd: (
     LaunchedEffect(Unit) { hud(Hud(0, level.target)) }
 
     suspend fun flash(index: Int, ms: Long) {
+        Sfx.play("nota$index")
         lit[index] = true
         delay(ms)
         lit[index] = false
@@ -1143,12 +1162,18 @@ private fun EcoGame(level: Level, running: Boolean, hud: (Hud) -> Unit, onEnd: (
 
     fun press(index: Int) {
         if (!model.listening) return
-        scope.launch { flash(index, 160) }
         if (index != sequence[model.step]) {
+            scope.launch {
+                lit[index] = true
+                delay(160)
+                lit[index] = false
+            }
+            Sfx.play("fallo")
             status = "Esa no era"
             finish()
             return
         }
+        scope.launch { flash(index, 160) }
         model.step += 1
         if (model.step < sequence.size) return
         model.rounds += 1

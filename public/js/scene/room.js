@@ -12,6 +12,7 @@ import { clamp } from '/shared/rng.js';
 import { buildCreature, Actor } from './creature.js';
 import { buildEgg, buildItem, buildWear } from './props.js';
 import { wallpaperTexture, buildRug, BASE_DECOR, RUG_NIGHT, TILE_METERS } from './decor.js';
+import { sfx } from '../audio/sfx.js';
 
 const FOV = 30;
 const FLOOR_Y = 0.03;
@@ -662,7 +663,13 @@ export function createRoom(canvas) {
     return new Promise((resolve) => {
       if (!actor) return resolve();
       const item = buildItem(itemId);
+      const react = () => {
+        if (reaction === 'favorita') sfx('encanta');
+        else if (reaction === 'asco') sfx('puaj');
+      };
       if (!item || reduce) {
+        sfx('bocado');
+        react();
         if (reaction === 'asco') actor.shake();
         return resolve();
       }
@@ -683,9 +690,11 @@ export function createRoom(canvas) {
             const left = 0.36 * [0.72, 0.42, 0.001][bite];
             gsap.to(holder.scale, { x: left, y: left, z: left, duration: 0.12 });
             crumbs(mouthful);
+            sfx('bocado');
           }).eventCallback('onComplete', () => {
             actor.busy = false;
             actor.setMouth(actor.restMouth());
+            react();
             if (reaction === 'favorita') {
               hearts(headCenter(), 4);
               actor.hop(2, 0.22);
@@ -701,6 +710,7 @@ export function createRoom(canvas) {
   function playToy(itemId) {
     return new Promise((resolve) => {
       const item = buildItem(itemId);
+      if (actor) sfx('juguete');
       if (!actor || !item || reduce) return resolve();
       const holder = new THREE.Group();
       holder.add(item);
@@ -719,6 +729,7 @@ export function createRoom(canvas) {
 
   function bath() {
     if (!actor) return;
+    sfx('burbujas');
     bubbles(16);
     actor.wash();
     if (!reduce) gsap.delayedCall(1.3, () => sparks(bodyCenter(), 8, 0.65, '#bfe3ff'));
@@ -726,6 +737,7 @@ export function createRoom(canvas) {
 
   function heal() {
     if (!actor) return;
+    sfx('cura');
     sparks(bodyCenter(), 10, 0.6, '#7ed6a5');
     actor.hop(1, 0.2);
   }
@@ -743,6 +755,7 @@ export function createRoom(canvas) {
   // Trucos que sabe con confianza: un giro con chispas o unos saltitos.
   function trick(kind) {
     if (!actor) return;
+    sfx('truco');
     if (kind === 'saltitos') {
       actor.hop(3, 0.2);
       hearts(bodyCenter(), 3);
@@ -765,11 +778,13 @@ export function createRoom(canvas) {
     return new Promise((resolve) => {
       const egg = eggs[0];
       if (!egg || mode !== 'egg' || reduce) {
+        sfx('nace');
         currentKey = '';
         showCreature(view);
         return resolve();
       }
       mode = 'busy';
+      for (const delay of [0, 0.35, 0.7]) sfx('crac', { delay });
       const shellColor = egg.children[0].material.color.clone();
       gsap.timeline({ onComplete: resolve })
         .to(egg.rotation, { z: 0.16, duration: 0.07, ease: 'sine.inOut', yoyo: true, repeat: 13 })
@@ -788,6 +803,7 @@ export function createRoom(canvas) {
               .to(shard.material, { opacity: 0, duration: 0.5 }, 1.1);
           }
           sparks(center, 12, 0.8);
+          sfx('nace');
           swapIn(view);
         })
         .to({}, { duration: 0.8 })
@@ -799,10 +815,12 @@ export function createRoom(canvas) {
   function evolve(view) {
     return new Promise((resolve) => {
       if (!actor || reduce) {
+        sfx('nace');
         currentKey = '';
         showCreature(view);
         return resolve();
       }
+      sfx('evoluciona');
       const old = actor;
       old.timeline?.kill();
       old.busy = true;
@@ -825,6 +843,7 @@ export function createRoom(canvas) {
         .to(glow.material, { opacity: 1, duration: 0.5, ease: 'power2.in' }, 0.8)
         .to(glow.scale, { x: size, y: size, z: size, duration: 0.5, ease: 'power2.in' }, 0.8)
         .call(() => {
+          sfx('nace');
           swapIn(view);
           sparks(new THREE.Vector3(0, FLOOR_Y + 0.7, 0.3), 16, 1);
         })
@@ -837,6 +856,7 @@ export function createRoom(canvas) {
 
   function farewell() {
     return new Promise((resolve) => {
+      if (actor) sfx('adios');
       if (!actor || reduce) return resolve();
       const gone = actor;
       gone.timeline?.kill();
@@ -964,6 +984,32 @@ export function createRoom(canvas) {
     gsap.to(focus, { top, bottom, duration: 0.45, ease: 'power3.out', onUpdate: frame, overwrite: true });
   }
 
+  // ── Foto ──
+  // La habitación tal cual, desde una cámara propia que encuadra a la
+  // criatura en `w`×`h` píxeles, para la tarjeta de compartir. Se dibuja
+  // y se copia en el mismo instante y luego se vuelve al tamaño de
+  // siempre, así que en la pantalla no llega a verse.
+  const photoCamera = new THREE.PerspectiveCamera(FOV, 1, 0.1, 80);
+  function snapshot(w, h) {
+    const perUnit = Math.min((h * 0.6) / subject.h, (w * 0.6) / subject.w);
+    const distance = h / perUnit / (2 * Math.tan(THREE.MathUtils.degToRad(FOV / 2)));
+    photoCamera.aspect = w / h;
+    photoCamera.position.set(0, 0.5 + subject.h * 0.62, distance);
+    photoCamera.lookAt(0, subject.h * 0.5, 0);
+    photoCamera.updateProjectionMatrix();
+    actor?.openEyes();
+    const out = document.createElement('canvas');
+    out.width = w;
+    out.height = h;
+    const ratio = renderer.getPixelRatio();
+    renderer.setDrawingBufferSize(w, h, 1);
+    renderer.render(scene, photoCamera);
+    out.getContext('2d').drawImage(canvas, 0, 0);
+    renderer.setDrawingBufferSize(width, height, ratio);
+    renderer.render(scene, camera);
+    return out;
+  }
+
   // ── Puntero ──
   const raycaster = new THREE.Raycaster();
   const pointer = new THREE.Vector2();
@@ -1017,6 +1063,7 @@ export function createRoom(canvas) {
       if (actor.mood !== 'dormida') {
         if (press.strokes === 1) actor.nuzzle();
         hearts(worldAt(event), 1);
+        if (press.strokes % 3 === 1) sfx('caricia', { volume: 0.8 });
         for (const cheek of actor.rig.cheeks) cheek.material.opacity = 0.95;
       }
       handlers.pet?.();
@@ -1033,10 +1080,15 @@ export function createRoom(canvas) {
     }
     press = null;
     if (index < 0) return;
-    if (mode === 'eggs') handlers.eggPick?.(index);
-    else if (mode === 'egg') warm();
+    if (mode === 'eggs') {
+      sfx('toque');
+      handlers.eggPick?.(index);
+    } else if (mode === 'egg') warm();
     else if (mode === 'creature' || mode === 'demo') {
-      if (actor && actor.mood !== 'dormida' && !actor.busy) actor.hop(1, 0.16);
+      if (actor && actor.mood !== 'dormida' && !actor.busy) {
+        actor.hop(1, 0.16);
+        sfx('toque');
+      }
       handlers.tap?.();
     }
   };
@@ -1046,6 +1098,7 @@ export function createRoom(canvas) {
   function warm() {
     const egg = eggs[0];
     if (!egg || mode !== 'egg') return;
+    sfx('calor');
     if (!reduce) {
       gsap.fromTo(egg.scale, { x: EGG_SCALE * 1.09, y: EGG_SCALE * 0.92, z: EGG_SCALE * 1.09 }, { x: EGG_SCALE, y: EGG_SCALE, z: EGG_SCALE, duration: 0.5, ease: 'elastic.out(1, 0.4)', overwrite: true });
       sparks(new THREE.Vector3(rand(-0.25, 0.25), FLOOR_Y + rand(0.6, 1.1), 0.45), 3, 0.25, '#ffb45c');
@@ -1113,6 +1166,7 @@ export function createRoom(canvas) {
     setWeather,
     setDecor,
     setPaused(value) { paused = value; },
+    snapshot,
     destroy() {
       clearInterval(skyTimer);
       observer.disconnect();

@@ -6,6 +6,7 @@ import { store, run } from '../store.js';
 import { openSheet } from './sheet.js';
 import { dialog } from './dialog.js';
 import { toast } from './toast.js';
+import { sfx } from '../audio/sfx.js';
 
 const TIERS = ['Fácil', 'Media', 'Difícil'];
 const STREAK_PIPS = 7;
@@ -83,6 +84,7 @@ export function openDaily() {
       return;
     }
     const { coins, bonus, streak } = payload.result;
+    sfx('monedas');
     if (!bonus) {
       toast(`Has recogido ${fmt(coins)} monedas.`);
       return;

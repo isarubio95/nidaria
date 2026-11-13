@@ -520,6 +520,49 @@ class Renderer {
         return out
     }
 
+    // Foto de la escena a `width`×`height` píxeles, para la tarjeta de
+    // compartir: RGBA, fila superior primero. Usa búferes propios (con
+    // multimuestra si se puede) que se borran al acabar, para no tocar los
+    // de la pantalla.
+    fun renderPhoto(scene: Scene, camera: PerspectiveCamera, width: Int, height: Int): ByteArray {
+        emptyTrash()
+        val multi = Target()
+        val flat = Target()
+        try {
+            ensureTarget(flat, width, height, 0)
+            if (ensureTarget(multi, width, height, 4)) {
+                drawScene(scene, camera, multi.fbo, width, height, 1f)
+                GLES30.glBindFramebuffer(GLES30.GL_READ_FRAMEBUFFER, multi.fbo)
+                GLES30.glBindFramebuffer(GLES30.GL_DRAW_FRAMEBUFFER, flat.fbo)
+                GLES30.glBlitFramebuffer(0, 0, width, height, 0, 0, width, height, GLES30.GL_COLOR_BUFFER_BIT, GLES30.GL_NEAREST)
+            } else {
+                drawScene(scene, camera, flat.fbo, width, height, 1f)
+            }
+            val raw = ByteBuffer.allocateDirect(width * height * 4)
+            GLES30.glBindFramebuffer(GLES30.GL_FRAMEBUFFER, flat.fbo)
+            GLES30.glReadPixels(0, 0, width, height, GLES30.GL_RGBA, GLES30.GL_UNSIGNED_BYTE, raw)
+            GLES30.glBindFramebuffer(GLES30.GL_FRAMEBUFFER, 0)
+            // glReadPixels empieza por abajo.
+            val row = width * 4
+            val out = ByteArray(row * height)
+            for (y in 0 until height) {
+                raw.position((height - 1 - y) * row)
+                raw.get(out, y * row, row)
+            }
+            return out
+        } finally {
+            release(multi)
+            release(flat)
+        }
+    }
+
+    private fun release(target: Target) {
+        if (target.fbo == 0) return
+        GLES30.glDeleteFramebuffers(1, intArrayOf(target.fbo), 0)
+        GLES30.glDeleteRenderbuffers(2, intArrayOf(target.color, target.depth), 0)
+        target.fbo = 0
+    }
+
     companion object {
         private val CONTEXTS = java.util.concurrent.atomic.AtomicInteger(0)
         private const val TAG = "NidariaGL"

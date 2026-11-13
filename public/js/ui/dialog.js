@@ -8,7 +8,9 @@ const root = document.getElementById('dialogs');
 const scrim = document.getElementById('scrim');
 const closeMs = 150;
 
-// dialog({ title, text, art, extra, actions: [{ label, value, tone }] })
+// dialog({ title, text, art, extra, actions: [{ label, value, tone, run, keep }] })
+// `run` se llama dentro del toque (hace falta para compartir o descargar)
+// y, con `keep`, el diálogo sigue abierto.
 export function dialog({ title, text, art, extra, actions = [{ label: 'Vale', value: true, tone: 'pink' }] }) {
   return new Promise((resolve) => {
     const titleId = `dialogo-${Date.now()}`;
@@ -34,7 +36,10 @@ export function dialog({ title, text, art, extra, actions = [{ label: 'Vale', va
 
     const buttons = actions.map((action, index) => h('button', {
       class: `btn btn-wide ${action.tone ? `btn-${action.tone}` : 'btn-quiet'}`,
-      onclick: () => close(action.value),
+      onclick: () => {
+        action.run?.();
+        if (!action.keep) close(action.value);
+      },
       dataset: { primary: index === 0 },
     }, action.label));
 

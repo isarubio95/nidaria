@@ -6,6 +6,7 @@ package com.nidaria.app.scene
 
 import android.annotation.SuppressLint
 import android.content.Context
+import android.graphics.Bitmap
 import android.graphics.PixelFormat
 import android.opengl.GLSurfaceView
 import android.os.Handler
@@ -21,6 +22,7 @@ import com.nidaria.app.gl.Renderer
 import com.nidaria.app.data.Decor
 import com.nidaria.app.rules.Creature
 import com.nidaria.app.rules.EggLook
+import java.nio.ByteBuffer
 import javax.microedition.khronos.egl.EGLConfig
 import javax.microedition.khronos.opengles.GL10
 import kotlin.coroutines.resume
@@ -33,6 +35,8 @@ class RoomView(context: Context) : GLSurfaceView(context), GLSurfaceView.Rendere
     private val renderer = Renderer()
     private val studio = ThumbStudio()
     private val jobs = ArrayDeque<ThumbSpec>()
+    private class PhotoJob(val width: Int, val height: Int, val done: (Bitmap?) -> Unit)
+    private val photos = ArrayDeque<PhotoJob>()
     private val startNanos = SystemClock.elapsedRealtimeNanos()
     private var widthPx = 1
     private var heightPx = 1
@@ -118,6 +122,11 @@ class RoomView(context: Context) : GLSurfaceView(context), GLSurfaceView.Rendere
                 }
             }
             if (synchronized(jobs) { jobs.isNotEmpty() }) requestRender()
+            while (true) {
+                val job = synchronized(photos) { photos.removeFirstOrNull() } ?: break
+                val bitmap = photo(job.width, job.height)
+                main.post { job.done(bitmap) }
+            }
             renderer.render(room.scene, room.camera, widthPx, heightPx)
             val head = room.headPoint(0.16f)
             headX = head.first
@@ -126,6 +135,14 @@ class RoomView(context: Context) : GLSurfaceView(context), GLSurfaceView.Rendere
         } catch (error: RuntimeException) {
             fail(error)
         }
+    }
+
+    private fun photo(width: Int, height: Int): Bitmap? = try {
+        val pixels = renderer.renderPhoto(room.scene, room.photoCamera(width, height), width, height)
+        Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888).apply { copyPixelsFromBuffer(ByteBuffer.wrap(pixels)) }
+    } catch (error: RuntimeException) {
+        Log.w("Nidaria", "No se ha podido hacer la foto", error)
+        null
     }
 
     private fun fail(error: RuntimeException) {
@@ -196,6 +213,15 @@ class RoomView(context: Context) : GLSurfaceView(context), GLSurfaceView.Rendere
     suspend fun hatch(view: Creature) = await { done -> hatch(view, done) }
     suspend fun evolve(view: Creature) = await { done -> evolve(view, done) }
     suspend fun farewell() = await { done -> farewell(done) }
+
+    // Foto de la habitación tal cual, de `width`×`height` píxeles, para la
+    // tarjeta de compartir. Se hace en el siguiente dibujo; null si falla.
+    suspend fun snapshot(width: Int, height: Int): Bitmap? = suspendCancellableCoroutine { continuation ->
+        synchronized(photos) {
+            photos.addLast(PhotoJob(width, height) { bitmap -> if (continuation.isActive) continuation.resume(bitmap) })
+        }
+        requestRender()
+    }
 
     // Pide una miniatura. Aparecerá en `Thumbs.images` cuando esté.
     fun requestThumb(spec: ThumbSpec) {

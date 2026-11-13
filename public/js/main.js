@@ -20,7 +20,9 @@ import { mountFarewell } from './ui/farewell.js';
 import { dialog } from './ui/dialog.js';
 import { toast } from './ui/toast.js';
 import { closeSheet } from './ui/sheet.js';
+import { shareCard } from './ui/card.js';
 import { line, bondLine } from './ui/speech.js';
+import { sfx } from './audio/sfx.js';
 
 const app = document.getElementById('app');
 const canvas = document.getElementById('stage');
@@ -111,6 +113,9 @@ function enter() {
   gsap.from('.hud-top, .plate', { y: -12, autoAlpha: 0, duration: 0.45, ease: 'power3.out', stagger: 0.06, clearProps: 'all' });
 }
 
+// En los momentos grandes se ofrece hacer la tarjeta para compartir.
+const PHOTO = { label: 'Hacer una foto', value: 'foto' };
+
 function announce(creature, first) {
   const form = getForm(creature.formId);
   const art = creatureThumb(creature.formId, creature.genes);
@@ -119,7 +124,7 @@ function announce(creature, first) {
       title: `¡${creature.name} ha nacido!`,
       text: `Es ${form.name}, de la familia ${FAMILY_INFO[form.family].name}. Según cómo la cuides, crecerá por una rama u otra.`,
       art,
-      actions: [{ label: 'Conocerla', value: true, tone: 'pink' }],
+      actions: [{ label: 'Conocerla', value: true, tone: 'pink' }, PHOTO],
     });
   }
   if (form.secret) {
@@ -127,14 +132,14 @@ function announce(creature, first) {
       title: '¡Una forma oculta!',
       text: `${creature.name} ahora es ${form.name}. ${SECRET_INFO[form.secret].reason}`,
       art,
-      actions: [{ label: 'Verla', value: true, tone: 'pink' }],
+      actions: [{ label: 'Verla', value: true, tone: 'pink' }, PHOTO],
     });
   }
   return dialog({
     title: `¡${creature.name} ha evolucionado!`,
     text: `Ahora es ${form.name}. La has criado ${BRANCH_INFO[form.branch].name.toLowerCase()} y por eso ha seguido esa rama.`,
     art,
-    actions: [{ label: 'Verla', value: true, tone: 'pink' }],
+    actions: [{ label: 'Verla', value: true, tone: 'pink' }, PHOTO],
   });
 }
 
@@ -204,8 +209,9 @@ function route(state, payload = {}) {
       else await room.evolve(creature);
       animating = false;
       room.showCreature(store.state.creature ?? creature);
-      await announce(creature, evolved[0]);
+      const choice = await announce(creature, evolved[0]);
       screen?.say?.(line('nace'));
+      if (choice === 'foto') await shareCard(room, store.state.creature ?? creature);
       await offerPush(creature);
     });
   } else if (!animating) {
@@ -217,6 +223,7 @@ function route(state, payload = {}) {
     else if (event.type === 'collapsed') toast(`${creature.name} se ha dormido de puro cansancio.`, 'info', 3600);
     else if (event.type === 'woke') toast(`${creature.name} se ha despertado.`);
     else if (event.type === 'bond') {
+      sfx('vinculo', { delay: 0.5 });
       toast(BOND_LEVELS[event.level].reached.replace('{name}', creature.name), 'info', 4000);
       const fond = bondLine(creature, state.user.name, event.level);
       if (fond && !animating) screen?.say?.(fond);

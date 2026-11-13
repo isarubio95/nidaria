@@ -47,6 +47,8 @@ export const api = {
   memorial: () => call('GET', '/memorial'),
   register: post('/auth/register'),
   login: post('/auth/login'),
+  recover: post('/auth/recover'),
+  renewRecovery: post('/account/recovery'),
   logout: post('/auth/logout'),
   pickEgg: post('/egg/pick'),
   warmEgg: post('/egg/warm'),

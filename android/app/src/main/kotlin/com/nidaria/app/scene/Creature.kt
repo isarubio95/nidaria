@@ -897,4 +897,15 @@ class Actor(private val built: Built, private val anim: Animator) {
     fun say(seconds: Float) {
         talk = seconds
     }
+
+    // Para la foto: si está a mitad de parpadeo, abre los ojos ya.
+    fun openEyes() {
+        if (blink <= 0f) return
+        blink = 0f
+        for (eye in rig.eyes) {
+            eye.lidValue = eye.restLid
+            eye.lid.visible = eye.lidValue > 0.03f
+            eye.lid.position.y = eye.r * (2.16f - eye.lidValue * 2.12f)
+        }
+    }
 }

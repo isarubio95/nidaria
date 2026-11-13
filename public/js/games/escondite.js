@@ -2,6 +2,7 @@
 // y hay que tocar el suyo. Solo lo juegan las criaturas juguetonas.
 
 import { COLORS, fitCanvas, loop, createPops } from './common.js';
+import { sfx } from '../audio/sfx.js';
 
 const easeInOut = (t) => (t < 0.5 ? 2 * t * t : 1 - (-2 * t + 2) ** 2 / 2);
 const easeOut = (t) => 1 - (1 - t) ** 3;
@@ -81,9 +82,11 @@ export async function create({ area, level, avatar, hud, onEnd }) {
     if (cushion === hidden) {
       score += 1;
       message = '¡La has encontrado!';
+      sfx('punto');
     } else {
       lives -= 1;
       message = 'Ahí no estaba';
+      sfx('fallo');
     }
     paintHud();
   }
@@ -138,7 +141,10 @@ export async function create({ area, level, avatar, hud, onEnd }) {
       }
     } else if (phase === 'shuffle') {
       const [a, b] = swaps[swapIndex];
-      if (!moving) moving = [cushionAt(a), cushionAt(b)];
+      if (!moving) {
+        moving = [cushionAt(a), cushionAt(b)];
+        sfx('carta', { volume: 0.5 });
+      }
       const [ca, cb] = moving;
       const t = clamp01(clock / swapTime);
       const k = easeInOut(t);

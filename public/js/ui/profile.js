@@ -1,6 +1,6 @@
 // Ficha de la criatura, y debajo la cuenta del jugador.
 
-import { h, duration } from '../dom.js';
+import { h, icon, duration } from '../dom.js';
 import { api } from '../api.js';
 import { store, run } from '../store.js';
 import { FAMILY_INFO, TRAITS } from '/shared/dna.js';
@@ -10,6 +10,8 @@ import { getItem } from '/shared/catalog.js';
 import { openSheet, closeSheet } from './sheet.js';
 import { toast } from './toast.js';
 import { settingsSection } from './settings.js';
+import { recoverySection } from './recovery.js';
+import { shareCard } from './card.js';
 import { disablePush } from '../pwa.js';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -32,7 +34,7 @@ const fact = (label, value, note) => h('div', { class: 'fact' },
   h('dd', {}, value, note ? h('small', {}, note) : null),
 );
 
-export function openProfile() {
+export function openProfile(room) {
   // La parte de la criatura se repinta con cada cambio; los ajustes y la
   // cuenta se pintan una vez para no reiniciar los interruptores.
   const creaturePart = h('div');
@@ -56,6 +58,8 @@ export function openProfile() {
         },
       }, 'Salir'),
     ),
+    h('h3', { class: 'section-title' }, 'Código de recuperación'),
+    recoverySection(),
   ];
   const body = h('div', {}, creaturePart, settings.el, account);
   let off = null;
@@ -123,7 +127,18 @@ export function openProfile() {
       }, `Adelantar ${label}`))),
     ] : [];
 
+    const photo = h('button', {
+      class: 'btn btn-pink btn-wide', type: 'button',
+      onclick: async (event) => {
+        const button = event.currentTarget;
+        button.disabled = true;
+        await shareCard(room, store.state.creature);
+        button.disabled = false;
+      },
+    }, icon('camera'), 'Hacer una foto para compartir');
+
     creaturePart.replaceChildren(
+      photo,
       h('h3', { class: 'section-title' }, 'Nombre'),
       rename,
       h('h3', { class: 'section-title' }, 'Cómo es'),

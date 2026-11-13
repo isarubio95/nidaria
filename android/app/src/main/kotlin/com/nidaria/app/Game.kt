@@ -6,16 +6,23 @@
 package com.nidaria.app
 
 import android.Manifest
+import android.content.ClipData
+import android.content.ClipDescription
+import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
 import android.os.Build
+import android.os.PersistableBundle
 import android.provider.Settings
+import android.util.Log
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.graphics.asImageBitmap
+import com.nidaria.app.audio.Sfx
 import com.nidaria.app.data.Api
 import com.nidaria.app.data.ApiError
 import com.nidaria.app.data.Daily
@@ -49,6 +56,9 @@ import com.nidaria.app.rules.nextStageAt
 import com.nidaria.app.rules.stageDuration
 import com.nidaria.app.scene.RoomView
 import com.nidaria.app.scene.ThumbSpec
+import com.nidaria.app.share.Card
+import com.nidaria.app.ui.CardPreview
+import com.nidaria.app.ui.RecoveryCode
 import com.nidaria.app.ui.Tone
 import com.nidaria.app.ui.bondLine
 import com.nidaria.app.ui.fmt
@@ -59,11 +69,14 @@ import kotlin.math.min
 import kotlin.random.Random
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 
 enum class Screen { Boot, Auth, Eggs, Farewell, Home, Offline, Broken }
 
@@ -79,7 +92,15 @@ sealed class Sheet {
     data object Daily : Sheet()
 }
 
-class DialogAction(val label: String, val value: Any?, val tone: Tone? = null)
+// `run` se llama al tocar el botón (compartir, copiar…) y, con `keep`, el
+// diálogo sigue abierto.
+class DialogAction(
+    val label: String,
+    val value: Any?,
+    val tone: Tone? = null,
+    val keep: Boolean = false,
+    val run: (() -> Unit)? = null,
+)
 
 class DialogSpec(
     val title: String,
@@ -114,11 +135,30 @@ class PlaySession(
     internal var closed = false
 }
 
+// Lo que dice el diálogo del código de recuperación según cuándo sale
+// (los mismos textos que public/js/ui/recovery.js).
+private val RECOVERY_TEXTS = mapOf(
+    "register" to ("Guarda tu código de recuperación" to "Si un día olvidas la contraseña, podrás entrar con tu nombre y este código. Solo te lo enseñamos ahora: apúntalo o haz una captura."),
+    "recovered" to ("Ya puedes jugar" to "El código que has usado ya no vale y hemos cerrado la cuenta en los demás dispositivos. Este es tu código nuevo: guárdalo igual que el otro."),
+    "renewed" to ("Tu código nuevo" to "El anterior ya no vale. Apunta este o haz una captura: no lo volveremos a enseñar."),
+)
+
+// En los momentos grandes se ofrece hacer la tarjeta para compartir.
+private val PHOTO = DialogAction("Hacer una foto", "foto")
+
 class Game(context: Context, val room: RoomView, private val scope: CoroutineScope) {
     private val app = context.applicationContext
     val api = Api(context)
     val store = Store()
     private val weatherSource = Weather(context)
+
+    init {
+        Sfx.init(app)
+    }
+
+    // Efectos de sonido en este teléfono.
+    var soundOn by mutableStateOf(Sfx.enabled)
+        private set
 
     // Pide un permiso de Android y espera la respuesta. Lo pone la actividad.
     var askPermission: (suspend (String) -> Boolean)? = null
@@ -277,9 +317,144 @@ class Game(context: Context, val room: RoomView, private val scope: CoroutineSco
         boot()
     }
 
-    suspend fun signIn(register: Boolean, name: String, password: String) {
-        val payload = if (register) api.register(name, password) else api.login(name, password)
+    // Entra, crea la cuenta o la recupera con el código (`mode`: login,
+    // register o recover). Crear y recuperar traen un código que se enseña
+    // una sola vez.
+    suspend fun signIn(mode: String, name: String, password: String, code: String = "") {
+        val payload = when (mode) {
+            "register" -> api.register(name, password)
+            "recover" -> api.recover(name, code, password)
+            else -> api.login(name, password)
+        }
         apply(payload)
+        payload.text("recoveryCode")?.let { showRecoveryCode(it, if (mode == "register") "register" else "recovered") }
+    }
+
+    // ── Código de recuperación ──
+
+    fun showRecoveryCode(code: String, reason: String) {
+        val (title, text) = RECOVERY_TEXTS.getValue(reason)
+        showDialog(
+            DialogSpec(
+                title = title,
+                text = text,
+                extra = { RecoveryCode(code) },
+                actions = listOf(
+                    DialogAction("Ya lo he guardado", true, Tone.Pink),
+                    DialogAction("Copiar", null, keep = true, run = { copyCode(code) }),
+                ),
+            ),
+        )
+    }
+
+    private fun copyCode(code: String) {
+        val clipboard = app.getSystemService(ClipboardManager::class.java)
+        if (clipboard == null) {
+            toast("No se ha podido copiar. Apúntalo a mano.", error = true)
+            return
+        }
+        val clip = ClipData.newPlainText("Código de recuperación de Nidaria", code)
+        // Es una clave: el teclado y la vista previa del portapapeles no la enseñan.
+        if (Build.VERSION.SDK_INT >= 33) {
+            clip.description.extras = PersistableBundle().apply { putBoolean(ClipDescription.EXTRA_IS_SENSITIVE, true) }
+        }
+        clipboard.setPrimaryClip(clip)
+        // Desde Android 13 es el propio sistema quien avisa de que se ha copiado.
+        if (Build.VERSION.SDK_INT < 33) toast("Código copiado.")
+    }
+
+    // Código nuevo desde la ficha. Devuelve el error para enseñarlo junto
+    // a la contraseña, o null si ha ido bien. Una contraseña mal puesta
+    // (403) no saca de la cuenta: solo una sesión caducada (401).
+    suspend fun renewRecovery(password: String): String? = try {
+        val payload = api.renewRecovery(password)
+        apply(payload)
+        payload.text("recoveryCode")?.let { showRecoveryCode(it, "renewed") }
+        null
+    } catch (error: ApiError) {
+        if (error.status == 401) {
+            store.clear()
+            route(null, Payload())
+            null
+        } else {
+            error.message ?: "Algo ha fallado. Inténtalo de nuevo."
+        }
+    }
+
+    // ── Tarjeta para compartir ──
+
+    // Dónde se juega, para quien vea la tarjeta.
+    private val origin get() = api.server.trimEnd('/')
+
+    // Hace la foto y enseña la tarjeta con los botones de compartir y guardar.
+    suspend fun shareCard(creature: Creature) {
+        Sfx.play("foto")
+        val photo = withTimeoutOrNull(4000) { room.snapshot(Card.PHOTO_WIDTH, Card.PHOTO_HEIGHT) }
+        val made = photo?.let {
+            withContext(Dispatchers.Default) {
+                runCatching {
+                    val card = Card.make(app, it, creature, origin.substringAfter("://"))
+                    card to Card.png(card)
+                }.onFailure { error -> Log.w("Nidaria", "No se ha podido hacer la tarjeta", error) }.getOrNull()
+            }
+        }
+        if (made == null) {
+            toast("No se ha podido hacer la foto. Inténtalo de nuevo.", error = true)
+            return
+        }
+        val (card, png) = made
+        val image = card.asImageBitmap()
+        val fileName = Card.fileName(creature.name)
+        val title = "${creature.name} en Nidaria"
+        val text = Card.shareText(creature, origin)
+        dialog(
+            DialogSpec(
+                title = "La tarjeta de ${creature.name}",
+                extra = { CardPreview(image, "Tarjeta de ${creature.name}: ${creature.formName}, ADN ${creature.code}.") },
+                actions = listOf(
+                    DialogAction("Compartir", null, Tone.Pink, keep = true, run = { sharePng(png, fileName, title, text) }),
+                    DialogAction("Guardar imagen", null, keep = true, run = { savePng(png, fileName) }),
+                    DialogAction("Cerrar", null),
+                ),
+            ),
+        )
+    }
+
+    fun takeCard(): Job = scope.launch { store.state?.creature?.let { shareCard(it) } }
+
+    private fun sharePng(png: ByteArray, fileName: String, title: String, text: String) {
+        scope.launch {
+            val ok = withContext(Dispatchers.IO) {
+                runCatching { Card.share(app, png, fileName, title, text) }
+                    .onFailure { Log.w("Nidaria", "No se ha podido compartir", it) }.isSuccess
+            }
+            if (!ok) toast("No se ha podido compartir. Prueba a guardarla.", error = true)
+        }
+    }
+
+    private fun savePng(png: ByteArray, fileName: String) {
+        scope.launch {
+            if (Build.VERSION.SDK_INT < 29) {
+                val granted = askPermission?.invoke(Manifest.permission.WRITE_EXTERNAL_STORAGE) ?: false
+                if (!granted) {
+                    toast("Sin permiso, el teléfono no deja guardar la imagen.", error = true, holdMs = 3600)
+                    return@launch
+                }
+            }
+            val ok = withContext(Dispatchers.IO) {
+                runCatching { Card.saveToGallery(app, png, fileName) }
+                    .onFailure { Log.w("Nidaria", "No se ha podido guardar la tarjeta", it) }.isSuccess
+            }
+            if (ok) toast("Guardada en tus fotos, en la carpeta Nidaria.") else toast("No se ha podido guardar la imagen.", error = true)
+        }
+    }
+
+    // ── Sonido ──
+
+    fun setSound(on: Boolean) {
+        Sfx.setEnabled(on)
+        soundOn = on
+        if (on) Sfx.play("toque")
     }
 
     // ── Qué pantalla toca ──
@@ -293,38 +468,36 @@ class Game(context: Context, val room: RoomView, private val scope: CoroutineSco
         scope.launch { queue.withLock { block() } }
     }
 
-    private suspend fun announce(creature: Creature, first: GameEvent) {
+    private suspend fun announce(creature: Creature, first: GameEvent): Any? {
         val form = getForm(creature.formId)
         val art = ThumbSpec.creature(creature.formId, creature.genes)
         if (first.from == "huevo" && form.stage == "cria") {
-            dialog(
+            return dialog(
                 DialogSpec(
                     title = "¡${creature.name} ha nacido!",
                     text = "Es ${form.name}, de la familia ${FAMILY_INFO.getValue(form.family!!).name}. Según cómo la cuides, crecerá por una rama u otra.",
                     art = art,
-                    actions = listOf(DialogAction("Conocerla", true, Tone.Pink)),
+                    actions = listOf(DialogAction("Conocerla", true, Tone.Pink), PHOTO),
                 ),
             )
-            return
         }
         if (form.secret != null) {
-            dialog(
+            return dialog(
                 DialogSpec(
                     title = "¡Una forma oculta!",
                     text = "${creature.name} ahora es ${form.name}. ${SECRET_INFO.getValue(form.secret).reason}",
                     art = art,
-                    actions = listOf(DialogAction("Verla", true, Tone.Pink)),
+                    actions = listOf(DialogAction("Verla", true, Tone.Pink), PHOTO),
                 ),
             )
-            return
         }
         val branch = form.branch?.let { BRANCH_INFO.getValue(it).name.lowercase() } ?: ""
-        dialog(
+        return dialog(
             DialogSpec(
                 title = "¡${creature.name} ha evolucionado!",
                 text = "Ahora es ${form.name}. La has criado $branch y por eso ha seguido esa rama.",
                 art = art,
-                actions = listOf(DialogAction("Verla", true, Tone.Pink)),
+                actions = listOf(DialogAction("Verla", true, Tone.Pink), PHOTO),
             ),
         )
     }
@@ -392,8 +565,9 @@ class Game(context: Context, val room: RoomView, private val scope: CoroutineSco
                 if (evolved[0].from == "huevo") room.hatch(creature) else room.evolve(creature)
                 animating = false
                 room.showCreature(store.state?.creature ?: creature)
-                announce(creature, evolved[0])
+                val choice = announce(creature, evolved[0])
                 say(line("nace"))
+                if (choice == "foto") shareCard(store.state?.creature ?: creature)
                 offerAlerts(creature)
             }
         } else if (!animating) {
@@ -407,6 +581,7 @@ class Game(context: Context, val room: RoomView, private val scope: CoroutineSco
                 "woke" -> toast("${creature.name} se ha despertado.")
                 "bond" -> {
                     val level = BOND_LEVELS.getOrNull(event.level) ?: continue
+                    Sfx.play("vinculo", delay = if (animating) 0f else 0.4f)
                     toast(level.reached.replace("{name}", creature.name), holdMs = 4000)
                     val fond = bondLine(creature, state.user.name, event.level)
                     if (fond != null && !animating) say(fond)
@@ -469,6 +644,7 @@ class Game(context: Context, val room: RoomView, private val scope: CoroutineSco
 
     fun onResume() {
         resumed = true
+        Sfx.foreground = true
         // El permiso de avisos se puede quitar o dar desde los ajustes del teléfono.
         alertsAllowed = Notifier.allowed(app)
         if (screen == Screen.Home) sync()
@@ -477,6 +653,7 @@ class Game(context: Context, val room: RoomView, private val scope: CoroutineSco
 
     fun onPause() {
         resumed = false
+        Sfx.foreground = false
     }
 
     fun say(text: String, seconds: Float = 2.6f) {
@@ -543,6 +720,7 @@ class Game(context: Context, val room: RoomView, private val scope: CoroutineSco
     fun toggleSleep(): Job = scope.launch {
         val asleep = live?.asleep ?: return@launch
         val payload = send { sleep(!asleep) } ?: return@launch
+        Sfx.play(if (payload.state?.creature?.asleep == true) "dormir" else "despertar")
         say(line(payload.text("reaction")))
     }
 
@@ -570,6 +748,7 @@ class Game(context: Context, val room: RoomView, private val scope: CoroutineSco
 
     fun collect(): Job = scope.launch {
         val payload = send { collect() } ?: return@launch
+        Sfx.play("monedas")
         toast("Has recogido ${fmt(payload.int("coins"))} monedas.")
     }
 
@@ -597,6 +776,7 @@ class Game(context: Context, val room: RoomView, private val scope: CoroutineSco
 
     fun buy(item: Item, qty: Int): Job = scope.launch {
         send { buy(item.id, qty) } ?: return@launch
+        Sfx.play("monedas")
         toast(if (qty > 1) "Has comprado $qty de ${item.name}." else "Has comprado: ${item.name}.")
     }
 
@@ -713,6 +893,7 @@ class Game(context: Context, val room: RoomView, private val scope: CoroutineSco
     // Recoge el premio de una misión. Con la tercera llega el de la racha.
     fun claim(mission: Mission): Job = scope.launch {
         val payload = send { claim(mission.id) } ?: return@launch
+        Sfx.play("monedas")
         val coins = payload.int("coins")
         val bonus = payload.int("bonus")
         val streak = payload.int("streak")
@@ -782,6 +963,7 @@ class Game(context: Context, val room: RoomView, private val scope: CoroutineSco
         val won = finished.flag("won")
         val coins = finished.int("coins")
         val target = finished.int("target")
+        Sfx.play(if (won) "gana" else "pierde")
         dialog(
             DialogSpec(
                 title = if (won) "¡Has ganado!" else "No ha podido ser",

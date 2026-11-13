@@ -288,15 +288,22 @@ Fichas de carril con icono de 14px y texto en caption. Dicen un efecto ("+14 com
 
 Campo crema con borde de 2px en `line` y radio de 16px. Con foco, el borde pasa a cacao. Con error, pasa a `danger`, el campo se sacude una vez y el mensaje aparece debajo.
 
+- **Código para guardar:** el código de recuperación va en una caja crema con borde discontinuo de 2px en `line`, en peso 900 con cifras tabulares y algo de espacio entre letras. Se selecciona entero con un toque. El borde discontinuo dice «esto es para copiar», no «esto se escribe».
+
 ### Navigation
 
 - **Pestañas:** carril con una píldora de papel que se desliza hasta la opción activa.
 - **Placa:** el nombre de la criatura y su estado en una píldora centrada; al pulsarla abre su ficha.
 - **Accesos laterales:** casillas pequeñas con icono y nombre, en columna. En el móvil tapan el rincón derecho de la habitación por encima de medio metro: lo que se ponga ahí debe ser bajo.
+- **Enlace de texto:** para la salida terciaria de un formulario («¿Has olvidado la contraseña?»). Cacao suave en peso 700, subrayado de 2px y 44px de alto para el pulgar. No lleva canto porque no es un botón.
 
 ### Need bars
 
 Barra de 14px sobre carril, del color de su necesidad y con canto. Cuando la necesidad es crítica, el nombre pasa a `danger` y la barra gana un contorno interior del mismo color: el estado nunca depende solo del largo de la barra.
+
+### Share card
+
+Imagen vertical de 1080 × 1350 sobre crema, para mandar fuera del juego. Arriba, la foto real de la habitación desde la escena 3D, con radio de 40px y canto de papel; nunca un dibujo aparte. Debajo, el nombre en peso 900, la forma y la etapa en cacao suave, una ficha de familia en lavado menta y una por rasgo de carácter en lavado sol. Cierra un pie sobre una línea: el ADN a la izquierda y, a la derecha, la dirección del juego y «Nidaria». En la app se enseña dentro de un diálogo, con radio de 16px y sombra baja.
 
 ## Do's and Don'ts
 

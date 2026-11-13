@@ -132,6 +132,14 @@ class Api(context: Context) {
     suspend fun login(name: String, password: String) =
         call("POST", "/auth/login", body("name" to name, "password" to password, "timeZone" to localTimeZone()))
 
+    // Contraseña nueva con el código de recuperación. La respuesta trae el
+    // código siguiente en `result.recoveryCode`, igual que el registro.
+    suspend fun recover(name: String, code: String, password: String) =
+        call("POST", "/auth/recover", body("name" to name, "code" to code, "password" to password, "timeZone" to localTimeZone()))
+
+    // Código nuevo desde la ficha; pide la contraseña (403 si no es).
+    suspend fun renewRecovery(password: String) = call("POST", "/account/recovery", body("password" to password))
+
     // Sin conexión también se sale: la sesión se borra del teléfono.
     suspend fun logout(): Payload = try {
         call("POST", "/auth/logout", body())

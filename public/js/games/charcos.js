@@ -1,6 +1,7 @@
 // Salta charcos: la criatura corre sola; toca para saltar cada charco.
 
 import { COLORS, fitCanvas, loop, rand, createPops } from './common.js';
+import { sfx } from '../audio/sfx.js';
 
 export async function create({ area, level, avatar, hud, onEnd }) {
   const canvas = document.createElement('canvas');
@@ -22,7 +23,9 @@ export async function create({ area, level, avatar, hud, onEnd }) {
   const lift = 620 * (level.jump ?? 1);
 
   const jump = () => {
-    if (running && y === 0) vy = lift;
+    if (!running || y !== 0) return;
+    vy = lift;
+    sfx('salto');
   };
   const onPointer = (event) => {
     event.preventDefault();
@@ -75,15 +78,18 @@ export async function create({ area, level, avatar, hud, onEnd }) {
             shields -= 1;
             puddle.passed = true;
             pops.add(px, ground - size, '¡Uf!', COLORS.blueEdge);
+            sfx('fallo', { volume: 0.6 });
             paintHud();
           } else {
             pops.add(px, ground - size, '¡Chof!', COLORS.blueEdge);
+            sfx('fallo');
             finish();
           }
         } else if (!puddle.passed && right < px - size * 0.2) {
           puddle.passed = true;
           score += 1;
           pops.add(px, ground - size - y - 8, '+1');
+          sfx('punto');
           paintHud();
           if (score >= level.target) finish();
         }

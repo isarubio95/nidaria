@@ -666,7 +666,23 @@ fun ProfileSheet(game: Game) {
     }
 
     SheetFrame(game, "Ficha") {
-        SectionTitle("Nombre", first = true)
+        var photographing by remember { mutableStateOf(false) }
+        val scope = rememberCoroutineScope()
+        val photo = {
+            if (!photographing) {
+                photographing = true
+                scope.launch {
+                    game.shareCard(creature)
+                    photographing = false
+                }
+            }
+        }
+        Btn(photo, Modifier.fillMaxWidth(), tone = Tone.Pink, enabled = !photographing) {
+            Icon(Ic.Camera)
+            BtnText("Hacer una foto para compartir")
+        }
+
+        SectionTitle("Nombre")
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
             Field(name, null, Modifier.weight(1f).semantics { contentDescription = "Nombre" }, maxLength = 14, capitalize = true, imeAction = ImeAction.Done, onDone = rename)
             Btn("Cambiar", { rename() }, tone = Tone.Mint)
@@ -719,5 +735,8 @@ fun ProfileSheet(game: Game) {
             T("Has entrado como ${state.user.name}.", Nd.bold, Modifier.weight(1f))
             Btn("Salir", { game.logout() }, tone = null, small = true)
         }
+
+        SectionTitle("Código de recuperación")
+        RecoverySection(game)
     }
 }

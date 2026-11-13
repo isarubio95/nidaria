@@ -1,5 +1,5 @@
-// Ajustes del dispositivo, al final de la ficha: avisos, clima real e
-// instalar el juego como app.
+// Ajustes del dispositivo, al final de la ficha: sonido, avisos, clima
+// real e instalar el juego como app.
 
 import { h } from '../dom.js';
 import { api } from '../api.js';
@@ -9,6 +9,7 @@ import {
   installMode, install, onInstallChange,
 } from '../pwa.js';
 import { weatherOn, enableWeather, disableWeather, onWeather, WEATHER_NAMES } from '../weather.js';
+import { soundOn, setSound } from '../audio/sfx.js';
 import { toggle } from './widgets.js';
 import { toast } from './toast.js';
 
@@ -135,6 +136,16 @@ export function settingsSection() {
 
   return {
     el: [
+      h('h3', { class: 'section-title' }, 'Sonido'),
+      h('div', { class: 'settings' }, toggle({
+        label: 'Efectos de sonido',
+        hint: 'Al comer, al bañarla, al ganar… Solo en este dispositivo.',
+        checked: soundOn(),
+        onChange: (value) => {
+          setSound(value);
+          return true;
+        },
+      })),
       h('h3', { class: 'section-title' }, 'Avisos'),
       pushBox,
       h('h3', { class: 'section-title' }, 'Clima real'),

@@ -1,5 +1,6 @@
-// Genera vectores de referencia con las reglas originales de shared/ para
-// que las pruebas de Kotlin comprueben que calculan lo mismo.
+// Genera vectores de referencia con las reglas originales de shared/ (y
+// los sonidos de public/js/audio/) para que las pruebas de Kotlin
+// comprueben que calculan lo mismo.
 // Uso: node tools/golden.mjs  (desde android/)
 import fs from 'node:fs';
 import path from 'node:path';
@@ -14,6 +15,7 @@ import {
 import { ITEMS } from '../../shared/catalog.js';
 import { gameLock } from '../../shared/actions.js';
 import { TRAITS } from '../../shared/dna.js';
+import { SOUND_NAMES, renderSound } from '../../public/js/audio/sounds.js';
 
 const seeds = [1, 2, 7, 101, 202, 303, 12345, 987654321, 2654435769, 4294967295];
 const rng = seeds.map((seed) => {
@@ -173,7 +175,18 @@ const locks = MINIGAMES.flatMap((game) => FORM_LIST.filter((form) => form.stage 
 
 const items = ITEMS.map((item) => ({ id: item.id, name: item.name, price: item.price, kind: item.kind, spot: item.spot ?? null }));
 
+// Los efectos de sonido (public/js/audio/sounds.js) a 22 050 Hz: cuántas
+// muestras salen, 24 de ellas repartidas y el volumen medio (RMS).
+const SOUND_RATE = 22050;
+const sounds = SOUND_NAMES.map((name) => {
+  const samples = renderSound(name, SOUND_RATE);
+  const picks = Array.from({ length: 24 }, (_, i) => Math.floor(((i + 0.5) * samples.length) / 24));
+  let sum = 0;
+  for (const sample of samples) sum += sample * sample;
+  return { name, rate: SOUND_RATE, length: samples.length, picks, values: picks.map((i) => samples[i]), rms: Math.sqrt(sum / samples.length) };
+});
+
 const here = path.dirname(fileURLToPath(import.meta.url));
 const file = path.join(here, '..', 'app', 'src', 'test', 'resources', 'golden.json');
-fs.writeFileSync(file, JSON.stringify({ rng, hashes, mixes, genes, forms, sims, branches, secrets, economy, items, perks, locks }));
+fs.writeFileSync(file, JSON.stringify({ rng, hashes, mixes, genes, forms, sims, branches, secrets, economy, items, perks, locks, sounds }));
 console.log('golden.json', fs.statSync(file).size, 'bytes;', sims.length, 'simulaciones');

@@ -84,6 +84,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
@@ -434,6 +435,7 @@ fun Field(
     keyboardType: KeyboardType = KeyboardType.Text,
     capitalize: Boolean = false,
     onDone: (() -> Unit)? = null,
+    allCaps: Boolean = false,
 ) {
     val source = remember { MutableInteractionSource() }
     val focused by source.collectIsFocusedAsState()
@@ -467,7 +469,11 @@ fun Field(
             interactionSource = source,
             visualTransformation = if (password) PasswordVisualTransformation() else VisualTransformation.None,
             keyboardOptions = KeyboardOptions(
-                capitalization = if (capitalize) KeyboardCapitalization.Sentences else KeyboardCapitalization.None,
+                capitalization = when {
+                    allCaps -> KeyboardCapitalization.Characters
+                    capitalize -> KeyboardCapitalization.Sentences
+                    else -> KeyboardCapitalization.None
+                },
                 autoCorrectEnabled = false,
                 keyboardType = if (password) KeyboardType.Password else keyboardType,
                 imeAction = imeAction,
@@ -611,6 +617,28 @@ fun Empty(text: String, action: String? = null, onAction: (() -> Unit)? = null) 
     ) {
         T(text, Nd.lead, Modifier.widthIn(max = 280.dp), align = TextAlign.Center)
         if (action != null && onAction != null) Btn(action, onAction, tone = Tone.Pink)
+    }
+}
+
+// Enlace de texto subrayado, para una salida secundaria («¿Has olvidado
+// la contraseña?»). Alto de 44 dp para el pulgar.
+@Composable
+fun TextLink(label: String, onClick: () -> Unit, modifier: Modifier = Modifier) {
+    val source = remember { MutableInteractionSource() }
+    val press = rememberPress(source)
+    Box(
+        modifier
+            .clickable(interactionSource = source, indication = null, role = Role.Button, onClick = onClick)
+            .defaultMinSize(minHeight = 44.dp)
+            .padding(horizontal = 8.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        T(
+            label,
+            Nd.sm.copy(textDecoration = TextDecoration.Underline),
+            color = if (press.value > 0.5f) Nd.ink else Nd.inkSoft,
+            align = TextAlign.Center,
+        )
     }
 }
 

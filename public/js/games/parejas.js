@@ -3,6 +3,7 @@
 import { h } from '../dom.js';
 import { shuffle } from './common.js';
 import { itemThumb } from '../scene/thumbs.js';
+import { sfx } from '../audio/sfx.js';
 
 const FACES = ['manzana', 'helado', 'tarta', 'pescado', 'pelota', 'peonza', 'peluche', 'cometa', 'gorro', 'corona', 'zanahoria', 'galleta'];
 
@@ -38,6 +39,7 @@ export async function create({ area, level, hud, onEnd }) {
       if (!running || locked || card.dataset.open === 'true') return;
       card.dataset.open = 'true';
       card.setAttribute('aria-label', 'Carta destapada');
+      sfx('carta');
       open.push({ card, face });
       if (open.length < 2) return;
       const [a, b] = open;
@@ -46,6 +48,7 @@ export async function create({ area, level, hud, onEnd }) {
         a.card.dataset.done = b.card.dataset.done = 'true';
         a.card.disabled = b.card.disabled = true;
         found += 1;
+        sfx('punto', { delay: 0.12 });
         paintHud();
         if (found >= level.pairs) finish();
         return;

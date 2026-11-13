@@ -60,6 +60,9 @@ async function startServer(overrides = {}, { sender } = {}) {
     db,
     push,
     dropCookie: () => { cookie = ''; },
+    // Para hacer de otro dispositivo: guardar una sesión y volver a ella.
+    cookie: () => cookie,
+    useCookie: (value) => { cookie = value; },
     close: () => new Promise((resolve) => server.close(resolve)).then(drop),
   };
 }
@@ -81,6 +84,67 @@ test('registro, sesión y errores de cuenta', async () => {
     assert.equal((await app.call('POST', '/api/auth/login', { name: 'Lucía', password: 'otra-cosa' })).status, 401);
     assert.equal((await app.call('POST', '/api/auth/login', { name: 'LUCÍA', password: 'secreta123' })).status, 200);
     assert.equal((await app.call('GET', '/api/state')).status, 200);
+  } finally {
+    await app.close();
+  }
+});
+
+test('código de recuperación: se enseña al crear la cuenta y se gasta al usarlo', async () => {
+  const app = await startServer();
+  try {
+    const created = await app.call('POST', '/api/auth/register', { name: 'Olvido', password: 'secreta123' });
+    const code = created.data.result.recoveryCode;
+    assert.match(code, /^[0-9A-HJKMNP-TV-Z]{4}(-[0-9A-HJKMNP-TV-Z]{4}){3}$/);
+    assert.equal(created.data.state.user.hasRecovery, true);
+    // El código no vuelve a salir en ninguna otra respuesta.
+    const state = await app.call('GET', '/api/state');
+    assert.equal(JSON.stringify(state.data).includes(code), false);
+    assert.equal(state.data.result, null);
+    const row = await app.db.get('SELECT recovery_hash FROM users WHERE name_key = ?', ['olvido']);
+    assert.equal(row.recovery_hash.includes(code.replace(/-/g, '')), false);
+
+    const otherDevice = app.cookie();
+    app.dropCookie();
+    const bad = { name: 'Olvido', code: '0000-0000-0000-0000', password: 'nueva-clave' };
+    assert.equal((await app.call('POST', '/api/auth/recover', bad)).status, 401);
+    assert.equal((await app.call('POST', '/api/auth/recover', { ...bad, code: 'corto' })).status, 400);
+    assert.equal((await app.call('POST', '/api/auth/recover', { name: 'Nadie', code, password: 'nueva-clave' })).status, 401);
+    assert.equal((await app.call('POST', '/api/auth/recover', { name: 'Olvido', code, password: 'corta' })).status, 400);
+
+    // Se acepta en minúsculas, sin guiones y con O por 0 o I/L por 1.
+    const typed = code.toLowerCase().replace(/-/g, ' ').replace(/0/g, 'o').replace(/1/g, 'l');
+    const recovered = await app.call('POST', '/api/auth/recover', { name: 'olvido', code: typed, password: 'nueva-clave' });
+    assert.equal(recovered.status, 200);
+    assert.equal(recovered.data.state.user.name, 'Olvido');
+    const fresh = recovered.data.result.recoveryCode;
+    assert.notEqual(fresh, code);
+    assert.equal((await app.call('GET', '/api/state')).status, 200);
+
+    // Las demás sesiones se cierran y el código usado ya no vale.
+    const mine = app.cookie();
+    app.useCookie(otherDevice);
+    assert.equal((await app.call('GET', '/api/state')).status, 401);
+    app.dropCookie();
+    assert.equal((await app.call('POST', '/api/auth/recover', { name: 'Olvido', code, password: 'otra-clave' })).status, 401);
+    assert.equal((await app.call('POST', '/api/auth/login', { name: 'Olvido', password: 'secreta123' })).status, 401);
+    assert.equal((await app.call('POST', '/api/auth/login', { name: 'Olvido', password: 'nueva-clave' })).status, 200);
+
+    // Uno nuevo desde la ficha pide la contraseña y anula el anterior.
+    app.useCookie(mine);
+    assert.equal((await app.call('POST', '/api/account/recovery', { password: 'mal' })).status, 403);
+    assert.equal((await app.call('POST', '/api/account/recovery', {})).status, 400);
+    const renewed = await app.call('POST', '/api/account/recovery', { password: 'nueva-clave' });
+    assert.equal(renewed.status, 200);
+    assert.notEqual(renewed.data.result.recoveryCode, fresh);
+    app.dropCookie();
+    assert.equal((await app.call('POST', '/api/auth/recover', { name: 'Olvido', code: fresh, password: 'otra-clave' })).status, 401);
+    assert.equal((await app.call('POST', '/api/auth/recover', { name: 'Olvido', code: renewed.data.result.recoveryCode, password: 'otra-clave' })).status, 200);
+
+    // Las cuentas de antes no tienen código hasta que lo crean.
+    await app.db.run('UPDATE users SET recovery_hash = NULL WHERE name_key = ?', ['olvido']);
+    assert.equal((await app.call('GET', '/api/state')).data.state.user.hasRecovery, false);
+    app.dropCookie();
+    assert.equal((await app.call('POST', '/api/auth/recover', { name: 'Olvido', code: renewed.data.result.recoveryCode, password: 'otra-clave' })).status, 401);
   } finally {
     await app.close();
   }

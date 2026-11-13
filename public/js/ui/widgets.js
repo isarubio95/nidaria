@@ -1,7 +1,44 @@
-// Piezas pequeñas compartidas: pestañas con píldora deslizante y número
-// que cambia en sitio (ambas de transitions.dev).
+// Piezas pequeñas compartidas: pestañas con píldora deslizante, número
+// que cambia en sitio (ambas de transitions.dev), interruptores y campos
+// de texto con su mensaje de error.
 
 import { h } from '../dom.js';
+
+// Campo con etiqueta, pista opcional y error que sacude la caja.
+// field({ id, label, type, autocomplete, hint }) -> { wrap, input, label, fail, clearError }
+export function field({ id, label, type, autocomplete, hint }) {
+  const input = h('input', { id, name: id, type, autocomplete, required: true, autocapitalize: 'none', spellcheck: 'false' });
+  const box = h('div', { class: 't-input' }, input);
+  const error = h('p', { class: 't-error-msg', id: `${id}-error`, role: 'alert' });
+  input.setAttribute('aria-describedby', `${id}-error`);
+  const labelEl = h('label', { for: id }, label);
+  const wrap = h('div', { class: 'field t-input-wrap' },
+    labelEl,
+    box,
+    hint ? h('p', { class: 'field-hint' }, hint) : null,
+    error,
+  );
+  const clearError = () => {
+    wrap.classList.remove('is-error');
+    box.classList.remove('is-error');
+  };
+  input.addEventListener('input', clearError);
+  return {
+    wrap,
+    input,
+    label: labelEl,
+    fail(message) {
+      error.textContent = message;
+      wrap.classList.add('is-error');
+      box.classList.add('is-error');
+      box.classList.remove('is-shaking');
+      void box.offsetWidth;
+      box.classList.add('is-shaking');
+      setTimeout(() => box.classList.remove('is-shaking'), 300);
+    },
+    clearError,
+  };
+}
 
 // tabs([{ id, label }], activeId, onChange) -> elemento
 export function tabs(options, activeId, onChange, label = 'Secciones') {

@@ -2,6 +2,7 @@
 
 import { h } from '../dom.js';
 import { COLORS } from './common.js';
+import { sfx } from '../audio/sfx.js';
 
 const PADS = [
   [COLORS.pink, COLORS.pinkEdge, 'Rosa'], [COLORS.mint, COLORS.mintEdge, 'Verde'],
@@ -35,6 +36,7 @@ export async function create({ area, level, hud, onEnd }) {
   const setEnabled = (on) => pads.forEach((pad) => { pad.disabled = !on; });
 
   async function flash(index, ms) {
+    sfx(`nota${index}`);
     pads[index].classList.add('is-lit');
     await wait(ms);
     pads[index].classList.remove('is-lit');
@@ -68,12 +70,15 @@ export async function create({ area, level, hud, onEnd }) {
 
   async function press(index) {
     if (!listening) return;
-    flash(index, 160);
     if (index !== sequence[step]) {
+      pads[index].classList.add('is-lit');
+      setTimeout(() => pads[index].classList.remove('is-lit'), 160);
+      sfx('fallo');
       status.textContent = 'Esa no era';
       finish();
       return;
     }
+    flash(index, 160);
     step += 1;
     if (step < sequence.length) return;
     rounds += 1;

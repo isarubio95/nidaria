@@ -218,7 +218,10 @@ private fun DialogCard(game: Game, state: DialogState) {
         spec.extra?.invoke()
         Column(Modifier.fillMaxWidth().padding(top = 8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             for (action in spec.actions) {
-                Btn(action.label, { game.closeDialog(state, action.value) }, Modifier.fillMaxWidth(), tone = action.tone)
+                Btn(action.label, {
+                    action.run?.invoke()
+                    if (!action.keep) game.closeDialog(state, action.value)
+                }, Modifier.fillMaxWidth(), tone = action.tone)
             }
         }
     }

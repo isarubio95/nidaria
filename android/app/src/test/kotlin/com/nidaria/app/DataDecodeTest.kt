@@ -36,6 +36,19 @@ class DataDecodeTest {
         assertFalse(payload.flag("nada"))
     }
 
+    // Al crear o recuperar la cuenta llega el código de recuperación, una
+    // sola vez, y el estado dice si la cuenta tiene uno.
+    @Test
+    fun decodesTheRecoveryCode() {
+        val text = """{"state":{"now":1,"user":{"name":"Olvido","hasRecovery":true}},"events":[],"result":{"recoveryCode":"ABCD-EFGH-JKMN-PQRS"}}"""
+        val payload = NidJson.decodeFromString(Payload.serializer(), text)
+        assertTrue(payload.state!!.user.hasRecovery)
+        assertEquals("ABCD-EFGH-JKMN-PQRS", payload.text("recoveryCode"))
+        // Las respuestas de antes, sin el campo: la cuenta no tiene código.
+        assertFalse(fixture().state!!.user.hasRecovery)
+        assertNull(fixture().text("recoveryCode"))
+    }
+
     @Test
     fun decodesTheDailyMissions() {
         val daily = fixture().state!!.daily!!

@@ -1,59 +1,61 @@
-// Entrada: entrar con una cuenta o crear una nueva.
+// Entrada: entrar con una cuenta, crear una nueva o recuperarla con el
+// código de recuperación si se ha olvidado la contraseña.
 
 import { h } from '../dom.js';
 import { api, ApiError, localTimeZone } from '../api.js';
 import { store } from '../store.js';
-import { tabs } from './widgets.js';
+import { tabs, field } from './widgets.js';
+import { showRecoveryCode } from './recovery.js';
 
-function field({ id, label, type, autocomplete, hint }) {
-  const input = h('input', { id, name: id, type, autocomplete, required: true, autocapitalize: 'none', spellcheck: 'false' });
-  const box = h('div', { class: 't-input' }, input);
-  const error = h('p', { class: 't-error-msg', id: `${id}-error`, role: 'alert' });
-  input.setAttribute('aria-describedby', `${id}-error`);
-  const wrap = h('div', { class: 'field t-input-wrap' },
-    h('label', { for: id }, label),
-    box,
-    hint ? h('p', { class: 'field-hint' }, hint) : null,
-    error,
-  );
-  const clearError = () => {
-    wrap.classList.remove('is-error');
-    box.classList.remove('is-error');
-  };
-  input.addEventListener('input', clearError);
-  return {
-    wrap,
-    input,
-    fail(message) {
-      error.textContent = message;
-      wrap.classList.add('is-error');
-      box.classList.add('is-error');
-      box.classList.remove('is-shaking');
-      void box.offsetWidth;
-      box.classList.add('is-shaking');
-      setTimeout(() => box.classList.remove('is-shaking'), 300);
-    },
-    clearError,
-  };
-}
+const LEAD = {
+  login: 'Cría una criatura única. Lo que hagas decide en qué se convierte.',
+  register: 'Cría una criatura única. Lo que hagas decide en qué se convierte.',
+  recover: 'Escribe tu nombre, el código que te dimos al crear la cuenta y una contraseña nueva.',
+};
 
 export function mountAuth(app) {
   let mode = 'login';
   const name = field({ id: 'nombre', label: 'Nombre', type: 'text', autocomplete: 'username' });
+  const code = field({ id: 'codigo', label: 'Código de recuperación', type: 'text', autocomplete: 'off' });
+  code.input.autocapitalize = 'characters';
+  code.input.classList.add('code', 'num');
+  code.input.placeholder = 'ABCD-EFGH-JKMN-PQRS';
   const pass = field({ id: 'clave', label: 'Contraseña', type: 'password', autocomplete: 'current-password' });
-  const hint = h('p', { class: 'field-hint', hidden: true }, 'Al menos 8 caracteres. No hay forma de recuperarla, así que apúntala.');
+  const hint = h('p', { class: 'field-hint', hidden: true });
   pass.wrap.insertBefore(hint, pass.wrap.lastElementChild);
   const submit = h('button', { class: 'btn btn-pink btn-wide', type: 'submit' }, 'Entrar');
-  const lead = h('p', { class: 'lead' }, 'Cría una criatura única. Lo que hagas decide en qué se convierte.');
+  const title = h('h1', { class: 'wordmark' }, 'Nidaria');
+  const lead = h('p', { class: 'lead' }, LEAD.login);
+  const switcher = tabs([{ id: 'login', label: 'Ya tengo cuenta' }, { id: 'register', label: 'Crear cuenta' }], mode, (next) => setMode(next), 'Tipo de entrada');
+  const forgot = h('button', { class: 'text-link', type: 'button', onclick: () => setMode('recover') }, '¿Has olvidado la contraseña?');
+  const back = h('button', { class: 'text-link', type: 'button', hidden: true, onclick: () => setMode('login') }, 'Volver a entrar con la contraseña');
 
-  const setMode = (next) => {
+  function setMode(next) {
     mode = next;
-    submit.textContent = mode === 'login' ? 'Entrar' : 'Crear cuenta';
+    const recover = mode === 'recover';
+    title.textContent = recover ? 'Recuperar la cuenta' : 'Nidaria';
+    title.className = recover ? '' : 'wordmark';
+    lead.textContent = LEAD[mode];
+    switcher.hidden = recover;
+    code.wrap.hidden = !recover;
+    forgot.hidden = mode !== 'login';
+    back.hidden = !recover;
+    pass.label.textContent = recover ? 'Contraseña nueva' : 'Contraseña';
     pass.input.autocomplete = mode === 'login' ? 'current-password' : 'new-password';
     hint.hidden = mode === 'login';
-    name.clearError();
-    pass.clearError();
-  };
+    hint.textContent = recover
+      ? 'Al menos 8 caracteres. Al entrar te daremos un código nuevo.'
+      : 'Al menos 8 caracteres. Al crear la cuenta te daremos un código para recuperarla si la olvidas.';
+    submit.textContent = { login: 'Entrar', register: 'Crear cuenta', recover: 'Cambiar contraseña y entrar' }[mode];
+    for (const item of [name, code, pass]) item.clearError();
+    if (recover) code.input.value = '';
+  }
+
+  function showError(message) {
+    if (/código/i.test(message)) code.fail(message);
+    else if (/nombre/i.test(message) && !/contraseña/i.test(message)) name.fail(message);
+    else pass.fail(message);
+  }
 
   const form = h('form', {
     class: 'card-screen', novalidate: true,
@@ -62,27 +64,38 @@ export function mountAuth(app) {
       const user = name.input.value.trim();
       const secret = pass.input.value;
       if (user.length < 3) return name.fail('Escribe un nombre de al menos 3 letras.');
+      if (mode === 'recover' && code.input.value.replace(/[\s-]/g, '').length !== 16) {
+        return code.fail('El código tiene 16 letras y números, como ABCD-EFGH-JKMN-PQRS.');
+      }
       if (secret.length < 8) return pass.fail('La contraseña debe tener al menos 8 caracteres.');
       submit.disabled = true;
       try {
-        const payload = await (mode === 'login' ? api.login : api.register)({ name: user, password: secret, timeZone: localTimeZone() });
+        const body = { name: user, password: secret, timeZone: localTimeZone() };
+        if (mode === 'recover') body.code = code.input.value;
+        const call = { login: api.login, register: api.register, recover: api.recover }[mode];
+        const was = mode;
+        const payload = await call(body);
         store.apply(payload);
+        const recoveryCode = payload.result?.recoveryCode;
+        if (recoveryCode) showRecoveryCode(recoveryCode, was === 'register' ? 'register' : 'recovered');
       } catch (error) {
-        const message = error instanceof ApiError ? error.message : 'Algo ha fallado. Inténtalo de nuevo.';
-        if (/nombre/i.test(message) && !/contraseña/i.test(message)) name.fail(message);
-        else pass.fail(message);
+        showError(error instanceof ApiError ? error.message : 'Algo ha fallado. Inténtalo de nuevo.');
       } finally {
         submit.disabled = false;
       }
     },
   },
-    h('h1', { class: 'wordmark' }, 'Nidaria'),
+    title,
     lead,
-    tabs([{ id: 'login', label: 'Ya tengo cuenta' }, { id: 'register', label: 'Crear cuenta' }], mode, setMode, 'Tipo de entrada'),
+    switcher,
     name.wrap,
+    code.wrap,
     pass.wrap,
     submit,
+    forgot,
+    back,
   );
+  setMode('login');
   app.replaceChildren(form);
   return {
     focusTop: () => form.getBoundingClientRect().top,

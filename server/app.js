@@ -86,10 +86,17 @@ export function createApp(db, config, { push = createPush(db, config) } = {}) {
   };
 
   const authLimit = rateLimit(20);
+  // El código de recuperación solo viaja en estas respuestas (`result`):
+  // al crear la cuenta, al recuperarla y al pedir uno nuevo.
   api.post('/auth/register', authLimit, handle(async (req, res) => {
-    const userId = await auth.register(res, req.body?.name, req.body?.password);
+    const { userId, recoveryCode } = await auth.register(res, req.body?.name, req.body?.password);
     await game.setTimeZone(userId, req.body?.timeZone);
-    return game.state(userId);
+    return { ...(await game.state(userId)), result: { recoveryCode } };
+  }));
+  api.post('/auth/recover', authLimit, handle(async (req, res) => {
+    const { userId, recoveryCode } = await auth.recover(res, req.body?.name, req.body?.code, req.body?.password);
+    await game.setTimeZone(userId, req.body?.timeZone);
+    return { ...(await game.state(userId)), result: { recoveryCode } };
   }));
   api.post('/auth/login', authLimit, handle(async (req, res) => {
     const userId = await auth.login(res, req.body?.name, req.body?.password);
@@ -133,6 +140,10 @@ export function createApp(db, config, { push = createPush(db, config) } = {}) {
   api.post('/games/finish', handle((req) => game.finishGame(req.userId, body(req).playId, body(req).score)));
   api.post('/daily/claim', handle((req) => game.claimMission(req.userId, body(req).id)));
   api.post('/settings', handle((req) => game.settings(req.userId, body(req))));
+  api.post('/account/recovery', authLimit, handle(async (req) => {
+    const recoveryCode = await auth.renewRecovery(req.userId, body(req).password);
+    return { ...(await game.state(req.userId)), result: { recoveryCode } };
+  }));
   api.post('/push/subscribe', handle((req) => push.subscribe(req.userId, req.sessionHash, body(req))));
   api.post('/push/unsubscribe', handle((req) => push.unsubscribe(req.userId, body(req).endpoint)));
   api.post('/dev/skip', handle((req) => game.devSkip(req.userId, body(req).hours)));

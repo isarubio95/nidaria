@@ -11,6 +11,7 @@ import { dialog } from '../ui/dialog.js';
 import { line } from '../ui/speech.js';
 import { creatureThumb } from '../scene/thumbs.js';
 import { loadImage } from './common.js';
+import { sfx } from '../audio/sfx.js';
 
 const MODULES = {
   fruta: () => import('./fruta.js'),
@@ -91,6 +92,7 @@ export async function launchGame(gameId, difficulty, { room, say }) {
     if (!finished || abandoned) return;
     const { won, coins, target } = finished.result;
 
+    sfx(won ? 'gana' : 'pierde');
     const amount = h('span', { class: 'num' }, '0');
     const reward = won ? h('div', { class: 'reward' }, coin(), amount) : null;
     const shown = dialog({

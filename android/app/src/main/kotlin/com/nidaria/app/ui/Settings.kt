@@ -1,5 +1,5 @@
-// Ajustes del teléfono, al final de la ficha: avisos y clima real. Los
-// mismos que en la web; qué avisos se quieren se guarda en la cuenta.
+// Ajustes del teléfono, al final de la ficha: sonido, avisos y clima real.
+// Los mismos que en la web; qué avisos se quieren se guarda en la cuenta.
 
 package com.nidaria.app.ui
 
@@ -73,6 +73,9 @@ fun SettingRow(label: String, hint: String?, on: Boolean, onChange: (Boolean) ->
 fun ColumnScope.SettingsSections(game: Game) {
     val state = game.store.state ?: return
     val name = state.creature?.name ?: "tu criatura"
+
+    SectionTitle("Sonido")
+    SettingRow("Efectos de sonido", "Al comer, al bañarla, al ganar… Solo en este dispositivo.", game.soundOn) { game.setSound(it) }
 
     SectionTitle("Avisos")
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {

@@ -2,6 +2,7 @@
 
 import { COLORS, fitCanvas, loop, loadImage, pointerX, rand, createPops } from './common.js';
 import { itemThumb } from '../scene/thumbs.js';
+import { sfx } from '../audio/sfx.js';
 
 const FRUIT = ['manzana', 'zanahoria', 'pan', 'galleta', 'helado', 'pescado'];
 
@@ -107,10 +108,12 @@ export async function create({ area, level, avatar, hud, onEnd }) {
           lives -= 1;
           shake = 0.35;
           pops.add(dx, drop.y - 10, 'Puaj', COLORS.coralEdge);
+          sfx('fallo');
           if (lives <= 0) finish();
         } else {
           score += 1;
           pops.add(dx, drop.y - 10, '+1');
+          sfx('punto');
         }
         paintHud();
         continue;

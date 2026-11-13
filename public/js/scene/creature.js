@@ -794,4 +794,15 @@ export class Actor {
   say(seconds) {
     this.talk = seconds;
   }
+
+  // Para la foto: si está a mitad de parpadeo, abre los ojos ya.
+  openEyes() {
+    if (this.blink <= 0) return;
+    this.blink = 0;
+    for (const eye of this.rig.eyes) {
+      eye.lidValue = eye.restLid;
+      eye.lid.visible = eye.lidValue > 0.03;
+      eye.lid.position.y = eye.r * (2.16 - eye.lidValue * 2.12);
+    }
+  }
 }

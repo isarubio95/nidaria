@@ -105,31 +105,50 @@ fun ServerRow(game: Game) {
     }
 }
 
-// Entrada: entrar con una cuenta o crear una nueva.
+// Entrada: entrar con una cuenta, crear una nueva o recuperarla con el
+// código de recuperación si se ha olvidado la contraseña.
+private const val LEAD = "Cría una criatura única. Lo que hagas decide en qué se convierte."
+private const val LEAD_RECOVER = "Escribe tu nombre, el código que te dimos al crear la cuenta y una contraseña nueva."
+private const val CODE_SHAPE = "El código tiene 16 letras y números, como ABCD-EFGH-JKMN-PQRS."
+
 @Composable
 fun AuthScreen(game: Game, insets: Insets) {
     var mode by remember { mutableStateOf("login") }
     var sending by remember { mutableStateOf(false) }
     val name = remember { FieldState() }
+    val code = remember { FieldState() }
     val pass = remember { FieldState() }
     val scope = rememberCoroutineScope()
     val focus = LocalFocusManager.current
+    val recover = mode == "recover"
+
+    fun setMode(next: String) {
+        mode = next
+        name.error = null
+        code.error = null
+        pass.error = null
+        if (next == "recover") code.text = ""
+    }
 
     val submit: () -> Unit = submit@{
         val user = name.text.trim()
         val secret = pass.text
         if (user.length < 3) return@submit name.fail("Escribe un nombre de al menos 3 letras.")
+        if (recover && code.text.replace(Regex("[\\s-]"), "").length != 16) return@submit code.fail(CODE_SHAPE)
         if (secret.length < 8) return@submit pass.fail("La contraseña debe tener al menos 8 caracteres.")
         if (sending) return@submit
         sending = true
         focus.clearFocus()
         scope.launch {
             try {
-                game.signIn(mode == "register", user, secret)
+                game.signIn(mode, user, secret, code.text)
             } catch (error: ApiError) {
                 val message = error.message ?: "Algo ha fallado. Inténtalo de nuevo."
-                val aboutName = message.contains("nombre", ignoreCase = true) && !message.contains("contraseña", ignoreCase = true)
-                if (aboutName) name.fail(message) else pass.fail(message)
+                when {
+                    message.contains("código", ignoreCase = true) -> code.fail(message)
+                    message.contains("nombre", ignoreCase = true) && !message.contains("contraseña", ignoreCase = true) -> name.fail(message)
+                    else -> pass.fail(message)
+                }
             } finally {
                 sending = false
             }
@@ -137,19 +156,38 @@ fun AuthScreen(game: Game, insets: Insets) {
     }
 
     CardScreen(insets) {
-        T("Nidaria", Nd.xxl)
-        T("Cría una criatura única. Lo que hagas decide en qué se convierte.", Nd.lead)
-        ScrollTabs(listOf("login" to "Ya tengo cuenta", "register" to "Crear cuenta"), mode, {
-            mode = it
-            name.error = null
-            pass.error = null
-        })
+        if (recover) T("Recuperar la cuenta", Nd.xl) else T("Nidaria", Nd.xxl)
+        T(if (recover) LEAD_RECOVER else LEAD, Nd.lead)
+        if (!recover) {
+            ScrollTabs(listOf("login" to "Ya tengo cuenta", "register" to "Crear cuenta"), mode, { setMode(it) })
+        }
         Field(name, "Nombre", Modifier.fillMaxWidth(), maxLength = 20)
+        if (recover) {
+            Field(
+                code, "Código de recuperación", Modifier.fillMaxWidth(), placeholder = "ABCD-EFGH-JKMN-PQRS",
+                maxLength = 24, allCaps = true, keyboardType = KeyboardType.Ascii,
+            )
+        }
         Field(
-            pass, "Contraseña", Modifier.fillMaxWidth(), password = true, imeAction = ImeAction.Done, onDone = submit,
-            hint = if (mode == "register") "Al menos 8 caracteres. No hay forma de recuperarla, así que apúntala." else null,
+            pass, if (recover) "Contraseña nueva" else "Contraseña", Modifier.fillMaxWidth(), password = true,
+            imeAction = ImeAction.Done, onDone = submit,
+            hint = when (mode) {
+                "register" -> "Al menos 8 caracteres. Al crear la cuenta te daremos un código para recuperarla si la olvidas."
+                "recover" -> "Al menos 8 caracteres. Al entrar te daremos un código nuevo."
+                else -> null
+            },
         )
-        Btn(if (mode == "login") "Entrar" else "Crear cuenta", submit, Modifier.fillMaxWidth(), tone = Tone.Pink, enabled = !sending)
+        val label = when (mode) {
+            "register" -> "Crear cuenta"
+            "recover" -> "Cambiar contraseña y entrar"
+            else -> "Entrar"
+        }
+        Btn(label, submit, Modifier.fillMaxWidth(), tone = Tone.Pink, enabled = !sending)
+        if (mode == "login") {
+            TextLink("¿Has olvidado la contraseña?", { setMode("recover") }, Modifier.align(Alignment.CenterHorizontally))
+        } else if (recover) {
+            TextLink("Volver a entrar con la contraseña", { setMode("login") }, Modifier.align(Alignment.CenterHorizontally))
+        }
         ServerRow(game)
     }
 }

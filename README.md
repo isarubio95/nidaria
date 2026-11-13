@@ -97,6 +97,12 @@ La app de Android no usa Web Push: calcula los avisos en el propio teléfono con
 
 El clima real es opcional y se activa en la ficha. El navegador pide la ubicación, la redondea a unos 10 km y pregunta el tiempo a [Open-Meteo](https://open-meteo.com) directamente. La ubicación no pasa por el servidor de Nidaria. La API gratuita de Open-Meteo es solo para uso no comercial: si el juego pasa a ganar dinero, hace falta su plan de pago.
 
+## Sonido y tarjeta para compartir
+
+Los efectos de sonido (comer, el baño, las monedas, los minijuegos…) vienen activados y se quitan en la ficha. El ajuste es de cada dispositivo. Los navegadores no dejan sonar nada hasta el primer toque en la página.
+
+Desde la ficha, y en el aviso de que ha nacido o evolucionado, se puede hacer una tarjeta para compartir: una foto de la criatura en su habitación con su nombre, su forma, su ADN y la dirección del juego, en PNG de 1080 × 1350. En el móvil se comparte con el menú del sistema; donde el navegador no lo permite, se guarda la imagen.
+
 ## Pruebas
 
 ```bash
@@ -118,6 +124,7 @@ TEST_DATABASE_URL=postgresql://... npm test
 - `public/`: la interfaz. HTML, CSS y módulos de JavaScript sin paso de compilación.
 - `public/js/scene/`: la habitación 3D y el generador de criaturas, con Three.js. Los papeles pintados y las alfombras están en `decor.js`; los muebles, con los demás artículos, en `props.js`.
 - `public/js/games/`: los minijuegos.
+- `public/js/audio/`: los efectos de sonido. Se generan con código (`sounds.js`), sin ficheros de audio; la app de Android tiene una copia en Kotlin que una prueba compara con esta.
 - `test/`: las pruebas.
 
 ## Dónde tocar las reglas
@@ -137,4 +144,10 @@ Las migraciones están en `server/db/migrations/`. Un fichero `*.pg.sql` solo se
 
 ## Cuentas
 
-Las cuentas tienen solo nombre y contraseña. No hay correo, así que tampoco hay forma de recuperar una contraseña olvidada.
+Las cuentas tienen solo nombre y contraseña. No hay correo: si se olvida la contraseña, la cuenta se recupera con un código de recuperación.
+
+- Al crear la cuenta, el juego enseña el código una sola vez (16 letras y cifras, como `ABCD-EFGH-JKMN-PQRS`). El servidor solo guarda su hash.
+- En la entrada, «¿Has olvidado la contraseña?» pide el nombre, el código y una contraseña nueva. El código se gasta: el juego da otro y cierra la cuenta en los demás dispositivos.
+- Desde la ficha se puede crear un código nuevo, por ejemplo si se perdió el anterior o la cuenta es de antes de que existieran. Pide la contraseña y anula el código anterior.
+
+Si alguien pierde la contraseña y el código, la cuenta no se puede recuperar.

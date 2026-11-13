@@ -20,6 +20,7 @@ import { openDecor } from './decor.js';
 import { openCriadex } from './criadex.js';
 import { openProfile } from './profile.js';
 import { openDaily, claimable } from './daily.js';
+import { sfx } from '../audio/sfx.js';
 
 const NEED_ICONS = { hunger: 'food', energy: 'moon', hygiene: 'drop', fun: 'ball', health: 'heart' };
 const MOOD_TEXT = {
@@ -52,6 +53,7 @@ export function mountHome(app, room) {
       piggy.disabled = true;
       const payload = await run(api.collect());
       piggy.disabled = false;
+      if (payload) sfx('monedas');
       if (payload) toast(`Has recogido ${fmt(payload.result.coins)} monedas.`);
     },
   }, coin(true), h('span', { class: 'sr-only' }, 'Recoger '), '+', piggyAmount);
@@ -69,7 +71,7 @@ export function mountHome(app, room) {
 
   const plateName = h('span', { class: 'plate-name' });
   const plateSub = h('span', { class: 'plate-sub' });
-  const plate = h('button', { class: 'plate', type: 'button', onclick: () => openProfile(), 'aria-label': 'Ficha de la criatura' }, plateName, plateSub);
+  const plate = h('button', { class: 'plate', type: 'button', onclick: () => openProfile(room), 'aria-label': 'Ficha de la criatura' }, plateName, plateSub);
 
   const bubble = h('div', { class: 'bubble', 'aria-hidden': 'true' });
 
@@ -118,7 +120,9 @@ export function mountHome(app, room) {
   // ── Acciones ──
   async function toggleSleep() {
     const payload = await run(api.sleep({ asleep: !live.asleep }));
-    if (payload) say(line(payload.result.reaction));
+    if (!payload) return;
+    sfx(payload.state.creature?.asleep ? 'dormir' : 'despertar');
+    say(line(payload.result.reaction));
   }
 
   async function bathe() {

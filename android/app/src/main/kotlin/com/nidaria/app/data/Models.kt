@@ -37,6 +37,8 @@ data class User(
     val incomeCap: Int = 0,
     val incomeAt: Double = 0.0,
     val timeZone: String? = null,
+    // Si tiene código de recuperación. El código solo llega al crearlo.
+    val hasRecovery: Boolean = false,
 )
 
 @Serializable

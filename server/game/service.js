@@ -199,6 +199,8 @@ export function createGame(db, config, push = null) {
       user: {
         name: user.name,
         timeZone: user.time_zone ?? null,
+        // Si tiene código de recuperación. El código nunca sale de aquí.
+        hasRecovery: Boolean(user.recovery_hash),
         coins: user.coins,
         tickets: tickets.tickets,
         ticketsMax: TICKETS_MAX,

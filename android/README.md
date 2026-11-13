@@ -129,6 +129,12 @@ La app avisa como la web (hambre, enfermedad, evolución, racha en peligro, ener
 
 El clima real usa la ubicación aproximada (el permiso de ubicación aproximada, nunca el de la precisa), la redondea a unos 10 km y pregunta a Open-Meteo. No pasa por el servidor de Nidaria.
 
+## Sonido y tarjeta para compartir
+
+Los efectos de sonido se generan con código al abrir la app, igual que en la web: no hay ficheros de audio en el APK. Suenan todos por una sola pista con un mezclador propio (`audio/Sfx.kt`), que se para cuando no suena nada. Se quitan en la ficha, en «Sonido», y el ajuste es de cada teléfono.
+
+La tarjeta para compartir es la misma que la de la web: una foto de la habitación con el nombre, la forma y el ADN. Se comparte con el menú del sistema, prestando el fichero desde la caché con un `FileProvider`, o se guarda en las fotos, en Imágenes/Nidaria. Desde Android 10 guardarla no pide ningún permiso; en Android 9 pide el de almacenamiento la primera vez.
+
 ## Cómo está organizado
 
 Todo el código está en `app/src/main/kotlin/com/nidaria/app/`.
@@ -137,6 +143,8 @@ Todo el código está en `app/src/main/kotlin/com/nidaria/app/`.
 - `gl/`: el motor 3D. Matemática y grafo de escena con los convenios de Three.js, geometrías generadas por código, animaciones con la semántica de GSAP y el renderizador (sombras, materiales físicos, luz de entorno).
 - `scene/`: la habitación, el generador de criaturas, los modelos de los artículos y las miniaturas. Es el equivalente de `public/js/scene/`. Los papeles pintados se pintan en `Decor.kt` con un lienzo propio en Kotlin, sin `android.graphics`, para que las pruebas puedan construir sus muestras.
 - `data/`: el cliente de la API, el estado de la partida y el clima real.
+- `audio/`: los efectos de sonido. `Sounds.kt` es la copia de `public/js/audio/sounds.js` y `Sfx.kt` los hace sonar.
+- `share/`: la tarjeta para compartir (la dibuja, la comparte y la guarda).
 - `notify/`: los avisos. `Alerts.kt` decide qué avisar (la misma regla que `server/game/alerts.js`) y `Notifier.kt` lo programa y lo enseña.
 - `ui/`: la interfaz. Tema, componentes, pantallas, hojas y minijuegos.
 - `Game.kt`: el hilo conductor. Decide qué pantalla toca, encadena las animaciones y guarda lo que la interfaz enseña encima.
@@ -147,7 +155,7 @@ Todo el código está en `app/src/main/kotlin/com/nidaria/app/`.
 
 La app repite en Kotlin lo que la web hace en JavaScript, así que un cambio en un lado hay que llevarlo al otro. Hay dos ayudas para que no se desvíen sin avisar.
 
-**Reglas.** `tools/golden.mjs` ejecuta las reglas originales de `shared/` y guarda sus resultados en `app/src/test/resources/golden.json`. Las pruebas comparan las reglas de Kotlin con ese fichero: generador aleatorio, ADN, formas, simulación de necesidades, economía (con el premio del juego del día, las ventajas del carácter y los juegos de una rama) y catálogo. Tras tocar `shared/`:
+**Reglas y sonidos.** `tools/golden.mjs` ejecuta las reglas originales de `shared/` y los sonidos de `public/js/audio/sounds.js`, y guarda sus resultados en `app/src/test/resources/golden.json`. Las pruebas comparan las reglas de Kotlin con ese fichero (generador aleatorio, ADN, formas, simulación de necesidades, economía con el premio del juego del día, las ventajas del carácter y los juegos de una rama, y catálogo) y también las muestras de cada sonido. Tras tocar `shared/` o una receta de sonido:
 
 ```bash
 node tools/golden.mjs          # con Node 22 o posterior
@@ -169,6 +177,8 @@ Las pruebas cubren además el motor (matrices, cámara, geometrías, animaciones
 - En teléfonos la app solo se usa en vertical. En tabletas gira.
 - El botón «atrás» del sistema cierra lo último que se abrió: un diálogo, una hoja o la partida de un minijuego, esta con confirmación.
 - La pantalla de entrada tiene un apartado para elegir el servidor.
+- Al guardar la tarjeta, un aviso dice dónde ha quedado. En la web se descarga sin más.
+- Al copiar el código de recuperación, desde Android 13 lo confirma el propio sistema en vez de la app, y el código se marca como dato sensible para que no se vea en la vista previa del portapapeles.
 - Los avisos los calcula el propio teléfono en vez de mandarlos el servidor (ver «Avisos y clima»).
 - Cuando una criatura se despide, su sombra se va con ella. En la web se queda en la alfombra.
 - En las casillas de artículo, la etiqueta de efecto se ajusta al ancho de la casilla en lugar de sobresalir.

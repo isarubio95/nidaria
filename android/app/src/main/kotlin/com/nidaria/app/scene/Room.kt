@@ -5,6 +5,7 @@
 
 package com.nidaria.app.scene
 
+import com.nidaria.app.audio.Sfx
 import com.nidaria.app.gl.Animator
 import com.nidaria.app.gl.Channel
 import com.nidaria.app.gl.Color
@@ -579,7 +580,13 @@ class Room(private val painter: Painter, private val reduce: Boolean) {
     fun feed(itemId: String, reaction: String?, done: () -> Unit) {
         val a = actor ?: return done()
         val item = buildItem(itemId)
+        val react = {
+            if (reaction == "favorita") Sfx.play("encanta")
+            else if (reaction == "asco") Sfx.play("puaj")
+        }
         if (item == null || reduce) {
+            Sfx.play("bocado")
+            react()
             if (reaction == "asco") a.shake()
             return done()
         }
@@ -605,9 +612,11 @@ class Room(private val painter: Painter, private val reduce: Boolean) {
                         val left = 0.36f * floatArrayOf(0.72f, 0.42f, 0.001f)[bite]
                         anim.to(holder.scale.toAll(left), 0.12f)
                         crumbs(mouthful)
+                        Sfx.play("bocado")
                     }.onComplete = {
                         eater.busy = false
                         eater.setMouth(eater.restMouth())
+                        react()
                         if (reaction == "favorita") {
                             hearts(headCenter(), 4)
                             eater.hop(2, 0.22f)
@@ -623,6 +632,7 @@ class Room(private val painter: Painter, private val reduce: Boolean) {
     fun playToy(itemId: String, done: () -> Unit) {
         val a = actor
         val item = buildItem(itemId)
+        if (a != null) Sfx.play("juguete")
         if (a == null || item == null || reduce) return done()
         val holder = Group()
         holder.add(item)
@@ -644,6 +654,7 @@ class Room(private val painter: Painter, private val reduce: Boolean) {
 
     fun bath() {
         val a = actor ?: return
+        Sfx.play("burbujas")
         bubbles(16)
         a.wash()
         if (!reduce) anim.delayedCall(1.3f) { sparks(bodyCenter(), 8, 0.65f, "#bfe3ff") }
@@ -651,6 +662,7 @@ class Room(private val painter: Painter, private val reduce: Boolean) {
 
     fun heal() {
         val a = actor ?: return
+        Sfx.play("cura")
         sparks(bodyCenter(), 10, 0.6f, "#7ed6a5")
         a.hop(1, 0.2f)
     }
@@ -668,6 +680,7 @@ class Room(private val painter: Painter, private val reduce: Boolean) {
     // Un truco de los que aprende con el vínculo (ver rules/Bond.kt).
     fun trick(kind: String) {
         val a = actor ?: return
+        Sfx.play("truco")
         if (kind == "saltitos") {
             a.hop(3, 0.2f)
             hearts(bodyCenter(), 4)
@@ -689,11 +702,13 @@ class Room(private val painter: Painter, private val reduce: Boolean) {
     fun hatch(view: Creature, done: () -> Unit) {
         val egg = eggs.firstOrNull()
         if (egg == null || mode != "egg" || reduce) {
+            Sfx.play("nace")
             currentKey = ""
             showCreature(view)
             return done()
         }
         mode = "busy"
+        for (delay in floatArrayOf(0f, 0.35f, 0.7f)) Sfx.play("crac", delay = delay)
         val shellColor = (egg.children[0] as Mesh).material.color.clone()
         anim.timeline(onComplete = done)
             .to(egg.rotation.to(z = 0.16f), 0.07f, Eases.sineInOut, repeat = 13, yoyo = true)
@@ -712,6 +727,7 @@ class Room(private val painter: Painter, private val reduce: Boolean) {
                         .to(shard.material::opacity.to(0f, shard.material), 0.5f, at = Pos.at(1.1f))
                 }
                 sparks(center, 12, 0.8f)
+                Sfx.play("nace")
                 swapIn(view)
             }
             .wait(0.8f)
@@ -722,10 +738,12 @@ class Room(private val painter: Painter, private val reduce: Boolean) {
     fun evolve(view: Creature, done: () -> Unit) {
         val old = actor
         if (old == null || reduce) {
+            Sfx.play("nace")
             currentKey = ""
             showCreature(view)
             return done()
         }
+        Sfx.play("evoluciona")
         old.stop()
         old.busy = true
         old.setMouth("open")
@@ -745,6 +763,7 @@ class Room(private val painter: Painter, private val reduce: Boolean) {
             .to(glowMat::opacity.to(1f, glowMat), 0.5f, Eases.power2In, Pos.at(0.8f))
             .to(glow.scale.toAll(size), 0.5f, Eases.power2In, Pos.at(0.8f))
             .call {
+                Sfx.play("nace")
                 swapIn(view)
                 sparks(Vec3(0f, FLOOR_Y + 0.7f, 0.3f), 16, 1f)
             }
@@ -756,6 +775,7 @@ class Room(private val painter: Painter, private val reduce: Boolean) {
 
     fun farewell(done: () -> Unit) {
         val gone = actor
+        if (gone != null) Sfx.play("adios")
         if (gone == null || reduce) return done()
         gone.stop()
         gone.busy = true
@@ -874,6 +894,24 @@ class Room(private val painter: Painter, private val reduce: Boolean) {
         )
     }
 
+    // ── Foto ──
+
+    // Cámara propia que encuadra a la criatura en `w`×`h` píxeles, para la
+    // tarjeta de compartir (como room.snapshot en la web).
+    private val photo = PerspectiveCamera(FOV, 1f, 0.1f, 80f)
+
+    fun photoCamera(w: Int, h: Int): PerspectiveCamera {
+        val perUnit = min((h * 0.6f) / subjectH, (w * 0.6f) / subjectW)
+        val distance = h / perUnit / (2f * tanDeg(FOV / 2f))
+        photo.aspect = w.toFloat() / h
+        photo.position.set(0f, 0.5f + subjectH * 0.62f, distance)
+        photo.lookAt(0f, subjectH * 0.5f, 0f)
+        photo.updateProjectionMatrix()
+        photo.updateView()
+        actor?.openEyes()
+        return photo
+    }
+
     // ── Puntero ── (coordenadas en dp desde la esquina superior izquierda)
 
     private fun rayDirection(x: Float, y: Float): Vec3 {
@@ -938,6 +976,7 @@ class Room(private val painter: Painter, private val reduce: Boolean) {
             if (a.mood != "dormida") {
                 if (p.strokes == 1) a.nuzzle()
                 hearts(worldAt(x, y), 1)
+                if (p.strokes % 3 == 1) Sfx.play("caricia", volume = 0.8f)
                 for (cheek in a.rig.cheeks) cheek.material.opacity = 0.95f
             }
             listener?.onPet()
@@ -956,11 +995,17 @@ class Room(private val painter: Painter, private val reduce: Boolean) {
         press = null
         if (index < 0) return
         when (mode) {
-            "eggs" -> listener?.onEggPick(index)
+            "eggs" -> {
+                Sfx.play("toque")
+                listener?.onEggPick(index)
+            }
             "egg" -> warm()
             "creature", "demo" -> {
                 val a = actor
-                if (a != null && a.mood != "dormida" && !a.busy) a.hop(1, 0.16f)
+                if (a != null && a.mood != "dormida" && !a.busy) {
+                    a.hop(1, 0.16f)
+                    Sfx.play("toque")
+                }
                 listener?.onTap()
             }
         }
@@ -969,6 +1014,7 @@ class Room(private val painter: Painter, private val reduce: Boolean) {
     fun warm() {
         val egg = eggs.firstOrNull() ?: return
         if (mode != "egg") return
+        Sfx.play("calor")
         if (!reduce) {
             anim.killTweensOf(egg.scale)
             egg.scale.set(EGG_SCALE * 1.09f, EGG_SCALE * 0.92f, EGG_SCALE * 1.09f)
