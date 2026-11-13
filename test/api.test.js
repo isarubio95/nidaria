@@ -6,6 +6,7 @@ import { createSqliteDb } from '../server/db/index.js';
 import { createPostgresDb, poolConfig } from '../server/db/postgres.js';
 import { migrate } from '../server/db/migrate.js';
 import { createApp } from '../server/app.js';
+import { createPush } from '../server/push.js';
 
 // Con TEST_DATABASE_URL las pruebas corren contra PostgreSQL, cada una en
 // un esquema propio que se borra al acabar. Sin ella, SQLite en memoria.
@@ -33,11 +34,13 @@ async function openDb() {
   };
 }
 
-async function startServer(overrides = {}) {
+// `sender` sustituye al envío real de avisos.
+async function startServer(overrides = {}, { sender } = {}) {
   const { db, drop } = await openDb();
   await migrate(db);
   const config = { timeScale: 1, devTools: true, secureCookies: false, sessionDays: 30, ...overrides };
-  const server = createApp(db, config).listen(0);
+  const push = createPush(db, config, { sender: sender ?? (async () => {}) });
+  const server = createApp(db, config, { push }).listen(0);
   await new Promise((resolve) => server.once('listening', resolve));
   const base = `http://127.0.0.1:${server.address().port}`;
   let cookie = '';
@@ -53,6 +56,8 @@ async function startServer(overrides = {}) {
   };
   return {
     call,
+    db,
+    push,
     dropCookie: () => { cookie = ''; },
     close: () => new Promise((resolve) => server.close(resolve)).then(drop),
   };
@@ -180,6 +185,152 @@ test('la muerte deja un huevo heredero', async () => {
     assert.equal(next.data.state.creature.generation, 2);
     assert.equal(next.data.state.creature.alive, true);
     assert.ok(Object.keys(next.data.state.criadex).length >= 3);
+  } finally {
+    await app.close();
+  }
+});
+
+async function hatchedPlayer(app, name) {
+  await app.call('POST', '/api/auth/register', { name, password: 'secreta123', timeZone: 'Europe/Madrid' });
+  await app.call('POST', '/api/egg/pick', { index: 0, name: 'Pipo' });
+  for (let i = 0; i < 4; i++) await app.call('POST', '/api/egg/warm', { taps: 20 });
+  return (await app.call('GET', '/api/state')).data.state;
+}
+
+test('misiones del día: progreso, premio y racha', async () => {
+  const app = await startServer();
+  try {
+    const first = await hatchedPlayer(app, 'Misionera');
+    assert.equal(first.user.timeZone, 'Europe/Madrid');
+    assert.equal(first.daily.missions.length, 3);
+    assert.deepEqual(first.daily.missions.map((m) => m.reward), [15, 25, 40]);
+    assert.ok(first.daily.missions.every((m) => m.text && m.progress === 0 && !m.claimed));
+    assert.equal(first.daily.streak, 0);
+    assert.ok(first.daily.resetAt > first.now && first.daily.resetAt <= first.now + 24 * 60 * 60 * 1000);
+    assert.equal((await app.call('POST', '/api/settings', { timeZone: 'Marte/Olimpo' })).status, 400);
+
+    // Misiones fijas para que la prueba no dependa del sorteo.
+    const fixed = [
+      { id: 'comer', goal: 3, progress: 0, reward: 15, claimed: false },
+      { id: 'mimos', goal: 10, progress: 0, reward: 25, claimed: false },
+      { id: 'bano', goal: 1, progress: 0, reward: 40, claimed: false },
+    ];
+    const userId = (await app.db.get('SELECT id FROM users WHERE name = ?', ['Misionera'])).id;
+    await app.db.run('UPDATE daily SET missions = ? WHERE user_id = ?', [JSON.stringify(fixed), userId]);
+
+    const early = await app.call('POST', '/api/daily/claim', { id: 'comer' });
+    assert.equal(early.status, 400);
+    assert.match(early.data.error, /no la has cumplido/);
+
+    for (const itemId of ['pan', 'manzana', 'manzana']) {
+      assert.equal((await app.call('POST', '/api/creature/feed', { itemId })).status, 200);
+    }
+    for (let i = 0; i < 10; i++) await app.call('POST', '/api/creature/pet');
+    const bathed = await app.call('POST', '/api/creature/bathe', {});
+    assert.equal(bathed.status, 200, JSON.stringify(bathed.data));
+    assert.deepEqual(bathed.data.state.daily.missions.map((m) => m.progress), [3, 10, 1]);
+
+    const coins = bathed.data.state.user.coins;
+    const a = await app.call('POST', '/api/daily/claim', { id: 'comer' });
+    assert.deepEqual(a.data.result, { id: 'comer', coins: 15, bonus: 0, streak: null });
+    assert.equal((await app.call('POST', '/api/daily/claim', { id: 'comer' })).status, 400);
+    await app.call('POST', '/api/daily/claim', { id: 'mimos' });
+    const last = await app.call('POST', '/api/daily/claim', { id: 'bano' });
+    assert.equal(last.data.result.bonus, 20);
+    assert.equal(last.data.result.streak, 1);
+    assert.equal(last.data.state.user.coins, coins + 15 + 25 + 40 + 20);
+    assert.equal(last.data.state.daily.doneToday, true);
+    assert.equal(last.data.state.daily.streak, 1);
+
+    // Al día siguiente hay otras tres y la racha sigue viva.
+    const tomorrow = await app.call('POST', '/api/dev/skip', { hours: 24 });
+    const daily = tomorrow.data.state.daily;
+    assert.equal(daily.doneToday, false);
+    assert.equal(daily.streak, 1);
+    assert.equal(daily.bonus, 30);
+    assert.ok(daily.missions.every((m) => !m.claimed));
+
+    // Un día sin completarlas rompe la racha.
+    const broken = await app.call('POST', '/api/dev/skip', { hours: 24 });
+    assert.equal(broken.data.state.daily.streak, 0);
+    assert.equal(broken.data.state.daily.best, 1);
+  } finally {
+    await app.close();
+  }
+});
+
+const SUBSCRIPTION = {
+  endpoint: 'https://fcm.googleapis.com/fcm/send/prueba-123',
+  keys: { p256dh: `B${'A'.repeat(86)}`, auth: 'A'.repeat(22) },
+};
+
+test('avisos: suscripción, aviso sin repetir y baja al salir', async () => {
+  const sent = [];
+  const app = await startServer({}, {
+    sender: async (subscription, payload, options) => {
+      sent.push({ endpoint: subscription.endpoint, ...JSON.parse(payload), options });
+    },
+  });
+  try {
+    const state = await hatchedPlayer(app, 'Avisada');
+    assert.match(state.push.key, /^[A-Za-z0-9_-]{80,}$/);
+    assert.equal(state.push.prefs.care, true);
+
+    const evil = { ...SUBSCRIPTION, endpoint: 'https://intranet.example.com/push' };
+    assert.equal((await app.call('POST', '/api/push/subscribe', evil)).status, 400);
+    assert.equal((await app.call('POST', '/api/push/subscribe', { endpoint: SUBSCRIPTION.endpoint })).status, 400);
+    assert.equal((await app.call('POST', '/api/push/subscribe', SUBSCRIPTION)).status, 200);
+    // Sin silencio nocturno, para que la prueba no dependa de la hora.
+    const quiet = await app.call('POST', '/api/settings', { notify: { quiet: false, games: false, bogus: true } });
+    assert.equal(quiet.data.state.push.prefs.quiet, false);
+    assert.equal(quiet.data.state.push.prefs.bogus, undefined);
+
+    // Tres horas sin cuidarla: el hambre y el aburrimiento llegan a crítico.
+    await app.call('POST', '/api/dev/skip', { hours: 3 });
+    const now = Date.now();
+    const first = await app.push.sweep(now);
+    assert.equal(first.delivered, 1);
+    assert.equal(sent.length, 1);
+    assert.equal(sent[0].endpoint, SUBSCRIPTION.endpoint);
+    assert.match(sent[0].title, /^Pipo /);
+    assert.equal(sent[0].group, 'care');
+    assert.equal(sent[0].options.urgency, 'high');
+
+    // Lo mismo no se vuelve a avisar.
+    const again = await app.push.sweep(now + 6 * 60 * 1000);
+    assert.equal(again.checked, 1);
+    assert.equal(sent.length, 1);
+
+    // Con los avisos de cuidados apagados, no sale nada aunque haya motivo.
+    await app.call('POST', '/api/settings', { notify: { care: false } });
+    await app.db.run("UPDATE notify_state SET sent = '[]'");
+    await app.push.sweep(now + 12 * 60 * 1000);
+    assert.equal(sent.length, 1);
+
+    // Al salir de la cuenta, este navegador deja de recibirlos.
+    await app.call('POST', '/api/auth/logout');
+    assert.equal((await app.db.all('SELECT endpoint FROM push_subscriptions')).length, 0);
+    assert.equal((await app.push.sweep(now + 24 * 60 * 1000)).checked, 0);
+  } finally {
+    await app.close();
+  }
+});
+
+test('avisos: un servicio que da la suscripción por perdida la borra', async () => {
+  const app = await startServer({}, {
+    sender: async () => {
+      throw Object.assign(new Error('Gone'), { statusCode: 410 });
+    },
+  });
+  try {
+    await hatchedPlayer(app, 'Perdida');
+    await app.call('POST', '/api/push/subscribe', SUBSCRIPTION);
+    await app.call('POST', '/api/settings', { notify: { quiet: false } });
+    await app.call('POST', '/api/dev/skip', { hours: 3 });
+    const result = await app.push.sweep(Date.now());
+    assert.equal(result.alerts.length, 1);
+    assert.equal(result.delivered, 0);
+    assert.equal((await app.db.all('SELECT endpoint FROM push_subscriptions')).length, 0);
   } finally {
     await app.close();
   }

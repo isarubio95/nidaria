@@ -20,6 +20,7 @@ import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
@@ -148,6 +149,8 @@ fun HomeScreen(game: Game, insets: Insets) {
                 }
                 if (!egg) {
                     Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        val ready = state.daily?.claimable ?: 0
+                        SideButton(Ic.Target, "Misiones", badge = ready) { game.openSheet(Sheet.Daily) }
                         SideButton(Ic.Hanger, "Armario") { game.openSheet(Sheet.Wardrobe) }
                         SideButton(Ic.Tree, "Criadex") { game.openSheet(Sheet.Criadex) }
                     }
@@ -250,19 +253,32 @@ private fun HudLeft(game: Game, coins: Int, income: Int, modifier: Modifier) {
 }
 
 @Composable
-private fun SideButton(icon: Ic, label: String, onClick: () -> Unit) {
-    Column(
-        Modifier
-            .width(60.dp)
-            .pressable(onClick)
-            .softShadow(Elevation.Sm, Nd.rMd)
-            .surface(Nd.paper, Nd.rMd)
-            .padding(top = 8.dp, bottom = 7.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(2.dp),
-    ) {
-        Icon(icon, 24.dp)
-        T(label, Nd.xs.copy(lineHeight = 1.1.em), maxLines = 1)
+private fun SideButton(icon: Ic, label: String, badge: Int = 0, onClick: () -> Unit) {
+    val spoken = if (badge > 0) "$label, ${if (badge == 1) "1 premio" else "$badge premios"} por recoger" else null
+    Box {
+        Column(
+            Modifier
+                .width(60.dp)
+                .pressable(onClick, label = spoken)
+                .softShadow(Elevation.Sm, Nd.rMd)
+                .surface(Nd.paper, Nd.rMd)
+                .padding(top = 8.dp, bottom = 7.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(2.dp),
+        ) {
+            Icon(icon, 24.dp)
+            T(label, Nd.xs.copy(lineHeight = 1.1.em), maxLines = 1)
+        }
+        // Contador de premios por recoger. No es un botón: va sin canto.
+        if (badge > 0) {
+            Box(
+                Modifier.align(Alignment.TopEnd).offset(x = 6.dp, y = (-6).dp).size(22.dp)
+                    .surface(Nd.paper, Nd.rPill).padding(2.dp).surface(Nd.pink, Nd.rPill),
+                contentAlignment = Alignment.Center,
+            ) {
+                T(badge.toString(), Nd.xsBlack.num)
+            }
+        }
     }
 }
 

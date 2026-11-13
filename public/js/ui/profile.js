@@ -8,6 +8,8 @@ import { BRANCH_INFO } from '/shared/forms.js';
 import { getItem } from '/shared/catalog.js';
 import { openSheet, closeSheet } from './sheet.js';
 import { toast } from './toast.js';
+import { settingsSection } from './settings.js';
+import { disablePush } from '../pwa.js';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -17,9 +19,40 @@ const fact = (label, value, note) => h('div', { class: 'fact' },
 );
 
 export function openProfile() {
-  const body = h('div');
+  // La parte de la criatura se repinta con cada cambio; los ajustes y la
+  // cuenta se pintan una vez para no reiniciar los interruptores.
+  const creaturePart = h('div');
+  const settings = settingsSection();
+  const state0 = store.state;
+  const account = [
+    h('h3', { class: 'section-title' }, 'Tu cuenta'),
+    h('div', { class: 'row', style: { alignItems: 'center', justifyContent: 'space-between' } },
+      h('p', { style: { fontWeight: '700' } }, `Has entrado como ${state0.user.name}.`),
+      h('button', {
+        class: 'btn btn-quiet btn-small', type: 'button',
+        onclick: async () => {
+          await closeSheet();
+          try {
+            // Este dispositivo deja de recibir avisos de la cuenta.
+            await disablePush();
+            await api.logout();
+          } finally {
+            store.clear();
+          }
+        },
+      }, 'Salir'),
+    ),
+  ];
+  const body = h('div', {}, creaturePart, settings.el, account);
   let off = null;
-  const sheet = openSheet({ title: 'Ficha', body, onClose: () => off?.() });
+  const sheet = openSheet({
+    title: 'Ficha',
+    body,
+    onClose: () => {
+      off?.();
+      settings.destroy();
+    },
+  });
 
   function render() {
     const state = store.state;
@@ -75,27 +108,12 @@ export function openProfile() {
       }, `Adelantar ${label}`))),
     ] : [];
 
-    body.replaceChildren(
+    creaturePart.replaceChildren(
       h('h3', { class: 'section-title' }, 'Nombre'),
       rename,
       h('h3', { class: 'section-title' }, 'Cómo es'),
       h('dl', { class: 'facts' }, facts),
       ...dev,
-      h('h3', { class: 'section-title' }, 'Tu cuenta'),
-      h('div', { class: 'row', style: { alignItems: 'center', justifyContent: 'space-between' } },
-        h('p', { style: { fontWeight: '700' } }, `Has entrado como ${state.user.name}.`),
-        h('button', {
-          class: 'btn btn-quiet btn-small', type: 'button',
-          onclick: async () => {
-            await closeSheet();
-            try {
-              await api.logout();
-            } finally {
-              store.clear();
-            }
-          },
-        }, 'Salir'),
-      ),
     );
   }
 

@@ -14,7 +14,8 @@ set -euo pipefail
 
 export ANDROID_HOME="${ANDROID_HOME:-$HOME/Android/Sdk}"
 if [ -z "${JAVA_HOME:-}" ]; then
-  JAVA_HOME="$(ls -d "$HOME"/.jdks/jdk-21* 2>/dev/null | head -1 || true)"
+  # El JDK 21 de ~/.jdks o, si no está, el que Gradle descarga solo.
+  JAVA_HOME="$(ls -d "$HOME"/.jdks/jdk-21* "$HOME"/.gradle/jdks/*-21-* 2>/dev/null | grep -v '\.lock$' | head -1 || true)"
   export JAVA_HOME
 fi
 export PATH="$ANDROID_HOME/platform-tools:$ANDROID_HOME/emulator:$ANDROID_HOME/cmdline-tools/latest/bin:${JAVA_HOME:+$JAVA_HOME/bin:}$PATH"

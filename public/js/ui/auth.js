@@ -1,7 +1,7 @@
 // Entrada: entrar con una cuenta o crear una nueva.
 
 import { h } from '../dom.js';
-import { api, ApiError } from '../api.js';
+import { api, ApiError, localTimeZone } from '../api.js';
 import { store } from '../store.js';
 import { tabs } from './widgets.js';
 
@@ -65,7 +65,7 @@ export function mountAuth(app) {
       if (secret.length < 8) return pass.fail('La contraseña debe tener al menos 8 caracteres.');
       submit.disabled = true;
       try {
-        const payload = await (mode === 'login' ? api.login : api.register)({ name: user, password: secret });
+        const payload = await (mode === 'login' ? api.login : api.register)({ name: user, password: secret, timeZone: localTimeZone() });
         store.apply(payload);
       } catch (error) {
         const message = error instanceof ApiError ? error.message : 'Algo ha fallado. Inténtalo de nuevo.';

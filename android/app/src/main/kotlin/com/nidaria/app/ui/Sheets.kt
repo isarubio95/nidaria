@@ -555,8 +555,11 @@ fun ProfileSheet(game: Game) {
                 for ((hours, label) in listOf(1 to "1 hora", 6 to "6 horas", 24 to "1 día")) {
                     Btn("Adelantar $label", { game.devSkip(hours) }, tone = Tone.Sun, small = true)
                 }
+                Btn("Probar avisos", { game.devCheckAlerts() }, tone = Tone.Sun, small = true)
             }
         }
+
+        SettingsSections(game)
 
         SectionTitle("Tu cuenta")
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {

@@ -13,6 +13,11 @@ import {
   pendingIncome, ticketsNow, getGame, gameReward, DIFFICULTIES,
   TICKETS_MAX, INCOME_CAP,
 } from '../../shared/economy.js';
+import { hashString } from '../../shared/rng.js';
+import {
+  rollMissions, trackMissions, getMission, streakBonus, currentStreak, nextStreak,
+  localDay, nextDayAt, dayAfter, isTimeZone, DEFAULT_TIME_ZONE,
+} from '../../shared/daily.js';
 
 const randomSeed = () => crypto.randomBytes(4).readUInt32BE(0);
 const NAME_RULE = /^[\p{L}\p{N} .'-]{1,14}$/u;
@@ -24,7 +29,11 @@ function cleanName(name) {
   return clean;
 }
 
-export function createGame(db, config) {
+// Una partida de minijuego cuenta para las misiones si ha durado algo:
+// abrir y cerrar al momento no vale.
+const MIN_PLAY_MS = 5000;
+
+export function createGame(db, config, push = null) {
   const scale = config.timeScale;
 
   async function loadUser(userId) {
@@ -89,6 +98,50 @@ export function createGame(db, config) {
     return offer;
   }
 
+  // Misiones del día del jugador. Si ha cambiado el día, salen otras.
+  // El día solo avanza: cambiar de zona horaria no devuelve las de ayer.
+  async function loadDaily(user, now) {
+    const today = localDay(now, user.time_zone ?? DEFAULT_TIME_ZONE);
+    const row = await db.get('SELECT * FROM daily WHERE user_id = ?', [user.id]);
+    if (row && row.day >= today) {
+      return { day: row.day, missions: JSON.parse(row.missions), streak: row.streak, streakDay: row.streak_day, best: row.best };
+    }
+    const owned = await db.all('SELECT item_id FROM inventory WHERE user_id = ? AND qty > 0', [user.id]);
+    const hasToy = owned.some((item) => getItem(item.item_id)?.kind === 'juguete');
+    const missions = rollMissions(hashString(`${user.id}:${today}`), { hasToy });
+    if (row) {
+      await db.run('UPDATE daily SET day = ?, missions = ? WHERE user_id = ?', [today, JSON.stringify(missions), user.id]);
+      return { day: today, missions, streak: row.streak, streakDay: row.streak_day, best: row.best };
+    }
+    await db.run(
+      'INSERT INTO daily (user_id, day, missions, streak, streak_day, best) VALUES (?, ?, ?, 0, NULL, 0)',
+      [user.id, today, JSON.stringify(missions)],
+    );
+    return { day: today, missions, streak: 0, streakDay: null, best: 0 };
+  }
+
+  async function saveDaily(userId, daily) {
+    await db.run(
+      'UPDATE daily SET missions = ?, streak = ?, streak_day = ?, best = ? WHERE user_id = ?',
+      [JSON.stringify(daily.missions), daily.streak, daily.streakDay, daily.best, userId],
+    );
+  }
+
+  function dailyView(daily, user, now) {
+    const streak = currentStreak(daily.streak, daily.streakDay, daily.day);
+    const doneToday = daily.streakDay === daily.day;
+    return {
+      day: daily.day,
+      resetAt: nextDayAt(now, user.time_zone ?? DEFAULT_TIME_ZONE),
+      missions: daily.missions.map((entry) => ({ ...entry, text: getMission(entry.id)?.text ?? '' })),
+      streak,
+      best: daily.best,
+      doneToday,
+      // Premio extra que dará completar hoy (o el que dio, si ya está).
+      bonus: streakBonus(doneToday ? streak : nextStreak(daily.streak, daily.streakDay, daily.day)),
+    };
+  }
+
   // Simula la criatura hasta ahora y deja constancia de lo ocurrido.
   async function advance(userId, creature, now) {
     if (!creature) return { creature: null, events: [] };
@@ -99,7 +152,7 @@ export function createGame(db, config) {
     return result;
   }
 
-  async function snapshot(user, creature, now) {
+  async function snapshot(user, creature, now, daily) {
     const tickets = ticketsNow(user.tickets, user.tickets_at, now, scale);
     const inventoryRows = await db.all('SELECT item_id, qty FROM inventory WHERE user_id = ? AND qty > 0', [user.id]);
     const criadexRows = await db.all('SELECT form_id, first_at, times FROM criadex WHERE user_id = ?', [user.id]);
@@ -134,8 +187,11 @@ export function createGame(db, config) {
       now,
       timeScale: scale,
       devTools: config.devTools,
+      daily: dailyView(daily, user, now),
+      push: push ? { key: await push.publicKey(), prefs: await push.prefsOf(user.id) } : null,
       user: {
         name: user.name,
+        timeZone: user.time_zone ?? null,
         coins: user.coins,
         tickets: tickets.tickets,
         ticketsMax: TICKETS_MAX,
@@ -153,16 +209,25 @@ export function createGame(db, config) {
 
   // Envoltorio común: `fn` recibe el contexto y puede modificar la
   // criatura y el usuario; lo que devuelva viaja como `result`.
+  // `ctx.track(tipo)` suma progreso a las misiones del día.
   function operation(userId, fn) {
     return db.tx(async () => {
       const now = Date.now();
       const user = await loadUser(userId);
       const { creature, events } = await advance(userId, await loadCreature(userId), now);
-      const ctx = { now, user, creature, events };
+      const daily = await loadDaily(user, now);
+      const before = JSON.stringify(daily);
+      const ctx = {
+        now, user, creature, events, daily,
+        track: (kind, amount = 1) => trackMissions(daily.missions, kind, amount),
+      };
       const result = fn ? await fn(ctx) : null;
+      if (ctx.events.some((event) => event.type === 'woke')) ctx.track('woke');
+      if (ctx.creature?.alive && moodOf(ctx.creature) === 'feliz') ctx.track('happy');
       if (ctx.creature) await saveCreature(userId, ctx.creature, now);
+      if (JSON.stringify(daily) !== before) await saveDaily(userId, daily);
       const fresh = await loadUser(userId);
-      return { state: await snapshot(fresh, ctx.creature, now), events: ctx.events, result };
+      return { state: await snapshot(fresh, ctx.creature, now, daily), events: ctx.events, result };
     });
   }
 
@@ -227,6 +292,8 @@ export function createGame(db, config) {
       if (await ownedQty(userId, itemId) < 1) throw new HttpError(400, 'No te queda. Cómpralo en la tienda.');
       const outcome = unwrap(actions.feed(creature, itemId));
       await consume(userId, itemId);
+      ctx.track('feed');
+      if (outcome.reaction === 'favorita') ctx.track('favorite');
       return { reaction: outcome.reaction, itemId };
     }),
 
@@ -240,6 +307,7 @@ export function createGame(db, config) {
       if (itemId && await ownedQty(userId, itemId) < 1) throw new HttpError(400, 'No te queda jabón.');
       const outcome = unwrap(actions.bathe(creature, itemId ?? null, ctx.now, scale));
       if (itemId) await consume(userId, itemId);
+      ctx.track('bathe');
       return { reaction: outcome.reaction };
     }),
 
@@ -253,6 +321,7 @@ export function createGame(db, config) {
 
     pet: (userId) => operation(userId, async (ctx) => {
       const outcome = unwrap(actions.pet(needCreature(ctx), ctx.now, scale));
+      ctx.track('pet');
       return { reaction: outcome.reaction };
     }),
 
@@ -260,6 +329,7 @@ export function createGame(db, config) {
       const creature = needCreature(ctx);
       if (await ownedQty(userId, itemId) < 1) throw new HttpError(400, 'Ese juguete no es tuyo todavía.');
       const outcome = unwrap(actions.playToy(creature, itemId, ctx.now, scale));
+      ctx.track('toy');
       return { reaction: outcome.reaction, itemId };
     }),
 
@@ -293,6 +363,7 @@ export function createGame(db, config) {
       const amount = pendingIncome(ctx.user.income_at, ctx.now, scale);
       if (amount < 1) throw new HttpError(400, 'Todavía no hay monedas que recoger.');
       await db.run('UPDATE users SET coins = coins + ?, income_at = ? WHERE id = ?', [amount, ctx.now, userId]);
+      ctx.track('collect');
       return { coins: amount };
     }),
 
@@ -331,13 +402,56 @@ export function createGame(db, config) {
       );
       if (paid.coins > 0) await db.run('UPDATE users SET coins = coins + ? WHERE id = ?', [paid.coins, userId]);
       if (ctx.creature && ctx.creature.alive) actions.applyGameResult(ctx.creature, paid.won);
+      if (credible && elapsed >= MIN_PLAY_MS) ctx.track('play');
+      if (paid.won) ctx.track('win');
+      if (paid.won && play.difficulty !== 'facil') ctx.track('winHard');
       return { won: paid.won, coins: paid.coins, score: points, target: game.levels[play.difficulty].target };
     }),
+
+    // Recoge el premio de una misión cumplida. Al recoger la tercera, la
+    // racha suma un día y llega el premio extra.
+    claimMission: (userId, id) => operation(userId, async (ctx) => {
+      const daily = ctx.daily;
+      const mission = daily.missions.find((entry) => entry.id === id);
+      if (!mission) throw new HttpError(400, 'Esa misión ya no está. Mira las de hoy.');
+      if (mission.claimed) throw new HttpError(400, 'Ya has recogido esta.');
+      if (mission.progress < mission.goal) throw new HttpError(400, 'Todavía no la has cumplido.');
+      mission.claimed = true;
+      let bonus = 0;
+      if (daily.missions.every((entry) => entry.claimed)) {
+        daily.streak = nextStreak(daily.streak, daily.streakDay, daily.day);
+        daily.streakDay = daily.day;
+        daily.best = Math.max(daily.best, daily.streak);
+        bonus = streakBonus(daily.streak);
+      }
+      await db.run('UPDATE users SET coins = coins + ? WHERE id = ?', [mission.reward + bonus, userId]);
+      return { id, coins: mission.reward, bonus, streak: bonus ? daily.streak : null };
+    }),
+
+    // Zona horaria del navegador. Se manda al entrar y si cambia.
+    async setTimeZone(userId, timeZone) {
+      if (!isTimeZone(timeZone)) return;
+      await db.run('UPDATE users SET time_zone = ? WHERE id = ?', [timeZone, userId]);
+    },
+
+    // Ajustes: zona horaria y qué avisos quiere el jugador.
+    settings: async (userId, body) => {
+      if (body.timeZone !== undefined) {
+        if (!isTimeZone(body.timeZone)) throw new HttpError(400, 'Esa zona horaria no existe.');
+        await db.run('UPDATE users SET time_zone = ? WHERE id = ?', [body.timeZone, userId]);
+      }
+      if (body.notify !== undefined) {
+        if (!push) throw new HttpError(400, 'Los avisos no están disponibles en este servidor.');
+        await push.setPrefs(userId, body.notify);
+      }
+      return operation(userId);
+    },
 
     // Solo con DEV_TOOLS=1: adelanta el reloj del jugador.
     devSkip: (userId, hours) => {
       if (!config.devTools) throw new HttpError(404, 'No existe.');
-      const shift = Math.round((Math.max(0.01, Math.min(24 * 30, Number(hours) || 1)) * 60 * 60 * 1000) / scale);
+      const gameHours = Math.max(0.01, Math.min(24 * 30, Number(hours) || 1));
+      const shift = Math.round((gameHours * 60 * 60 * 1000) / scale);
       return db.tx(async () => {
         const creature = await loadCreature(userId);
         if (creature) {
@@ -347,6 +461,16 @@ export function createGame(db, config) {
           await saveCreature(userId, creature, Date.now());
         }
         await db.run('UPDATE users SET income_at = income_at - ?, tickets_at = tickets_at - ? WHERE id = ?', [shift, shift, userId]);
+        // Cada día de juego adelantado cuenta como un día de misiones: las
+        // de hoy pasan a ser de ayer y la racha sigue viva si se completaron.
+        const days = Math.floor(gameHours / 24);
+        const daily = await db.get('SELECT day, streak_day FROM daily WHERE user_id = ?', [userId]);
+        if (daily && days > 0) {
+          await db.run(
+            'UPDATE daily SET day = ?, streak_day = ? WHERE user_id = ?',
+            [dayAfter(daily.day, -days), daily.streak_day ? dayAfter(daily.streak_day, -days) : null, userId],
+          );
+        }
       }).then(() => operation(userId));
     },
   };

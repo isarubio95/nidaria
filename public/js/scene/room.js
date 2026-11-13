@@ -49,14 +49,23 @@ function archShape(width, straight) {
   return shape;
 }
 
-// Cielo de la ventana según la hora del jugador.
-function drawSky(ctx, w, h, date) {
+// Cielo de la ventana según la hora del jugador y, si lo ha activado,
+// el tiempo que hace donde está. `t` (segundos) mueve la lluvia y la nieve.
+const SKY = {
+  clear: { night: ['#1c2756', '#44539a'], dawn: ['#86b8ee', '#ffd9b8'], day: ['#62b8f2', '#d4f0ff'], dusk: ['#5f6fc4', '#ffb48c'] },
+  grey: { night: ['#232a45', '#3e4668'], dawn: ['#94a3bd', '#d6cbc4'], day: ['#a3b6ca', '#e1e8ef'], dusk: ['#6f7298', '#c8a99f'] },
+  storm: { night: ['#191c2e', '#2d3250'], dawn: ['#6c7789', '#a7acb6'], day: ['#75839a', '#b2bcc8'], dusk: ['#55577a', '#8e8193'] },
+};
+const GREY_SKIES = new Set(['cubierto', 'niebla', 'lluvia', 'nieve', 'tormenta']);
+export const MOVING_SKIES = new Set(['lluvia', 'nieve', 'tormenta']);
+// Posiciones fijas de gotas y copos: así no tiemblan entre dibujos.
+const DROPS = Array.from({ length: 28 }, (_, i) => [Math.abs(Math.sin(i * 12.9898) * 43758.5453) % 1, Math.abs(Math.sin(i * 78.233) * 12543.123) % 1]);
+
+function drawSky(ctx, w, h, date, weather = null, t = 0, still = false) {
   const hour = date.getHours() + date.getMinutes() / 60;
   const phase = hour < 6 || hour >= 21 ? 'night' : hour < 8.5 ? 'dawn' : hour < 18.5 ? 'day' : 'dusk';
-  const colors = {
-    night: ['#1c2756', '#44539a'], dawn: ['#86b8ee', '#ffd9b8'],
-    day: ['#62b8f2', '#d4f0ff'], dusk: ['#5f6fc4', '#ffb48c'],
-  }[phase];
+  const grey = GREY_SKIES.has(weather);
+  const colors = SKY[weather === 'tormenta' ? 'storm' : grey ? 'grey' : 'clear'][phase];
   const gradient = ctx.createLinearGradient(0, 0, 0, h);
   gradient.addColorStop(0, colors[0]);
   gradient.addColorStop(1, colors[1]);
@@ -71,6 +80,10 @@ function drawSky(ctx, w, h, date) {
     ctx.rect(x, y, 26 * s, 10 * s);
     ctx.fill();
   };
+  if (grey) {
+    drawWeather(ctx, w, h, phase, weather, t, still, cloud);
+    return phase;
+  }
   if (phase === 'night') {
     ctx.fillStyle = '#fff8d6';
     for (let i = 0; i < 16; i++) {
@@ -95,14 +108,68 @@ function drawSky(ctx, w, h, date) {
     ctx.fill();
     cloud(w * 0.12, h * 0.56, 1, '#ffffff');
     cloud(w * 0.56, h * 0.74, 0.8, '#ffffff');
+    if (weather === 'nubes') {
+      cloud(w * 0.42, h * 0.3, 1.1, '#ffffff');
+      cloud(w * 0.02, h * 0.18, 0.8, '#f4f8fc');
+    }
   } else {
     ctx.fillStyle = phase === 'dawn' ? '#fff0c4' : '#ffe0a6';
     ctx.beginPath();
     ctx.arc(w * (phase === 'dawn' ? 0.3 : 0.7), h * 0.82, 17, 0, Math.PI * 2);
     ctx.fill();
     cloud(w * 0.2, h * 0.5, 0.9, phase === 'dawn' ? '#fff1e6' : '#ffd0c0');
+    if (weather === 'nubes') cloud(w * 0.5, h * 0.28, 1, phase === 'dawn' ? '#fff1e6' : '#ffd0c0');
+  }
+  if (weather === 'nubes' && phase === 'night') {
+    cloud(w * 0.1, h * 0.5, 1.1, '#3a4677');
+    cloud(w * 0.5, h * 0.42, 0.9, '#3a4677');
   }
   return phase;
+}
+
+// Cielo tapado: nubes grises, y encima lluvia, nieve, niebla o tormenta.
+function drawWeather(ctx, w, h, phase, weather, t, still, cloud) {
+  const dark = phase === 'night';
+  const tone = weather === 'tormenta' ? (dark ? '#2b3049' : '#8a93a3') : dark ? '#3c4566' : '#eef2f6';
+  const shade = weather === 'tormenta' ? (dark ? '#22263b' : '#7a8394') : dark ? '#323a58' : '#dde3ea';
+  cloud(w * -0.08, h * 0.12, 1.3, shade);
+  cloud(w * 0.42, h * 0.06, 1.4, shade);
+  cloud(w * 0.08, h * 0.3, 1.2, tone);
+  cloud(w * 0.55, h * 0.26, 1.1, tone);
+
+  if (weather === 'lluvia' || weather === 'tormenta') {
+    ctx.strokeStyle = dark ? 'rgb(200 214 255 / 0.55)' : 'rgb(255 255 255 / 0.75)';
+    ctx.lineWidth = 1.6;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    for (const [a, b] of DROPS) {
+      const x = (a * w + t * 18) % w;
+      const y = (b * h + t * h * 1.4) % h;
+      ctx.moveTo(x, y);
+      ctx.lineTo(x - 3, y + 10);
+    }
+    ctx.stroke();
+  } else if (weather === 'nieve') {
+    ctx.fillStyle = '#ffffff';
+    DROPS.forEach(([a, b], i) => {
+      const y = (b * h + t * 16 * (0.7 + a * 0.6)) % h;
+      const x = a * w + Math.sin(t * 0.9 + i) * 4;
+      ctx.beginPath();
+      ctx.arc(x, y, 1.6 + (i % 3) * 0.6, 0, Math.PI * 2);
+      ctx.fill();
+    });
+  } else if (weather === 'niebla') {
+    ctx.fillStyle = dark ? 'rgb(150 160 190 / 0.35)' : 'rgb(255 255 255 / 0.5)';
+    for (let i = 0; i < 4; i++) ctx.fillRect(0, h * (0.3 + i * 0.18), w, h * 0.1);
+    ctx.fillStyle = dark ? 'rgb(150 160 190 / 0.2)' : 'rgb(255 255 255 / 0.3)';
+    ctx.fillRect(0, 0, w, h);
+  }
+
+  // Un relámpago suave cada pocos segundos. Sin él si se pide menos movimiento.
+  if (weather === 'tormenta' && !still && t % 9 < 0.14) {
+    ctx.fillStyle = 'rgb(255 255 255 / 0.45)';
+    ctx.fillRect(0, 0, w, h);
+  }
 }
 
 export function createRoom(canvas) {
@@ -784,7 +851,9 @@ export function createRoom(canvas) {
     scene.environmentIntensity = 0.5 - 0.36 * k;
     shadowMat.opacity = 0.22 - 0.1 * k;
     const sun = skyPhase === 'day' ? 0.5 : skyPhase === 'night' ? 0.14 : 0.3;
-    patchMat.opacity = sun * (1 - k * 0.5);
+    // Con el cielo tapado entra menos luz por la ventana.
+    const cover = GREY_SKIES.has(weather) ? 0.4 : 1;
+    patchMat.opacity = sun * cover * (1 - k * 0.5);
   }
 
   function setNight(on) {
@@ -793,11 +862,25 @@ export function createRoom(canvas) {
     gsap.to(dim, { k: on ? 1 : 0, duration: reduce ? 0 : 0.9, ease: 'power2.inOut', onUpdate: applyDim });
   }
 
-  function refreshSky() {
-    skyPhase = drawSky(skyCanvas.getContext('2d'), skyCanvas.width, skyCanvas.height, new Date());
+  let weather = null;
+  let skyDrawnAt = 0;
+  function drawWindow(t = performance.now() / 1000) {
+    skyPhase = drawSky(skyCanvas.getContext('2d'), skyCanvas.width, skyCanvas.height, new Date(), weather, t, reduce);
     skyMap.needsUpdate = true;
+    skyDrawnAt = t;
+  }
+
+  function refreshSky() {
+    drawWindow();
     patchMat.color.set(skyPhase === 'night' ? '#cfdcff' : skyPhase === 'day' ? '#fffdf2' : '#ffe9cf');
     applyDim();
+  }
+
+  // El tiempo que hace fuera: 'lluvia', 'nieve'… o null para el cielo de siempre.
+  function setWeather(kind) {
+    if (kind === weather) return;
+    weather = kind ?? null;
+    refreshSky();
   }
   refreshSky();
   const skyTimer = setInterval(refreshSky, 60 * 1000);
@@ -951,6 +1034,8 @@ export function createRoom(canvas) {
     const dt = Math.min(0.05, t - last);
     last = t;
     if (paused) return;
+    // La lluvia y la nieve se mueven a unos doce dibujos por segundo.
+    if (!reduce && MOVING_SKIES.has(weather) && t - skyDrawnAt > 0.08) drawWindow(t);
     if (actor) {
       actor.update(t, dt);
       const lift = actor.rig.bounce.position.y;
@@ -997,6 +1082,7 @@ export function createRoom(canvas) {
     evolve,
     farewell,
     setNight,
+    setWeather,
     setPaused(value) { paused = value; },
     destroy() {
       clearInterval(skyTimer);

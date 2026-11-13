@@ -176,6 +176,7 @@ class RoomView(context: Context) : GLSurfaceView(context), GLSurfaceView.Rendere
     fun setMood(mood: String) = post { setMood(mood) }
     fun say(seconds: Float) = post { say(seconds) }
     fun setNight(on: Boolean) = post { setNight(on) }
+    fun setWeather(kind: String?) = post { setWeather(kind) }
     fun setFocus(top: Float, bottom: Float, animate: Boolean = true) = post { setFocus(top, bottom, animate) }
     fun bath() = post { bath() }
     fun heal() = post { heal() }

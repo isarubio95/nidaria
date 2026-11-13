@@ -93,3 +93,37 @@ export function subtleNumber(initial) {
   };
   return el;
 }
+
+let switchId = 0;
+
+// Fila de ajuste con interruptor. `onChange(valor)` puede ser asíncrona y
+// devolver false si no se ha podido aplicar: entonces vuelve a su sitio.
+export function toggle({ label, hint, checked, onChange }) {
+  const id = `ajuste-${++switchId}`;
+  const button = h('button', {
+    class: 'switch', type: 'button', role: 'switch', id,
+    'aria-checked': String(Boolean(checked)),
+    'aria-labelledby': `${id}-label`,
+    'aria-describedby': hint ? `${id}-hint` : null,
+  }, h('span', { class: 'switch-knob', 'aria-hidden': 'true' }));
+  button.addEventListener('click', async () => {
+    const next = button.getAttribute('aria-checked') !== 'true';
+    button.setAttribute('aria-checked', String(next));
+    button.disabled = true;
+    let ok = true;
+    try {
+      ok = (await onChange(next)) !== false;
+    } catch {
+      ok = false;
+    }
+    if (!ok) button.setAttribute('aria-checked', String(!next));
+    button.disabled = false;
+  });
+  return h('div', { class: 'setting' },
+    h('div', { class: 'setting-text' },
+      h('label', { id: `${id}-label`, for: id }, label),
+      hint ? h('small', { id: `${id}-hint` }, hint) : null,
+    ),
+    button,
+  );
+}

@@ -5,6 +5,7 @@ import express from 'express';
 import { ROOT } from './config.js';
 import { createAuth, HttpError } from './auth.js';
 import { createGame } from './game/service.js';
+import { createPush } from './push.js';
 
 // Límite de peticiones en memoria, por IP y ventana de un minuto.
 function rateLimit(max) {
@@ -32,10 +33,16 @@ function importMapHash() {
   return `'sha256-${crypto.createHash('sha256').update(match[1]).digest('base64')}'`;
 }
 
-export function createApp(db, config) {
+// El servicio del tiempo al que el navegador pregunta, si el jugador
+// activa el clima real. La ubicación no pasa por este servidor.
+export const WEATHER_ORIGIN = 'https://api.open-meteo.com';
+
+// `push` se crea fuera para que el arranque decida cuándo empieza a
+// mandar avisos (y las pruebas, con qué).
+export function createApp(db, config, { push = createPush(db, config) } = {}) {
   const app = express();
   const auth = createAuth(db, config);
-  const game = createGame(db, config);
+  const game = createGame(db, config, push);
 
   app.disable('x-powered-by');
   const csp = [
@@ -44,7 +51,7 @@ export function createApp(db, config) {
     "style-src 'self' 'unsafe-inline'",
     "img-src 'self' data: blob:",
     "font-src 'self'",
-    "connect-src 'self'",
+    `connect-src 'self' ${WEATHER_ORIGIN}`,
     "worker-src 'self' blob:",
     "object-src 'none'",
     "base-uri 'self'",
@@ -80,10 +87,12 @@ export function createApp(db, config) {
   const authLimit = rateLimit(20);
   api.post('/auth/register', authLimit, handle(async (req, res) => {
     const userId = await auth.register(res, req.body?.name, req.body?.password);
+    await game.setTimeZone(userId, req.body?.timeZone);
     return game.state(userId);
   }));
   api.post('/auth/login', authLimit, handle(async (req, res) => {
     const userId = await auth.login(res, req.body?.name, req.body?.password);
+    await game.setTimeZone(userId, req.body?.timeZone);
     return game.state(userId);
   }));
   api.post('/auth/logout', handle(async (req, res) => {
@@ -93,9 +102,10 @@ export function createApp(db, config) {
 
   api.use(async (req, res, next) => {
     try {
-      const userId = await auth.userIdFrom(req);
-      if (!userId) throw new HttpError(401, 'Entra con tu cuenta para jugar.');
-      req.userId = userId;
+      const session = await auth.sessionFrom(req);
+      if (!session) throw new HttpError(401, 'Entra con tu cuenta para jugar.');
+      req.userId = session.userId;
+      req.sessionHash = session.tokenHash;
       next();
     } catch (error) {
       next(error);
@@ -118,6 +128,10 @@ export function createApp(db, config) {
   api.post('/income/collect', handle((req) => game.collectIncome(req.userId)));
   api.post('/games/start', handle((req) => game.startGame(req.userId, body(req).gameId, body(req).difficulty)));
   api.post('/games/finish', handle((req) => game.finishGame(req.userId, body(req).playId, body(req).score)));
+  api.post('/daily/claim', handle((req) => game.claimMission(req.userId, body(req).id)));
+  api.post('/settings', handle((req) => game.settings(req.userId, body(req))));
+  api.post('/push/subscribe', handle((req) => push.subscribe(req.userId, req.sessionHash, body(req))));
+  api.post('/push/unsubscribe', handle((req) => push.unsubscribe(req.userId, body(req).endpoint)));
   api.post('/dev/skip', handle((req) => game.devSkip(req.userId, body(req).hours)));
 
   api.use((req, res) => res.status(404).json({ error: 'No existe.' }));

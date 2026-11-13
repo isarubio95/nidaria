@@ -18,6 +18,12 @@ export function loadConfig(env = process.env) {
     // Activa el botón de adelantar el tiempo. Nunca en producción.
     devTools: env.DEV_TOOLS === '1',
     secureCookies: env.SECURE_COOKIES === '1',
+    // Claves de los avisos al móvil (Web Push). Si faltan, se generan y se
+    // guardan en la base de datos. El contacto va en cada aviso enviado:
+    // un mailto: o la dirección https del juego.
+    vapidPublicKey: env.VAPID_PUBLIC_KEY || null,
+    vapidPrivateKey: env.VAPID_PRIVATE_KEY || null,
+    vapidSubject: env.VAPID_SUBJECT || null,
     sessionDays: 30,
   };
 }

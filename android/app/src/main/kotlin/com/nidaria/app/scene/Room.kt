@@ -173,6 +173,8 @@ class Room(private val painter: Painter, private val reduce: Boolean) {
     // ── Día y noche ──
     private var dimK = 0f
     private var skyPhase = "day"
+    // El tiempo que hace fuera: «lluvia», «nieve»… o null para el cielo de siempre.
+    private var weather: String? = null
     private var skyAt = -1000f
 
     // ── Encuadre ── (medidas en dp, como los píxeles CSS de la web)
@@ -768,7 +770,9 @@ class Room(private val painter: Painter, private val reduce: Boolean) {
         scene.environmentIntensity = 0.5f - 0.36f * k
         shadowMat.opacity = 0.22f - 0.1f * k
         val sun = if (skyPhase == "day") 0.5f else if (skyPhase == "night") 0.14f else 0.3f
-        patchMat.opacity = sun * (1f - k * 0.5f)
+        // Con el cielo tapado entra menos luz por la ventana.
+        val cover = if (weather in Painter.GREY_SKIES) 0.4f else 1f
+        patchMat.opacity = sun * cover * (1f - k * 0.5f)
     }
 
     fun setNight(on: Boolean) {
@@ -778,8 +782,19 @@ class Room(private val painter: Painter, private val reduce: Boolean) {
         if (reduce) applyDim()
     }
 
+    fun setWeather(kind: String?) {
+        if (kind == weather) return
+        weather = kind
+        refreshSky()
+    }
+
+    private fun drawWindow(t: Float) {
+        skyPhase = painter.sky(skyMap, weather = weather, t = t, still = reduce)
+        skyAt = t
+    }
+
     private fun refreshSky() {
-        skyPhase = painter.sky(skyMap)
+        skyPhase = painter.sky(skyMap, weather = weather, t = now, still = reduce)
         patchMat.color.setHex(if (skyPhase == "night") "#cfdcff" else if (skyPhase == "day") "#fffdf2" else "#ffe9cf")
         applyDim()
     }
@@ -952,6 +967,9 @@ class Room(private val painter: Painter, private val reduce: Boolean) {
         if (t - skyAt >= 60f) {
             skyAt = t
             refreshSky()
+        } else if (!reduce && weather in Painter.MOVING_SKIES && t - skyAt > 0.08f) {
+            // La lluvia y la nieve se mueven a unos doce dibujos por segundo.
+            drawWindow(t)
         }
         actor?.let { a ->
             a.update(t, dt)

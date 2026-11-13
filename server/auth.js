@@ -111,16 +111,23 @@ export function createAuth(db, config) {
 
     async logout(req, res) {
       const token = readCookie(req);
-      if (token) await db.run('DELETE FROM sessions WHERE token_hash = ?', [hashToken(token)]);
+      if (token) {
+        const tokenHash = hashToken(token);
+        // Este navegador deja de recibir avisos de la cuenta.
+        await db.run('DELETE FROM push_subscriptions WHERE session_hash = ?', [tokenHash]);
+        await db.run('DELETE FROM sessions WHERE token_hash = ?', [tokenHash]);
+      }
       clearCookie(res);
     },
 
-    async userIdFrom(req) {
+    // { userId, tokenHash } de la sesión de la petición, o null.
+    async sessionFrom(req) {
       const token = readCookie(req);
       if (!token) return null;
-      const session = await db.get('SELECT user_id, expires_at FROM sessions WHERE token_hash = ?', [hashToken(token)]);
+      const tokenHash = hashToken(token);
+      const session = await db.get('SELECT user_id, expires_at FROM sessions WHERE token_hash = ?', [tokenHash]);
       if (!session || session.expires_at < Date.now()) return null;
-      return session.user_id;
+      return { userId: session.user_id, tokenHash };
     },
   };
 }

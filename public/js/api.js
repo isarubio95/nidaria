@@ -32,6 +32,16 @@ async function call(method, url, body) {
 
 const post = (url) => (body) => call('POST', url, body ?? {});
 
+// Zona horaria del dispositivo, p. ej. 'Europe/Madrid'. Decide cuándo
+// cambian las misiones y cuándo es de noche para los avisos.
+export function localTimeZone() {
+  try {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone ?? null;
+  } catch {
+    return null;
+  }
+}
+
 export const api = {
   state: () => call('GET', '/state'),
   register: post('/auth/register'),
@@ -51,5 +61,9 @@ export const api = {
   collect: post('/income/collect'),
   startGame: post('/games/start'),
   finishGame: post('/games/finish'),
+  claim: post('/daily/claim'),
+  settings: post('/settings'),
+  pushSubscribe: post('/push/subscribe'),
+  pushUnsubscribe: post('/push/unsubscribe'),
   devSkip: post('/dev/skip'),
 };

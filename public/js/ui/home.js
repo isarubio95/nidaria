@@ -17,6 +17,7 @@ import { openPlay } from './play.js';
 import { openWardrobe } from './wardrobe.js';
 import { openCriadex } from './criadex.js';
 import { openProfile } from './profile.js';
+import { openDaily, claimable } from './daily.js';
 
 const NEED_ICONS = { hunger: 'food', energy: 'moon', hygiene: 'drop', fun: 'ball', health: 'heart' };
 const MOOD_TEXT = {
@@ -53,7 +54,11 @@ export function mountHome(app, room) {
   }, coin(true), h('span', { class: 'sr-only' }, 'Recoger '), '+', piggyAmount);
 
   const shopButton = h('button', { class: 'btn btn-pink', type: 'button', onclick: () => openShop() }, icon('bag'), 'Tienda');
+  const dailyBadge = h('span', { class: 'badge num', 'aria-hidden': 'true', hidden: true });
+  const dailyLabel = h('span', { class: 'sr-only' });
+  const dailyButton = h('button', { class: 'side-btn', type: 'button', onclick: () => openDaily() }, icon('target'), 'Misiones', dailyBadge, dailyLabel);
   const side = h('nav', { class: 'side', 'aria-label': 'Más' },
+    dailyButton,
     h('button', { class: 'side-btn', type: 'button', onclick: () => openWardrobe() }, icon('hanger'), 'Armario'),
     h('button', { class: 'side-btn', type: 'button', onclick: () => openCriadex() }, icon('tree'), 'Criadex'),
   );
@@ -240,6 +245,11 @@ export function mountHome(app, room) {
     const income = store.income();
     piggy.hidden = income < 1;
     piggyAmount.textContent = fmt(income);
+
+    const ready = claimable(state.daily);
+    dailyBadge.hidden = ready === 0;
+    dailyBadge.textContent = String(ready);
+    dailyLabel.textContent = ready ? `, ${ready === 1 ? '1 premio' : `${ready} premios`} por recoger` : '';
   }
 
   function update(next) {

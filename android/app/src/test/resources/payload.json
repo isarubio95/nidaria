@@ -1,0 +1,168 @@
+{
+    "state": {
+        "now": 1794560766870,
+        "timeScale": 1,
+        "devTools": true,
+        "daily": {
+            "day": "2026-11-13",
+            "resetAt": 1794632400000,
+            "missions": [
+                {
+                    "id": "mimos",
+                    "goal": 10,
+                    "progress": 0,
+                    "reward": 15,
+                    "claimed": false,
+                    "text": "Hazle 10 mimos"
+                },
+                {
+                    "id": "partidas",
+                    "goal": 3,
+                    "progress": 0,
+                    "reward": 25,
+                    "claimed": false,
+                    "text": "Juega 3 minijuegos"
+                },
+                {
+                    "id": "favorita",
+                    "goal": 1,
+                    "progress": 0,
+                    "reward": 40,
+                    "claimed": false,
+                    "text": "Dale su comida favorita"
+                }
+            ],
+            "streak": 0,
+            "best": 0,
+            "doneToday": false,
+            "bonus": 20
+        },
+        "push": {
+            "key": "BHFx5E1x4ObUVeYtB6R8W1RObZH9kOInolKn9CzZ2vk-Z7YxLhniWWonAaJ2OpWSNRjBX-PG43e_jA92KXl6ip4",
+            "prefs": {
+                "care": true,
+                "growth": true,
+                "streak": true,
+                "games": true,
+                "quiet": true
+            }
+        },
+        "user": {
+            "name": "Muestra",
+            "timeZone": "America/Bogota",
+            "coins": 60,
+            "tickets": 5,
+            "ticketsMax": 5,
+            "ticketsNextAt": null,
+            "incomePending": 0,
+            "incomeCap": 72,
+            "incomeAt": 1794560766819
+        },
+        "creature": {
+            "id": "ff70b9a0-895b-46bf-90b0-ece518d0d9dd",
+            "name": "Gotita",
+            "genes": {
+                "v": 1,
+                "seed": 240661242,
+                "family": "gota",
+                "hue": 223,
+                "sat": 73,
+                "light": 69,
+                "hue2": 183,
+                "pattern": "rayas",
+                "patternAmt": 0.95,
+                "build": {
+                    "round": 0.68,
+                    "head": 0.79,
+                    "ears": 0.72,
+                    "eyes": 0.23,
+                    "eyeGap": 0.79,
+                    "tail": 0.25
+                },
+                "eyeStyle": 2,
+                "traits": [
+                    "curioso",
+                    "travieso"
+                ],
+                "favFood": "tarta",
+                "hateFood": "sopa"
+            },
+            "formId": "cria-gota",
+            "stage": "cria",
+            "bornAt": 1794560766836,
+            "stageAt": 1794560751836,
+            "lifeEndsAt": null,
+            "hunger": 64.92483000000001,
+            "energy": 71.94738100000001,
+            "hygiene": 63.95990933333333,
+            "fun": 39.921697916666666,
+            "health": 100,
+            "asleep": false,
+            "sick": false,
+            "alive": true,
+            "diedAt": null,
+            "deathCause": null,
+            "tickAt": 1794560766870,
+            "care": {
+                "hours": 0.0041761111111111105,
+                "sumHunger": 0.18761149896805557,
+                "sumEnergy": 0.3004605492776389,
+                "sumHygiene": 0.2671039105607408,
+                "sumFun": 0.16671788086950232,
+                "feeds": 1,
+                "sweets": 0,
+                "plays": 0,
+                "pets": 0,
+                "baths": 0,
+                "heals": 0,
+                "mistakes": 0
+            },
+            "lifeCare": {
+                "hours": 0,
+                "sum": 0
+            },
+            "equipped": {
+                "cabeza": null,
+                "cara": null,
+                "cuello": null
+            },
+            "cooldowns": {},
+            "history": [
+                "huevo",
+                "cria-gota"
+            ],
+            "generation": 1,
+            "parentId": null,
+            "pets": 0,
+            "lastPetAt": 0,
+            "known": {},
+            "code": "G-T52-L9R",
+            "formName": "Got\u00edn",
+            "stageName": "Cr\u00eda",
+            "nextStageAt": 1794564351836,
+            "mood": "bien",
+            "tendency": "gloton"
+        },
+        "eggOffer": null,
+        "inventory": {
+            "galleta": 1,
+            "manzana": 3,
+            "pan": 1
+        },
+        "criadex": {
+            "cria-gota": {
+                "firstAt": 1794560751836,
+                "times": 1
+            },
+            "huevo": {
+                "firstAt": 1794560766836,
+                "times": 1
+            }
+        }
+    },
+    "events": [],
+    "result": {
+        "reaction": "come",
+        "itemId": "pan"
+    }
+}

@@ -5,7 +5,11 @@
 
 package com.nidaria.app
 
+import android.Manifest
 import android.content.Context
+import android.content.Intent
+import android.os.Build
+import android.provider.Settings
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -14,10 +18,15 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import com.nidaria.app.data.Api
 import com.nidaria.app.data.ApiError
+import com.nidaria.app.data.Daily
+import com.nidaria.app.data.Mission
 import com.nidaria.app.data.GameEvent
 import com.nidaria.app.data.GameState
 import com.nidaria.app.data.Payload
 import com.nidaria.app.data.Store
+import com.nidaria.app.data.Weather
+import com.nidaria.app.data.WeatherNow
+import com.nidaria.app.notify.Notifier
 import com.nidaria.app.rules.BRANCH_INFO
 import com.nidaria.app.rules.Creature
 import com.nidaria.app.rules.FAMILY_INFO
@@ -55,6 +64,7 @@ sealed class Sheet {
     data object Criadex : Sheet()
     data class Play(val tab: String = "juegos") : Sheet()
     data object Profile : Sheet()
+    data object Daily : Sheet()
 }
 
 class DialogAction(val label: String, val value: Any?, val tone: Tone? = null)
@@ -84,8 +94,25 @@ class PlaySession(val game: MiniGame, val difficulty: String, val playId: String
 }
 
 class Game(context: Context, val room: RoomView, private val scope: CoroutineScope) {
+    private val app = context.applicationContext
     val api = Api(context)
     val store = Store()
+    private val weatherSource = Weather(context)
+
+    // Pide un permiso de Android y espera la respuesta. Lo pone la actividad.
+    var askPermission: (suspend (String) -> Boolean)? = null
+
+    // Avisos en este teléfono: activados por el jugador y permitidos por Android.
+    var alertsOn by mutableStateOf(Notifier.enabled(app))
+        private set
+    var alertsAllowed by mutableStateOf(Notifier.allowed(app))
+        private set
+
+    // Clima real: si está activado y lo último que se sabe.
+    var weatherOn by mutableStateOf(weatherSource.on)
+        private set
+    var weather by mutableStateOf<WeatherNow?>(weatherSource.cached())
+        private set
 
     var screen by mutableStateOf(Screen.Boot)
         private set
@@ -169,9 +196,32 @@ class Game(context: Context, val room: RoomView, private val scope: CoroutineSco
 
     fun apply(payload: Payload) {
         val state = payload.state ?: return
+        val before = store.state?.daily
         store.apply(state)
+        Notifier.remember(app, state, store.skew)
         live = store.live()?.creature
         route(state, payload)
+        announceMissions(before, state.daily)
+        linkDevice(state)
+    }
+
+    // Avisa con un mensaje breve cuando una acción cumple una misión.
+    private fun announceMissions(before: Daily?, after: Daily?) {
+        if (before == null || after == null || before.day != after.day) return
+        val wasDone = before.missions.filter { it.done }.map { it.id }.toSet()
+        for (mission in after.missions) {
+            if (mission.done && !mission.claimed && mission.id !in wasDone) toast("¡Misión cumplida! ${mission.text}.", holdMs = 3400)
+        }
+    }
+
+    // Una vez por visita, tras entrar: la zona horaria del teléfono, que
+    // decide cuándo cambian las misiones.
+    private var linked = false
+    private fun linkDevice(state: GameState) {
+        if (linked) return
+        linked = true
+        val zone = Api.localTimeZone()
+        if (state.user.timeZone != zone) scope.launch { send(silent = true) { setTimeZone(zone) } }
     }
 
     fun boot() {
@@ -179,6 +229,7 @@ class Game(context: Context, val room: RoomView, private val scope: CoroutineSco
             busy = true
             try {
                 apply(api.state())
+                refreshWeather()
             } catch (error: ApiError) {
                 if (error.status == 401) {
                     route(null, Payload())
@@ -249,6 +300,7 @@ class Game(context: Context, val room: RoomView, private val scope: CoroutineSco
         val events = payload.events
 
         if (state == null) {
+            linked = false
             dismissSheet()
             live = null
             bubbleOpen = false
@@ -306,6 +358,7 @@ class Game(context: Context, val room: RoomView, private val scope: CoroutineSco
                 room.showCreature(store.state?.creature ?: creature)
                 announce(creature, evolved[0])
                 say(line("nace"))
+                offerAlerts(creature)
             }
         } else if (!animating) {
             room.showCreature(creature)
@@ -358,7 +411,7 @@ class Game(context: Context, val room: RoomView, private val scope: CoroutineSco
         val creature = result.creature
         val quiet = sheet == null && dialogs.isEmpty() && play == null && resumed
         if (now > chatterAt && quiet && creature.alive && !creature.asleep && creature.stage != "huevo") {
-            say(idleLine(creature, moodOf(creature)))
+            say(idleLine(creature, moodOf(creature), weather))
         }
     }
 
@@ -374,7 +427,10 @@ class Game(context: Context, val room: RoomView, private val scope: CoroutineSco
 
     fun onResume() {
         resumed = true
+        // El permiso de avisos se puede quitar o dar desde los ajustes del teléfono.
+        alertsAllowed = Notifier.allowed(app)
         if (screen == Screen.Home) sync()
+        refreshWeather()
     }
 
     fun onPause() {
@@ -410,7 +466,7 @@ class Game(context: Context, val room: RoomView, private val scope: CoroutineSco
     private fun tap() {
         val creature = live ?: return
         if (!creature.alive) return
-        if (creature.asleep) say("Zzz…", 1.4f) else say(idleLine(creature, moodOf(creature)))
+        if (creature.asleep) say("Zzz…", 1.4f) else say(idleLine(creature, moodOf(creature), weather))
     }
 
     // Los toques al huevo se juntan y se mandan de una vez.
@@ -497,6 +553,121 @@ class Game(context: Context, val room: RoomView, private val scope: CoroutineSco
         toast("Ahora se llama ${payload.state?.creature?.name}.")
     }
 
+    // ── Avisos ──
+
+    // Tras la primera eclosión o evolución, una sola vez, se ofrecen los avisos.
+    private suspend fun offerAlerts(creature: Creature) {
+        val prefs = app.getSharedPreferences("nidaria", Context.MODE_PRIVATE)
+        if (alertsOn || prefs.getBoolean("avisos-ofrecidos", false)) return
+        prefs.edit().putBoolean("avisos-ofrecidos", true).apply()
+        val yes = dialog(
+            DialogSpec(
+                title = "¿Te aviso si ${creature.name} te necesita?",
+                text = "Te avisaremos si tiene hambre, se pone enferma o va a evolucionar, aunque tengas el juego cerrado. De noche, nunca.",
+                actions = listOf(DialogAction("Sí, avísame", true, Tone.Pink), DialogAction("Ahora no", false)),
+            ),
+        )
+        if (yes == true) enableAlerts().join()
+    }
+
+    fun enableAlerts(): Job = scope.launch {
+        if (Build.VERSION.SDK_INT >= 33) {
+            val granted = askPermission?.invoke(Manifest.permission.POST_NOTIFICATIONS) ?: false
+            if (!granted) {
+                alertsAllowed = Notifier.allowed(app)
+                toast("Sin permiso, el teléfono no puede enseñar los avisos.", error = true, holdMs = 3600)
+                return@launch
+            }
+        }
+        Notifier.setEnabled(app, true)
+        alertsOn = true
+        alertsAllowed = Notifier.allowed(app)
+        toast("Listo. Te avisaremos en este teléfono.")
+    }
+
+    fun disableAlerts() {
+        Notifier.setEnabled(app, false)
+        Notifier.clear(app)
+        alertsOn = false
+        toast("Este teléfono ya no te avisará.")
+    }
+
+    // Qué avisos quiere el jugador. Se guarda en la cuenta, como en la web.
+    fun setAlertGroup(group: String, on: Boolean): Job = scope.launch {
+        send { setAlert(group, on) }
+    }
+
+    // Los avisos están bloqueados en Android: se cambian en sus ajustes.
+    fun openAlertSettings() {
+        val intent = Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS)
+            .putExtra(Settings.EXTRA_APP_PACKAGE, app.packageName)
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        app.startActivity(intent)
+    }
+
+    // Solo para probar: repasa los avisos dentro de unos segundos.
+    fun devCheckAlerts() {
+        Notifier.checkSoon(app, 10)
+        toast("Sal del juego: en unos segundos se repasan los avisos.", holdMs = 3600)
+    }
+
+    // ── Clima ──
+
+    private fun refreshWeather() {
+        if (!weatherOn) {
+            room.setWeather(null)
+            return
+        }
+        scope.launch {
+            weather = weatherSource.refresh() ?: weather
+            room.setWeather(weather?.kind)
+        }
+    }
+
+    fun enableWeather(): Job = scope.launch {
+        val granted = askPermission?.invoke(Manifest.permission.ACCESS_COARSE_LOCATION) ?: false
+        if (!granted) {
+            toast("Sin permiso de ubicación no se puede saber qué tiempo hace.", error = true, holdMs = 3600)
+            return@launch
+        }
+        val now = weatherSource.enable()
+        if (!weatherSource.on) {
+            toast("No se ha podido saber dónde estás. Prueba de nuevo en un momento.", error = true, holdMs = 3600)
+            return@launch
+        }
+        weatherOn = true
+        weather = now
+        room.setWeather(now?.kind)
+    }
+
+    fun disableWeather() {
+        weatherSource.disable()
+        weatherOn = false
+        weather = null
+        room.setWeather(null)
+    }
+
+    // Recoge el premio de una misión. Con la tercera llega el de la racha.
+    fun claim(mission: Mission): Job = scope.launch {
+        val payload = send { claim(mission.id) } ?: return@launch
+        val coins = payload.int("coins")
+        val bonus = payload.int("bonus")
+        val streak = payload.int("streak")
+        if (bonus == 0) {
+            toast("Has recogido ${fmt(coins)} monedas.")
+            return@launch
+        }
+        dialog(
+            DialogSpec(
+                title = "¡Misiones del día completas!",
+                text = if (streak > 1) "Llevas una racha de ${com.nidaria.app.ui.days(streak)}. Mañana habrá tres más."
+                else "Has empezado una racha. Mañana habrá tres más.",
+                extra = { com.nidaria.app.ui.Reward(coins + bonus) },
+                actions = listOf(DialogAction("¡Bien!", true, Tone.Sun)),
+            ),
+        )
+    }
+
     fun devSkip(hours: Int): Job = scope.launch {
         closeSheet()
         send { devSkip(hours) }
@@ -509,6 +680,10 @@ class Game(context: Context, val room: RoomView, private val scope: CoroutineSco
         } catch (error: ApiError) {
             // Sin conexión también se sale: la sesión se borra del teléfono.
         }
+        // Este teléfono deja de avisar de la cuenta que sale.
+        Notifier.setEnabled(app, false)
+        Notifier.forget(app)
+        alertsOn = false
         store.clear()
         route(null, Payload())
     }

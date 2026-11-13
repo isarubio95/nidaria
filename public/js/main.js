@@ -3,8 +3,11 @@
 
 import { gsap } from 'gsap';
 import { h, reducedMotion } from './dom.js';
-import { api, ApiError } from './api.js';
-import { store } from './store.js';
+import { api, ApiError, localTimeZone } from './api.js';
+import { store, run } from './store.js';
+import { registerWorker, clearNotifications, syncPush, pushSupport, pushPermission, enablePush } from './pwa.js';
+import { startWeather, onWeather } from './weather.js';
+import { watchMissions } from './ui/daily.js';
 import { createRoom } from './scene/room.js';
 import { creatureThumb } from './scene/thumbs.js';
 import { getForm, BRANCH_INFO } from '/shared/forms.js';
@@ -35,6 +38,50 @@ try {
 } catch (error) {
   console.error(error);
   message('No se puede dibujar la escena', 'Tu navegador no tiene activados los gráficos 3D (WebGL). Actívalos o prueba con otro navegador.');
+}
+
+registerWorker();
+watchMissions();
+if (room) {
+  startWeather();
+  onWeather((weather) => room.setWeather(weather?.kind ?? null));
+}
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden) clearNotifications();
+});
+clearNotifications();
+
+// Una vez por visita, tras entrar: la zona horaria del dispositivo y, si
+// ya tenía los avisos, ligarlos a esta sesión.
+let linked = false;
+function linkDevice(state) {
+  if (linked || !state) return;
+  linked = true;
+  const timeZone = localTimeZone();
+  if (timeZone && state.user.timeZone !== timeZone) run(api.settings({ timeZone }), { silent: true });
+  syncPush(state.push?.key);
+}
+
+// Tras la primera eclosión o evolución, una sola vez, se ofrecen los avisos.
+const OFFERED = 'nidaria:avisos:ofrecidos';
+async function offerPush(creature) {
+  const key = store.state?.push?.key;
+  if (!key || pushSupport() !== 'ready' || pushPermission() !== 'default') return;
+  try {
+    if (localStorage.getItem(OFFERED)) return;
+    localStorage.setItem(OFFERED, '1');
+  } catch {
+    return;
+  }
+  const yes = await dialog({
+    title: `¿Te aviso si ${creature.name} te necesita?`,
+    text: 'Te mandaremos un aviso si tiene hambre, se pone enferma o va a evolucionar, aunque tengas el juego cerrado. De noche, nunca.',
+    actions: [{ label: 'Sí, avísame', value: true, tone: 'pink' }, { label: 'Ahora no', value: false }],
+  });
+  if (!yes) return;
+  const result = await enablePush(key);
+  if (result === 'on') toast('Listo. Te avisaremos en este dispositivo.');
+  else if (result === 'denied') toast('El navegador ha bloqueado los avisos. Puedes cambiarlo en sus ajustes.', 'error', 3600);
 }
 
 let screen = null;
@@ -87,6 +134,7 @@ function route(state, payload = {}) {
   const events = payload.events ?? [];
 
   if (!state) {
+    linked = false;
     closeSheet();
     room.setNight(false);
     room.showDemo();
@@ -146,6 +194,7 @@ function route(state, payload = {}) {
       room.showCreature(store.state.creature ?? creature);
       await announce(creature, evolved[0]);
       screen?.say?.(line('nace'));
+      await offerPush(creature);
     });
   } else if (!animating) {
     room.showCreature(creature);
@@ -158,7 +207,10 @@ function route(state, payload = {}) {
   }
 }
 
-store.onChange((state, payload) => route(state, payload));
+store.onChange((state, payload) => {
+  route(state, payload);
+  linkDevice(state);
+});
 
 async function boot() {
   if (!room) return;

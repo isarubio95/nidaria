@@ -124,6 +124,7 @@ fun SheetHost(game: Game, safeBottom: Dp) {
                         Sheet.Criadex -> CriadexSheet(game)
                         is Sheet.Play -> PlaySheet(game, sheet.tab)
                         Sheet.Profile -> ProfileSheet(game)
+                        Sheet.Daily -> DailySheet(game)
                     }
                 }
             }

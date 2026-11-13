@@ -7,3 +7,8 @@ local.properties
 captures/
 .idea/
 *.iml
+
+# Clave de subida a Google Play
+keystore.properties
+*.jks
+*.keystore

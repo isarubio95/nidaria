@@ -41,12 +41,28 @@ Se pasan como variables de entorno o en un fichero `.env` (ver `.env.example`).
 | `TIME_SCALE` | `1` | Acelera el tiempo del juego. Con `60`, una hora pasa en un minuto. |
 | `DEV_TOOLS` | sin activar | Con `1`, la ficha de la criatura muestra botones para adelantar el tiempo. No lo actives en producción. |
 | `SECURE_COOKIES` | sin activar | Con `1`, la cookie de sesión solo viaja por HTTPS. Actívalo en producción. |
+| `VAPID_PUBLIC_KEY` y `VAPID_PRIVATE_KEY` | sin definir | Claves de los avisos al móvil. Si faltan, se generan solas la primera vez y se guardan en la base de datos. |
+| `VAPID_SUBJECT` | `mailto:avisos@nidaria.invalid` | Contacto que va en cada aviso: un `mailto:` o la dirección `https://` del juego. Pon uno real en producción. |
 
 Ejemplo para ver evoluciones sin esperar:
 
 ```bash
 DEV_TOOLS=1 npm start
 ```
+
+## App instalable, avisos y clima
+
+El juego se puede instalar en la pantalla de inicio (`public/manifest.webmanifest`) y manda avisos al móvil con Web Push aunque esté cerrado: si la criatura tiene hambre o enferma, si va a evolucionar, si la racha de misiones está en peligro a partir de las 20:00 o si la energía de juego se ha llenado. Cada jugador los activa en la ficha de la criatura y elige cuáles quiere. Por defecto no se manda nada de 23:00 a 8:00 en su hora local: lo pendiente llega por la mañana.
+
+- Los avisos y la instalación necesitan HTTPS. `http://localhost` también vale, pero `http://<IP>:3000` desde el móvil no: para probarlos en el móvil hace falta servir el juego con HTTPS.
+- En iPhone y iPad solo llegan si el juego está añadido a la pantalla de inicio (iOS 16.4 o posterior).
+- El servidor mira cada medio minuto a quién le toca un aviso. Solo envía a los servicios de push de los navegadores (Google, Mozilla, Apple y Microsoft).
+- Cada suscripción va ligada a la sesión: al salir de la cuenta, ese navegador deja de recibir avisos.
+- Para fijar las claves en producción, genéralas con `npx web-push generate-vapid-keys` y ponlas en el `.env`. Si cambian, los navegadores suscritos se vuelven a suscribir solos la próxima vez que abran el juego.
+
+La app de Android no usa Web Push: calcula los avisos en el propio teléfono con las mismas reglas (ver `android/README.md`). Qué avisos se quieren se guarda en la cuenta y vale para las dos.
+
+El clima real es opcional y se activa en la ficha. El navegador pide la ubicación, la redondea a unos 10 km y pregunta el tiempo a [Open-Meteo](https://open-meteo.com) directamente. La ubicación no pasa por el servidor de Nidaria. La API gratuita de Open-Meteo es solo para uso no comercial: si el juego pasa a ganar dinero, hace falta su plan de pago.
 
 ## Pruebas
 
@@ -73,6 +89,8 @@ TEST_DATABASE_URL=postgresql://... npm test
 
 ## Dónde tocar las reglas
 
+- Misiones del día, sus premios y el premio de la racha: `shared/daily.js`.
+- Qué se avisa al móvil, sus textos y las horas de silencio: `server/game/alerts.js`.
 - Ritmo de las necesidades, enfermedad y muerte: `shared/needs.js`.
 - Duración de cada etapa y de la vida adulta, y reglas de evolución: `shared/forms.js`.
 - Precios y efectos de los artículos: `shared/catalog.js`.

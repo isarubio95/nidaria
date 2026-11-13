@@ -1,6 +1,7 @@
 // Lo que dice la criatura. Frases cortas, en primera persona.
 
 import { LOW } from '/shared/needs.js';
+import { currentWeather } from '../weather.js';
 
 const LINES = {
   hunger: ['Tengo hambre.', '¿Hay algo de comer?', 'Me suenan las tripas.'],
@@ -36,7 +37,43 @@ const TRAIT_LINES = {
   curioso: ['¿Qué es eso?', '¿Y eso para qué sirve?'],
 };
 
+// Lo que comenta de la hora del jugador y del tiempo que hace fuera.
+const HOUR_LINES = {
+  manana: ['¡Buenos días!', 'Qué bien se ha dormido.'],
+  noche: ['Qué tarde es…', 'Ya es de noche.', '¿Tú no duermes?'],
+  sueno: ['¿Nos vamos a dormir?', 'Es hora de dormir, ¿no?'],
+};
+const WEATHER_LINES = {
+  despejado: ['Hace un día precioso.', 'Mira qué sol.'],
+  estrellas: ['Hay muchas estrellas.', 'Qué noche tan clara.'],
+  nubes: ['Hay nubes con formas.', 'Esa nube parece un pez.'],
+  cubierto: ['Qué día más gris.'],
+  niebla: ['No se ve nada por la ventana.'],
+  lluvia: ['Está lloviendo.', 'Me gusta el ruido de la lluvia.'],
+  tormenta: ['¿Has oído ese trueno?', 'Menos mal que estamos en casa.'],
+  nieve: ['¡Está nevando!', 'Quiero tocar la nieve.'],
+  calor: ['Qué calor hace hoy.'],
+  frio: ['Brrr. Fuera hace frío.'],
+};
+
 const pick = (list) => list[Math.floor(Math.random() * list.length)];
+
+function contextLines(creature, date = new Date()) {
+  const hour = date.getHours();
+  const night = hour >= 23 || hour < 6;
+  const lines = [];
+  if (night) lines.push(...(creature.energy < 90 ? HOUR_LINES.sueno : HOUR_LINES.noche));
+  else if (hour >= 7 && hour < 11) lines.push(...HOUR_LINES.manana);
+  const weather = currentWeather();
+  if (weather) {
+    const day = hour >= 8 && hour < 20;
+    const kind = weather.kind === 'despejado' && !day ? 'estrellas' : weather.kind;
+    lines.push(...(WEATHER_LINES[kind] ?? []));
+    if (weather.temp >= 30) lines.push(...WEATHER_LINES.calor);
+    if (weather.temp <= 3) lines.push(...WEATHER_LINES.frio);
+  }
+  return lines;
+}
 
 export const line = (kind) => pick(LINES[kind] ?? LINES.calm);
 
@@ -45,6 +82,8 @@ export function idleLine(creature, mood) {
   if (creature.sick) return pick(LINES.sick);
   const worst = ['hunger', 'energy', 'hygiene', 'fun'].sort((a, b) => creature[a] - creature[b])[0];
   if (creature[worst] < LOW) return pick(LINES[worst]);
+  const context = contextLines(creature);
+  if (context.length && Math.random() < 0.35) return pick(context);
   if (Math.random() < 0.5) return pick(TRAIT_LINES[pick(creature.genes.traits)]);
   return pick(mood === 'feliz' ? LINES.happy : LINES.calm);
 }
