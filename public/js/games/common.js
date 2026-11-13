@@ -8,7 +8,10 @@ export const COLORS = {
   grey: '#b9aea4', greyEdge: '#8f8378',
 };
 
-export function loadImage(url) {
+// `source` es una dirección o una promesa de ella (como las miniaturas).
+export async function loadImage(source) {
+  const url = await source;
+  if (!url) return null;
   return new Promise((resolve) => {
     const img = new Image();
     img.onload = () => resolve(img);

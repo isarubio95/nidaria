@@ -10,6 +10,7 @@ const FACES = ['manzana', 'helado', 'tarta', 'pescado', 'pelota', 'peonza', 'pel
 export async function create({ area, level, hud, onEnd }) {
   const faces = shuffle(FACES).slice(0, level.pairs);
   const deck = shuffle([...faces, ...faces]);
+  const pictures = Object.fromEntries(await Promise.all(faces.map(async (face) => [face, await itemThumb(face)])));
   const rows = Math.ceil(deck.length / level.cols);
   let found = 0;
   let time = level.seconds;
@@ -33,7 +34,7 @@ export async function create({ area, level, hud, onEnd }) {
   const cards = deck.map((face) => {
     const card = h('button', { class: 'pair-card', type: 'button', 'aria-label': 'Carta tapada', dataset: { open: 'false', done: 'false' } },
       h('span', { class: 'pair-face pair-back' }),
-      h('span', { class: 'pair-face pair-front' }, h('img', { src: itemThumb(face), alt: '' })),
+      h('span', { class: 'pair-face pair-front' }, h('img', { src: pictures[face], alt: '' })),
     );
     card.addEventListener('click', () => {
       if (!running || locked || card.dataset.open === 'true') return;

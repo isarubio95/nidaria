@@ -7,6 +7,10 @@ import * as THREE from 'three';
 
 const DIRECT_LINE = 'vec3 irradiance = dotNL * directLight.color;';
 
+// En local se revisan los shaders al compilarlos (cuesta esperar a la
+// tarjeta gráfica); en el juego publicado, no.
+export const LOCAL = typeof location !== 'undefined' && ['localhost', '127.0.0.1', '[::1]'].includes(location.hostname);
+
 function patchClay(material, { wrap, sss, ao }) {
   const sssColor = new THREE.Color(sss);
   material.onBeforeCompile = (shader) => {

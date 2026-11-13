@@ -13,7 +13,8 @@ import { buildCreature, Actor } from './creature.js';
 import { buildEgg, buildItem, buildWear } from './props.js';
 import { wallpaperTexture, buildRug, BASE_DECOR, TILE_METERS } from './decor.js';
 import { buildHouse, WINDOW, WALL_Z } from './house.js';
-import { contactShadow } from './materials.js';
+import { contactShadow, LOCAL } from './materials.js';
+import { whenSculpted } from './sculpt-pool.js';
 import { sfx } from '../audio/sfx.js';
 
 const FOV = 30;
@@ -175,6 +176,9 @@ function drawWeather(ctx, w, h, phase, weather, t, still, cloud) {
 export function createRoom(canvas) {
   const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
+  // Revisar cada programa de la tarjeta gráfica obliga a esperarla: solo
+  // se hace en local, que es donde se cambian los shaders.
+  renderer.debug.checkShaderErrors = LOCAL;
   // En aparatos con pocos núcleos se baja un poco la resolución y la
   // sombra para que vaya fluido.
   const modest = (navigator.hardwareConcurrency ?? 8) <= 4;
@@ -194,6 +198,30 @@ export function createRoom(canvas) {
 
   const camera = new THREE.PerspectiveCamera(FOV, 1, 0.1, 80);
   const anisotropy = renderer.capabilities.getMaxAnisotropy();
+
+  // Lo nuevo (la criatura, un mueble, la comida) se enseña cuando ya se
+  // puede dibujar sin congelar la pantalla: esculpido y con sus programas
+  // de la tarjeta gráfica compilados. Donde el navegador sabe compilarlos
+  // en paralelo se espera a que acaben; donde no, compilar bloquea igual
+  // y esperar no ganaría nada.
+  const parallel = renderer.extensions.has('KHR_parallel_shader_compile');
+  function drawable(object) {
+    const sculpting = whenSculpted(object);
+    if (!parallel) return sculpting ?? Promise.resolve();
+    const compile = () => renderer.compileAsync(object, camera, scene).catch(() => {});
+    return sculpting ? sculpting.then(compile) : compile();
+  }
+
+  // Esconde `object` hasta que se pueda dibujar y entonces llama a `show`
+  // (que lo enseña, si para entonces sigue haciendo falta).
+  const reveals = new Set();
+  function reveal(object, show = () => { object.visible = true; }) {
+    object.visible = false;
+    const done = drawable(object).then(show);
+    reveals.add(done);
+    done.finally(() => reveals.delete(done));
+    return done;
+  }
 
   // ── Luces ──
   // El sol entra por la ventana (arriba a la izquierda) y proyecta sombras
@@ -297,13 +325,19 @@ export function createRoom(canvas) {
             node.receiveShadow = true;
           }
         });
-        // Sombra de contacto: el mueble se apoya en el suelo.
-        const box = new THREE.Box3().setFromObject(piece);
-        const size = box.getSize(new THREE.Vector3());
-        const shade = contactShadow(Math.max(0.3, size.x * 1.35), Math.max(0.3, size.z * 1.6), 0.85);
-        shade.position.x = (box.min.x + box.max.x) / 2;
-        shade.position.z = (box.min.z + box.max.z) / 2;
-        spots[spot].add(shade, piece);
+        spots[spot].add(piece);
+        // Sombra de contacto: el mueble se apoya en el suelo. Se mide
+        // cuando ya está esculpido (si se ha cambiado antes, no se pone).
+        reveal(piece, () => {
+          if (piece.parent !== spots[spot]) return;
+          piece.visible = true;
+          const box = new THREE.Box3().setFromObject(piece);
+          const size = box.getSize(new THREE.Vector3());
+          const shade = contactShadow(Math.max(0.3, size.x * 1.35), Math.max(0.3, size.z * 1.6), 0.85);
+          shade.position.x = (box.min.x + box.max.x) / 2;
+          shade.position.z = (box.min.z + box.max.z) / 2;
+          spots[spot].add(shade);
+        });
       }
     }
     applyDim();
@@ -379,6 +413,7 @@ export function createRoom(canvas) {
       if (!itemId) continue;
       const wear = buildWear(itemId, target.anchors);
       if (!wear) continue;
+      reveal(wear.object);
       if (wear.parent === 'head') {
         target.rig.headPivot.add(wear.object);
       } else if (target.plan.blob) {
@@ -392,17 +427,38 @@ export function createRoom(canvas) {
   }
 
   function putActor(formId, genes, equipped, mood) {
-    actor = new Actor(buildCreature(formId, genes));
+    const built = buildCreature(formId, genes);
+    // La criatura existe en el acto (se le puede cambiar el humor, mira,
+    // reacciona), pero no se ve hasta que se puede dibujar. La ropa
+    // aparece por su cuenta cuando está lista.
+    actor = new Actor(built);
+    const shown = actor;
+    reveal(built.object, () => {
+      if (actor !== shown) return;
+      shown.object.visible = true;
+      blob.visible = true;
+    });
     dress(actor, equipped);
     mount.add(actor.object);
     actor.setMood(mood ?? 'bien');
     const width = actor.plan.body.w * actor.plan.scale;
     setHits([{ x: 0, y: actor.height * 0.5, rx: width * 0.62 + 0.12, ry: actor.height * 0.56, rz: 0.5 }]);
-    blob.visible = true;
     blob.scale.set(width * 1.5, width * 1.1, 1);
     blob.userData.base = width;
     const wide = Math.max(actor.plan.body.w, actor.plan.head.rx * 2) * actor.plan.scale;
     setSubject(clamp(actor.height + 0.44, 1.12, 1.9), clamp(wide + 0.52, 1.0, 1.7));
+    blob.visible = false;
+  }
+
+  // Empieza a esculpir la criatura que va a salir (y su ropa) para que
+  // esté lista cuando acabe la animación de nacer o evolucionar.
+  function prefetch(view) {
+    if (!view || view.stage === 'huevo') return;
+    const built = buildCreature(view.formId, view.genes);
+    for (const itemId of Object.values(view.equipped ?? {})) {
+      if (itemId) buildWear(itemId, built.anchors);
+    }
+    built.dispose();
   }
 
   function putEgg(genes) {
@@ -624,37 +680,43 @@ export function createRoom(canvas) {
         if (reaction === 'asco') actor.shake();
         return resolve();
       }
-      const holder = new THREE.Group();
-      holder.add(item);
-      holder.scale.setScalar(0.36);
-      holder.position.set(0, FLOOR_Y + 0.9, 0.62);
-      scene.add(holder);
-      const done = () => {
-        scene.remove(holder);
-        resolve();
-      };
-      gsap.timeline()
-        .to(holder.position, { y: FLOOR_Y, duration: 0.42, ease: 'bounce.out' })
-        .call(() => {
-          const mouthful = new THREE.Vector3(0, FLOOR_Y + 0.25, 0.6);
-          actor.eat((bite) => {
-            const left = 0.36 * [0.72, 0.42, 0.001][bite];
-            gsap.to(holder.scale, { x: left, y: left, z: left, duration: 0.12 });
-            crumbs(mouthful);
-            sfx('bocado');
-          }).eventCallback('onComplete', () => {
-            actor.busy = false;
-            actor.setMouth(actor.restMouth());
-            react();
-            if (reaction === 'favorita') {
-              hearts(headCenter(), 4);
-              actor.hop(2, 0.22);
-            } else if (reaction === 'asco') {
-              actor.shake();
-            }
-            done();
+      const start = () => {
+        if (!actor) return resolve();
+        const holder = new THREE.Group();
+        holder.add(item);
+        holder.scale.setScalar(0.36);
+        holder.position.set(0, FLOOR_Y + 0.9, 0.62);
+        scene.add(holder);
+        const done = () => {
+          scene.remove(holder);
+          resolve();
+        };
+        gsap.timeline()
+          .to(holder.position, { y: FLOOR_Y, duration: 0.42, ease: 'bounce.out' })
+          .call(() => {
+            if (!actor) return done();
+            const mouthful = new THREE.Vector3(0, FLOOR_Y + 0.25, 0.6);
+            actor.eat((bite) => {
+              const left = 0.36 * [0.72, 0.42, 0.001][bite];
+              gsap.to(holder.scale, { x: left, y: left, z: left, duration: 0.12 });
+              crumbs(mouthful);
+              sfx('bocado');
+            }).eventCallback('onComplete', () => {
+              actor.busy = false;
+              actor.setMouth(actor.restMouth());
+              react();
+              if (reaction === 'favorita') {
+                hearts(headCenter(), 4);
+                actor.hop(2, 0.22);
+              } else if (reaction === 'asco') {
+                actor.shake();
+              }
+              done();
+            });
           });
-        });
+      };
+      // La comida cae cuando ya se puede dibujar.
+      drawable(item).then(start);
     });
   }
 
@@ -663,18 +725,22 @@ export function createRoom(canvas) {
       const item = buildItem(itemId);
       if (actor) sfx('juguete');
       if (!actor || !item || reduce) return resolve();
-      const holder = new THREE.Group();
-      holder.add(item);
-      holder.scale.setScalar(0.001);
-      holder.position.set(0.5, FLOOR_Y, 0.42);
-      scene.add(holder);
-      actor.hop(3, 0.24);
-      gsap.timeline({ onComplete: () => { scene.remove(holder); resolve(); } })
-        .to(holder.scale, { x: 0.42, y: 0.42, z: 0.42, duration: 0.3, ease: 'back.out(2)' })
-        .to(holder.position, { y: FLOOR_Y + 0.5, duration: 0.24, ease: 'power2.out', yoyo: true, repeat: 5 }, 0.2)
-        .to(holder.rotation, { y: Math.PI * 2, duration: 1.4, ease: 'none' }, 0.2)
-        .call(() => sparks(bodyCenter(), 8, 0.6), null, 1.0)
-        .to(holder.scale, { x: 0.001, y: 0.001, z: 0.001, duration: 0.25, ease: 'back.in(2)' }, 1.7);
+      const start = () => {
+        if (!actor) return resolve();
+        const holder = new THREE.Group();
+        holder.add(item);
+        holder.scale.setScalar(0.001);
+        holder.position.set(0.5, FLOOR_Y, 0.42);
+        scene.add(holder);
+        actor.hop(3, 0.24);
+        gsap.timeline({ onComplete: () => { scene.remove(holder); resolve(); } })
+          .to(holder.scale, { x: 0.42, y: 0.42, z: 0.42, duration: 0.3, ease: 'back.out(2)' })
+          .to(holder.position, { y: FLOOR_Y + 0.5, duration: 0.24, ease: 'power2.out', yoyo: true, repeat: 5 }, 0.2)
+          .to(holder.rotation, { y: Math.PI * 2, duration: 1.4, ease: 'none' }, 0.2)
+          .call(() => sparks(bodyCenter(), 8, 0.6), null, 1.0)
+          .to(holder.scale, { x: 0.001, y: 0.001, z: 0.001, duration: 0.25, ease: 'back.in(2)' }, 1.7);
+      };
+      drawable(item).then(start);
     });
   }
 
@@ -735,6 +801,7 @@ export function createRoom(canvas) {
         return resolve();
       }
       mode = 'busy';
+      prefetch(view);
       for (const delay of [0, 0.35, 0.7]) sfx('crac', { delay });
       const shellColor = egg.userData.shellColor?.clone() ?? egg.children[0].material.color.clone();
       gsap.timeline({ onComplete: resolve })
@@ -772,6 +839,7 @@ export function createRoom(canvas) {
         return resolve();
       }
       sfx('evoluciona');
+      prefetch(view);
       const old = actor;
       old.timeline?.kill();
       old.busy = true;
@@ -1065,6 +1133,13 @@ export function createRoom(canvas) {
   }
 
   // ── Bucle ──
+  // Al abrir, la habitación entera se compila en paralelo; mientras, solo
+  // se pinta el fondo.
+  const backdrop = new THREE.Scene();
+  backdrop.background = scene.background;
+  let warming = parallel;
+  if (parallel) renderer.compileAsync(scene, camera).catch(() => {}).then(() => { warming = false; });
+
   let last = 0;
   let snoreAt = 0;
   renderer.setAnimationLoop((ms) => {
@@ -1072,6 +1147,10 @@ export function createRoom(canvas) {
     const dt = Math.min(0.05, t - last);
     last = t;
     if (paused) return;
+    if (warming) {
+      renderer.render(backdrop, camera);
+      return;
+    }
     // La lluvia y la nieve se mueven a unos doce dibujos por segundo.
     if (!reduce && MOVING_SKIES.has(weather) && t - skyDrawnAt > 0.08) drawWindow(t);
     if (actor) {
@@ -1125,6 +1204,8 @@ export function createRoom(canvas) {
     setWeather,
     setDecor,
     setPaused(value) { paused = value; },
+    // Promesa de que todo lo que hay en la habitación está esculpido.
+    ready: () => Promise.all([...reveals]).then(() => whenSculpted(scene)),
     snapshot,
     destroy() {
       clearInterval(skyTimer);

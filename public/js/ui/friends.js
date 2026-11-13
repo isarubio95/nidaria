@@ -89,7 +89,7 @@ export function openFriends() {
     await dialog({
       title: `Un regalo de ${payload.result.from}`,
       text: `Te ha dejado: ${item?.name ?? 'algo'}. Ya está entre tus cosas.`,
-      art: itemThumb(payload.result.itemId) || null,
+      art: itemThumb(payload.result.itemId),
       actions: [{ label: '¡Gracias!', value: true, tone: 'sun' }],
     });
     return true;

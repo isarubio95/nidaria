@@ -4,7 +4,7 @@ import { h } from '../dom.js';
 import { api } from '../api.js';
 import { run } from '../store.js';
 import { FAMILY_INFO } from '/shared/dna.js';
-import { eggThumb } from '../scene/thumbs.js';
+import { eggThumb, showThumb } from '../scene/thumbs.js';
 
 export function mountEggs(app, room, state) {
   const offer = state.eggOffer;
@@ -28,7 +28,7 @@ export function mountEggs(app, room, state) {
     class: 'item egg', type: 'button', role: 'radio', 'aria-checked': 'false',
     onclick: () => select(index),
   },
-    h('img', { class: 'item-thumb', src: eggThumb(egg), alt: '' }),
+    showThumb(h('img', { class: 'item-thumb', alt: '' }), eggThumb(egg)),
     h('span', { class: 'item-name' }, FAMILY_INFO[egg.family].name),
     egg.heir ? h('span', { class: 'item-tag' }, 'Heredero') : null,
   ));

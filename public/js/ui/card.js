@@ -60,6 +60,8 @@ const playAt = () => location.host;
 export async function makeCard(room, creature) {
   const sample = `${creature.name}${creature.formName}${creature.code}Nidaria`;
   await Promise.all(['900', '700'].map((weight) => document.fonts.load(`${weight} 40px "Zen Maru Gothic"`, sample).catch(() => null)));
+  // Que la foto no salga sin algo que aún se esté esculpiendo.
+  await room.ready();
 
   const canvas = document.createElement('canvas');
   canvas.width = W;

@@ -1,21 +1,44 @@
 // Miniaturas: dibuja un modelo 3D en un lienzo aparte y lo devuelve como
-// imagen. Se guardan en memoria para no repetir el trabajo.
+// imagen (una promesa con su dirección `data:`). Se guardan en memoria y,
+// entre visitas, en IndexedDB; la clave lleva la huella del código de la
+// escena, así que al cambiar un modelo las viejas dejan de valer solas.
+// Se esculpen sin prisa: lo que pide la habitación pasa antes.
 
 import * as THREE from 'three';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { createGenes } from '/shared/dna.js';
 import { buildCreature } from './creature.js';
 import { buildItem, buildEgg } from './props.js';
+import { sculptingAs, whenSculpted } from './sculpt-pool.js';
+import { fingerprint } from './sdf-core.js';
+import { drawer } from './idb.js';
+import { LOCAL } from './materials.js';
 
 const SIZE = 192;
-const cache = new Map();
+const memory = new Map();
+const store = drawer('thumbs', 12 * 1024 * 1024);
 let kit = null;
+
+// Lo que decide cómo sale una miniatura.
+const SOURCES = ['./sdf-core.js', './sdf.js', './creature.js', './plan.js', './props.js', './decor.js', './materials.js', './thumbs.js', '/shared/rng.js'];
+let version = null;
+function sceneVersion() {
+  version ??= Promise.all(SOURCES.map(async (path) => {
+    const response = await fetch(new URL(path, import.meta.url), { cache: 'force-cache' });
+    if (!response.ok) throw new Error(path);
+    return response.text();
+  }))
+    .then((texts) => fingerprint([THREE.REVISION, ...texts].join('\n')))
+    .catch(() => null);
+  return version;
+}
 
 function setup() {
   if (kit) return kit;
   const canvas = document.createElement('canvas');
   canvas.width = canvas.height = SIZE;
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true, preserveDrawingBuffer: true });
+  renderer.debug.checkShaderErrors = LOCAL;
   renderer.setPixelRatio(1);
   renderer.setSize(SIZE, SIZE, false);
   renderer.setClearColor(0x000000, 0);
@@ -36,7 +59,8 @@ function setup() {
   const camera = new THREE.PerspectiveCamera(24, 1, 0.1, 50);
   const flat = document.createElement('canvas');
   flat.width = flat.height = SIZE;
-  kit = { canvas, renderer, scene, camera, flat, ctx: flat.getContext('2d') };
+  const parallel = renderer.extensions.has('KHR_parallel_shader_compile');
+  kit = { canvas, renderer, scene, camera, flat, ctx: flat.getContext('2d'), parallel };
   return kit;
 }
 
@@ -51,6 +75,10 @@ function render(object, view, silhouette) {
   camera.position.copy(center).add(new THREE.Vector3(view[0], view[1], 1).normalize().multiplyScalar(distance));
   camera.lookAt(center);
   renderer.render(scene, camera);
+  // El lienzo no está en la página: sin esperar a que la tarjeta gráfica
+  // acabe, Chrome copia a veces un dibujo a medias (o vacío) a partir de
+  // la segunda miniatura.
+  renderer.getContext().finish();
   scene.remove(object);
   ctx.globalCompositeOperation = 'source-over';
   ctx.clearRect(0, 0, SIZE, SIZE);
@@ -71,33 +99,55 @@ function free(object) {
 }
 
 function cached(key, make) {
-  if (!cache.has(key)) {
-    try {
-      cache.set(key, make());
-    } catch {
-      cache.set(key, '');
-    }
+  if (!memory.has(key)) memory.set(key, produce(key, make));
+  return memory.get(key);
+}
+
+async function produce(key, make) {
+  const stamp = await sceneVersion();
+  const slot = stamp && `${stamp}:${key}`;
+  if (slot) {
+    const stored = await store.get(slot);
+    if (typeof stored === 'string') return stored;
   }
-  return cache.get(key);
+  let url = '';
+  try {
+    url = (await make()) ?? '';
+  } catch {
+    url = '';
+  }
+  if (slot && url) store.put(slot, url, url.length * 2);
+  return url;
+}
+
+// Espera a que el objeto esté esculpido y, donde se puede, a que sus
+// programas de la tarjeta gráfica se compilen sin bloquear.
+async function drawable(object) {
+  await whenSculpted(object);
+  const { renderer, camera, scene, parallel } = setup();
+  if (parallel) await renderer.compileAsync(object, camera, scene).catch(() => {});
+}
+
+// Construye el modelo sin prisa, espera a que se pueda dibujar y lo dibuja.
+// `persist`: si su malla merece guardarse (los artículos y los huevos
+// salen también en la habitación; las criaturas de miniatura, no).
+async function snap(build, view, { silhouette = false, persist = true } = {}) {
+  const object = sculptingAs({ priority: 'low', persist }, build);
+  if (!object) return '';
+  try {
+    await drawable(object);
+    return render(object, view, silhouette);
+  } finally {
+    free(object);
+  }
 }
 
 export function itemThumb(itemId) {
-  return cached(`item:${itemId}`, () => {
-    const object = buildItem(itemId);
-    if (!object) return '';
-    const url = render(object, [0.45, 0.42]);
-    free(object);
-    return url;
-  });
+  return cached(`item:${itemId}`, () => snap(() => buildItem(itemId), [0.45, 0.42]));
 }
 
 export function eggThumb(egg) {
-  return cached(`egg:${egg.hue}:${egg.sat}:${egg.light}:${egg.hue2}`, () => {
-    const object = buildEgg(egg);
-    const url = render(object, [0.2, 0.18]);
-    free(object);
-    return url;
-  });
+  return cached(`egg:${egg.hue}:${egg.sat}:${egg.light}:${egg.hue2}`, () => snap(() => buildEgg(egg), [0.2, 0.18]));
 }
 
 const CANON = { pelusa: createGenes(101, 'pelusa'), hoja: createGenes(202, 'hoja'), gota: createGenes(303, 'gota') };
@@ -106,37 +156,42 @@ export const canonGenes = (family) => CANON[family];
 export function creatureThumb(formId, genes, silhouette = false) {
   if (formId === 'huevo') {
     if (!silhouette) return eggThumb(genes);
-    return cached('egg:silhouette', () => {
-      const object = buildEgg(genes);
-      const url = render(object, [0.2, 0.18], true);
-      free(object);
-      return url;
-    });
+    return cached('egg:silhouette', () => snap(() => buildEgg(genes), [0.2, 0.18], { silhouette: true }));
   }
-  return cached(`form:${formId}:${genes.seed}:${genes.hue}:${silhouette}`, () => {
-    const built = buildCreature(formId, genes, { detail: silhouette ? 'tiny' : 'low' });
-    const url = render(built.object, [0.28, 0.16], silhouette);
-    built.dispose();
-    return url;
+  return cached(`form:${formId}:${fingerprint(JSON.stringify(genes))}:${silhouette}`, async () => {
+    const built = sculptingAs({ priority: 'low', persist: false }, () => buildCreature(formId, genes, { detail: silhouette ? 'tiny' : 'low' }));
+    try {
+      await drawable(built.object);
+      return render(built.object, [0.28, 0.16], silhouette);
+    } finally {
+      built.dispose();
+    }
   });
 }
 
-// Rellena imágenes poco a poco para no bloquear la interfaz: en cada
-// fotograma hace las que caben en `budgetMs` milisegundos (al menos una).
-export function lazyThumbs(jobs, budgetMs = 12) {
+// Rellena imágenes según van saliendo, unas pocas a la vez para que lo
+// primero de la lista llegue antes. Devuelve una función para parar.
+export function lazyThumbs(jobs, together = 3) {
   let index = 0;
   let stopped = false;
-  const step = () => {
-    if (stopped) return;
-    const start = performance.now();
-    while (index < jobs.length) {
-      const { img, make } = jobs[index++];
-      const url = make();
-      if (url) img.src = url;
-      if (performance.now() - start > budgetMs) break;
-    }
-    if (index < jobs.length) requestAnimationFrame(step);
+  const next = () => {
+    if (stopped || index >= jobs.length) return;
+    const { img, make } = jobs[index++];
+    Promise.resolve()
+      .then(make)
+      .then((url) => {
+        if (!stopped && url) img.src = url;
+      }, () => {})
+      .finally(next);
   };
-  requestAnimationFrame(step);
+  for (let i = 0; i < together; i++) next();
   return () => { stopped = true; };
+}
+
+// Pone en `img` la miniatura cuando llegue (una promesa o una dirección).
+export function showThumb(img, thumb) {
+  Promise.resolve(thumb).then((url) => {
+    if (url) img.src = url;
+  }, () => {});
+  return img;
 }

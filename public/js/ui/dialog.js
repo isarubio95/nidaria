@@ -8,6 +8,17 @@ const root = document.getElementById('dialogs');
 const scrim = document.getElementById('scrim');
 const closeMs = 150;
 
+// La imagen puede ser una dirección o la promesa de una (las miniaturas
+// de la escena llegan así). Si al final no hay, no se deja el hueco.
+function picture(art) {
+  const img = h('img', { class: 'dialog-art', alt: '' });
+  Promise.resolve(art).then((url) => {
+    if (url) img.src = url;
+    else img.remove();
+  }, () => img.remove());
+  return img;
+}
+
 // dialog({ title, text, art, extra, actions: [{ label, value, tone, run, keep }] })
 // `run` se llama dentro del toque (hace falta para compartir o descargar)
 // y, con `keep`, el diálogo sigue abierto.
@@ -44,7 +55,7 @@ export function dialog({ title, text, art, extra, actions = [{ label: 'Vale', va
     }, action.label));
 
     const el = h('div', { class: 't-modal dialog', role: 'dialog', 'aria-modal': 'true', 'aria-labelledby': titleId },
-      art ? h('img', { class: 'dialog-art', src: art, alt: '' }) : null,
+      art ? picture(art) : null,
       h('h2', { id: titleId }, title),
       text ? h('p', {}, text) : null,
       extra ?? null,

@@ -282,7 +282,7 @@ const BUILDERS = {
       S.sub(Sh.sphere([0.05, 0.3, 0.02], 0.06), { k: 0.02 });
       S.sub(Sh.cone([0, 0.3, 0.13], [0, 0.3, 0.04], 0.012, 0.075), { k: 0.02 });
     }, { cell: 0.014 });
-    const film = new THREE.MeshPhysicalMaterial({ color: '#e8f6ff', roughness: 0.02, transparent: true, opacity: 0.2, iridescence: 1, iridescenceIOR: 1.3, iridescenceThicknessRange: [200, 600], clearcoat: 1, clearcoatRoughness: 0, depthWrite: false });
+    const film = new THREE.MeshPhysicalMaterial({ color: '#e8f6ff', roughness: 0.02, transparent: true, opacity: 0.2, iridescence: 1, iridescenceIOR: 1.3, iridescenceThicknessMinimum: 200, iridescenceThicknessMaximum: 600, clearcoat: 1, clearcoatRoughness: 0, depthWrite: false });
     const g = group(bar);
     for (const [x, y, z, r] of [[0.24, 0.56, 0.05, 0.16], [-0.14, 0.5, 0.1, 0.1], [0.04, 0.8, 0, 0.07], [-0.3, 0.72, -0.05, 0.05]]) {
       const bubble = new THREE.Mesh(BALL, film);
