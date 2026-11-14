@@ -79,7 +79,8 @@ fun group(vararg children: Object3D): Group {
     return g
 }
 
-enum class MaterialKind { Standard, Basic, Shadow }
+// Flame y FlameGlow: la llama de dibujo animado y su halo (scene/Fire.kt).
+enum class MaterialKind { Standard, Basic, Shadow, Flame, FlameGlow }
 
 class Material(val kind: MaterialKind = MaterialKind.Standard) {
     val color = Color()
@@ -118,6 +119,15 @@ class Material(val kind: MaterialKind = MaterialKind.Standard) {
     var bumpUvScaleX = 1f
     var bumpUvScaleY = 1f
 
+    // Lo que añade un modelo .glb (GlbCreature.kt): la textura de las
+    // brasas, que brilla, y un giro de tono (en radianes), saturación y luz
+    // según el ADN, que se aplica a su color y a sus brasas.
+    var emissiveMap: Texture? = null
+    val tint = floatArrayOf(0f, 1f, 1f)
+
+    // Las llamas (Fire.kt): sus colores, en sRGB, y lo que arden.
+    var flame: FlameLook? = null
+
     // Compartido entre muchas mallas: no se toca ni se suelta con ellas.
     var shared = false
 
@@ -152,6 +162,9 @@ class Material(val kind: MaterialKind = MaterialKind.Standard) {
         m.bumpScale = bumpScale
         m.bumpUvScaleX = bumpUvScaleX
         m.bumpUvScaleY = bumpUvScaleY
+        m.emissiveMap = emissiveMap
+        tint.copyInto(m.tint)
+        m.flame = flame
         return m
     }
 
@@ -171,6 +184,13 @@ class Material(val kind: MaterialKind = MaterialKind.Standard) {
             return m
         }
     }
+}
+
+// Cómo es una llama: colores en sRGB (se pintan tal cual, sin luz ni tono),
+// semilla para que dos llamas no se muevan igual, cuánto suben hacia la
+// cámara (`lift`, para envolver la punta de la cola) y cuánto arden.
+class FlameLook(val outer: FloatArray, val mid: FloatArray, val core: FloatArray, val seed: Float, val lift: Float, val glow: Float = 0.45f) {
+    var power = 1f
 }
 
 open class Mesh(var geometry: Geometry, var material: Material) : Object3D() {

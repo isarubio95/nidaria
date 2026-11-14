@@ -23,6 +23,10 @@ class Renderer {
     private var basic: Program? = null
     private var shadowProgram: Program? = null
     private var depthProgram: Program? = null
+    private var flameProgram: Program? = null
+    private var flameGlowProgram: Program? = null
+    // Reloj de las llamas: segundos desde que arrancó el proceso.
+    private val started = System.nanoTime()
 
     private var shadowFbo = 0
     private var shadowTexture = 0
@@ -65,6 +69,8 @@ class Renderer {
         basic = Program(link(Shaders.VERTEX, Shaders.BASIC_FRAGMENT))
         shadowProgram = Program(link(Shaders.VERTEX, Shaders.SHADOW_FRAGMENT))
         depthProgram = Program(link(Shaders.DEPTH_VERTEX, Shaders.DEPTH_FRAGMENT))
+        flameProgram = Program(link(Shaders.FLAME_VERTEX, Shaders.FLAME_FRAGMENT))
+        flameGlowProgram = Program(link(Shaders.FLAME_VERTEX, Shaders.FLAME_GLOW_FRAGMENT))
         shadowFbo = 0
         shadowTexture = 0
         shadowSize = 0
@@ -367,6 +373,8 @@ class Renderer {
         MaterialKind.Standard -> lit!!
         MaterialKind.Basic -> basic!!
         MaterialKind.Shadow -> shadowProgram!!
+        MaterialKind.Flame -> flameProgram!!
+        MaterialKind.FlameGlow -> flameGlowProgram!!
     }
 
     private fun setupFrame(program: Program, scene: Scene, camera: PerspectiveCamera, shadowLight: DirectionalLight?) {
@@ -381,6 +389,10 @@ class Renderer {
         GLES30.glUniform1f(program.loc("uExposure"), scene.exposure)
         GLES30.glUniform1i(program.loc("uShadowMap"), 1)
         GLES30.glUniform1i(program.loc("uMap"), 0)
+        if (program === flameProgram || program === flameGlowProgram) {
+            GLES30.glUniform3f(program.loc("uCameraPos"), camera.position.x, camera.position.y, camera.position.z)
+            GLES30.glUniform1f(program.loc("uTime"), ((System.nanoTime() - started) / 1e9).rem(3600.0).toFloat())
+        }
         if (program === lit) {
             GLES30.glUniform3f(program.loc("uCameraPos"), camera.position.x, camera.position.y, camera.position.z)
             val hemi = scene.hemisphere
@@ -411,6 +423,7 @@ class Renderer {
             GLES30.glUniform1f(program.loc("uEnvMaxLod"), envMaxLod)
             GLES30.glUniform3fv(program.loc("uSH"), 9, sh, 0)
             GLES30.glUniform1i(program.loc("uEnvMap"), 2)
+            GLES30.glUniform1i(program.loc("uEmissiveMap"), 4)
         }
     }
 
@@ -458,9 +471,33 @@ class Renderer {
                 GLES30.glBindTexture(GLES30.GL_TEXTURE_2D, mapId)
                 GLES30.glUniform1f(program.loc("uUseBump"), if (bumpId != 0) 1f else 0f)
                 GLES30.glUniform1f(program.loc("uBumpScale"), material.bumpScale)
+                // Brasas y color según el ADN (modelos .glb).
+                val glowId = material.emissiveMap?.let { bind(it) } ?: 0
+                GLES30.glActiveTexture(GLES30.GL_TEXTURE4)
+                GLES30.glBindTexture(GLES30.GL_TEXTURE_2D, glowId)
+                GLES30.glActiveTexture(GLES30.GL_TEXTURE0)
+                GLES30.glBindTexture(GLES30.GL_TEXTURE_2D, mapId)
+                GLES30.glUniform1f(program.loc("uUseEmissiveMap"), if (glowId != 0) 1f else 0f)
+                GLES30.glUniform3f(program.loc("uTint"), material.tint[0], material.tint[1], material.tint[2])
             }
             MaterialKind.Basic -> Unit
             MaterialKind.Shadow -> Unit
+            MaterialKind.Flame, MaterialKind.FlameGlow -> {
+                val look = material.flame
+                if (look != null) {
+                    GLES30.glUniform1f(program.loc("uSeed"), look.seed)
+                    GLES30.glUniform1f(program.loc("uPower"), look.power)
+                    GLES30.glUniform1f(program.loc("uLift"), look.lift * mesh.scale.x)
+                    if (material.kind == MaterialKind.Flame) {
+                        GLES30.glUniform3f(program.loc("uOuter"), look.outer[0], look.outer[1], look.outer[2])
+                        GLES30.glUniform3f(program.loc("uMid"), look.mid[0], look.mid[1], look.mid[2])
+                        GLES30.glUniform3f(program.loc("uCore"), look.core[0], look.core[1], look.core[2])
+                    } else {
+                        // uColor ya va puesto (el color del material, aquí en sRGB).
+                        GLES30.glUniform1f(program.loc("uGlow"), look.glow)
+                    }
+                }
+            }
         }
         if (material.doubleSide) GLES30.glDisable(GLES30.GL_CULL_FACE) else GLES30.glEnable(GLES30.GL_CULL_FACE)
         GLES30.glFrontFace(if (mirrored(mesh.matrixWorld)) GLES30.GL_CW else GLES30.GL_CCW)
@@ -511,7 +548,7 @@ class Renderer {
         GLES30.glActiveTexture(GLES30.GL_TEXTURE2)
         GLES30.glBindTexture(GLES30.GL_TEXTURE_CUBE_MAP, envTexture)
         GLES30.glActiveTexture(GLES30.GL_TEXTURE0)
-        for (program in arrayOf(lit!!, basic!!, shadowProgram!!)) setupFrame(program, scene, camera, shadowLight)
+        for (program in arrayOf(lit!!, basic!!, shadowProgram!!, flameProgram!!, flameGlowProgram!!)) setupFrame(program, scene, camera, shadowLight)
 
         for (mesh in opaque) drawMesh(mesh, shadowLight != null)
         for (mesh in transparent) drawMesh(mesh, shadowLight != null)

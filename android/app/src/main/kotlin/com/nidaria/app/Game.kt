@@ -23,6 +23,7 @@ import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.core.content.edit
 import com.nidaria.app.audio.Sfx
 import com.nidaria.app.data.Api
 import com.nidaria.app.data.ApiError
@@ -84,6 +85,7 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
+import com.nidaria.app.scene.Models
 
 enum class Screen { Boot, Auth, Eggs, Farewell, Home, Visit, Offline, Broken }
 
@@ -157,6 +159,11 @@ private val RECOVERY_TEXTS = mapOf(
 // En los momentos grandes se ofrece hacer la tarjeta para compartir.
 private val PHOTO = DialogAction("Hacer una foto", "foto")
 
+// Preferencias de este teléfono (las mismas que usa Sfx) y la del
+// interruptor de modelos de las pruebas.
+private const val PREFS = "nidaria"
+private const val MODELS_KEY = "modelos"
+
 class Game(context: Context, val room: RoomView, private val scope: CoroutineScope) {
     private val app = context.applicationContext
     val api = Api(context)
@@ -165,6 +172,7 @@ class Game(context: Context, val room: RoomView, private val scope: CoroutineSco
 
     init {
         Sfx.init(app)
+        Models.enabled = app.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getBoolean(MODELS_KEY, false)
     }
 
     // Efectos de sonido en este teléfono.
@@ -947,6 +955,18 @@ class Game(context: Context, val room: RoomView, private val scope: CoroutineSco
     fun devSkip(hours: Int): Job = scope.launch {
         closeSheet()
         send { devSkip(hours) }
+    }
+
+    // Pruebas: criaturas de modelo (.glb) en vez de esculpidas donde las hay
+    // (scene/Models.kt). Se guarda en este teléfono.
+    val modelsOn: Boolean get() = Models.enabled
+
+    fun devModels(on: Boolean): Job = scope.launch {
+        app.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit { putBoolean(MODELS_KEY, on) }
+        Models.enabled = on
+        closeSheet()
+        room.forget()
+        store.state?.creature?.let { room.showCreature(it) }
     }
 
     fun logout(): Job = scope.launch {

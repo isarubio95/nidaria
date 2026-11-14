@@ -178,6 +178,8 @@ node tools/sculpt-golden.mjs   # tarda unos segundos
 
 Los dos ficheros de referencia se comprueban en la integración continua: si no están al día con la web, falla.
 
+**Criaturas de modelo.** Detrás del interruptor de desarrollo (Perfil > Pruebas, con `DEV_TOOLS=1` en el servidor) hay criaturas hechas con modelos `.glb` en vez de esculpidas: de momento, la línea de las pelusas (`scene/Models.kt`, igual que `public/js/scene/models.js`). Los archivos son los mismos de la web: Gradle empaqueta `public/models` como recursos y `scene/Glb.kt` los lee. `GlbModelTest` los abre desde `public/models` y construye cada etapa.
+
 **Luz de entorno.** Si cambia el entorno de la escena web, se vuelve a hornear con el servidor web en marcha:
 
 ```bash

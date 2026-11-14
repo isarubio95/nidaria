@@ -8,6 +8,7 @@ import * as THREE from 'three';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { createGenes } from '/shared/dna.js';
 import { buildCreature } from './creature.js';
+import { modelFor } from './models.js';
 import { buildItem, buildEgg } from './props.js';
 import { sculptingAs, whenSculpted } from './sculpt-pool.js';
 import { fingerprint } from './sdf-core.js';
@@ -20,7 +21,7 @@ const store = drawer('thumbs', 12 * 1024 * 1024);
 let kit = null;
 
 // Lo que decide cómo sale una miniatura.
-const SOURCES = ['./sdf-core.js', './sdf.js', './creature.js', './creature-kit.js', './monster.js', './pet.js', './plan.js', './props.js', './decor.js', './materials.js', './thumbs.js', '/shared/rng.js', '/shared/breeds.js'];
+const SOURCES = ['./sdf-core.js', './sdf.js', './creature.js', './creature-kit.js', './monster.js', './pet.js', './plan.js', './props.js', './decor.js', './materials.js', './thumbs.js', './glb-creature.js', './fire.js', './models.js', './model-data.js', '/shared/rng.js', '/shared/breeds.js'];
 let version = null;
 function sceneVersion() {
   version ??= Promise.all(SOURCES.map(async (path) => {
@@ -177,7 +178,10 @@ export function creatureThumb(formId, genes, silhouette = false, { size = SIZE, 
     if (!silhouette) return eggThumb(genes);
     return cached('egg:silhouette', () => snap(() => buildEgg(genes), [0.2, 0.18], { silhouette: true }));
   }
-  return cached(`form:${formId}:${fingerprint(JSON.stringify(genes))}:${silhouette}:${size}`, async () => {
+  // Con el interruptor de modelos, la misma forma puede salir de modelo o
+  // esculpida: cada una con su miniatura.
+  const model = modelFor(formId, genes)?.id ?? 'sdf';
+  return cached(`form:${formId}:${model}:${fingerprint(JSON.stringify(genes))}:${silhouette}:${size}`, async () => {
     const quality = detail ?? (silhouette ? 'tiny' : size > SIZE ? 'high-thumb' : 'low');
     const built = sculptingAs({ priority: 'low', persist: false }, () => buildCreature(formId, genes, { detail: quality }));
     try {

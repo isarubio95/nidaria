@@ -52,7 +52,8 @@ export function createApp(db, config, { push = createPush(db, config) } = {}) {
     "style-src 'self' 'unsafe-inline'",
     "img-src 'self' data: blob:",
     "font-src 'self'",
-    `connect-src 'self' ${WEATHER_ORIGIN}`,
+    // blob: para las texturas que vienen dentro de los modelos .glb.
+    `connect-src 'self' blob: ${WEATHER_ORIGIN}`,
     "worker-src 'self' blob:",
     "object-src 'none'",
     "base-uri 'self'",

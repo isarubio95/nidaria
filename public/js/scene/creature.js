@@ -1,6 +1,7 @@
 // Construye la criatura 3D (monstruo, perro o gato) y la anima. Cada
-// especie esculpe su figura en su módulo (monster.js, pet.js); aquí se
-// elige cuál y se le da vida: respira, parpadea, mira y reacciona.
+// especie esculpe su figura en su módulo (monster.js, pet.js), salvo las
+// formas que tienen modelo (models.js, glb-creature.js); aquí se elige
+// cuál y se le da vida: respira, parpadea, mira y reacciona.
 
 import * as THREE from 'three';
 import { gsap } from 'gsap';
@@ -9,9 +10,13 @@ import { isPet } from '/shared/dna.js';
 import { getForm } from '/shared/forms.js';
 import { buildMonster } from './monster.js';
 import { buildPet } from './pet.js';
+import { modelFor } from './models.js';
+import { buildGlbCreature } from './glb-creature.js';
 import { lidTexture, LID_OPEN, LID_SHUT } from './creature-kit.js';
 
 export function buildCreature(formId, genes, options) {
+  const model = modelFor(formId, genes);
+  if (model) return buildGlbCreature(formId, genes, model);
   const family = getForm(formId).family ?? genes.family;
   return isPet(family) ? buildPet(formId, genes, options) : buildMonster(formId, genes, options);
 }
@@ -58,6 +63,8 @@ export class Actor {
 
   setMood(mood) {
     this.mood = mood;
+    // Lo que arde (las llamas de los modelos) también sigue el humor.
+    this.rig.fx?.mood(mood);
     this.applyEyes();
     if (!this.busy) this.setMouth(this.restMouth());
     const pale = mood === 'enferma';

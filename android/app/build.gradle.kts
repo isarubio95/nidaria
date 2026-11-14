@@ -83,6 +83,10 @@ android {
         compose = true
         buildConfig = true
     }
+
+    // Los modelos de criatura (.glb) son los mismos de la web: se empaquetan
+    // tal cual desde public/models (ver scene/Glb.kt).
+    sourceSets.getByName("main").assets.srcDir("../../public/models")
 }
 
 // El AAB solo sirve para subirlo a Google Play: no se genera si va a

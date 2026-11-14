@@ -39,7 +39,8 @@ sealed class ThumbSpec {
     }
 
     data class Form(val formId: String, val genes: Genes, val silhouette: Boolean = false) : ThumbSpec() {
-        override val key get() = "form:$formId:${genes.hashCode()}:$silhouette"
+        // Con el interruptor de modelos, la misma forma sale de modelo o esculpida.
+        override val key get() = "form:$formId:${Models.modelFor(formId, genes)?.id ?: "sdf"}:${genes.hashCode()}:$silhouette"
     }
 
     companion object {

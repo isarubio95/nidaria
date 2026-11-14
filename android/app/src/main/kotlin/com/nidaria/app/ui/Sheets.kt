@@ -797,6 +797,8 @@ fun ProfileSheet(game: Game) {
                     Btn("Adelantar $label", { game.devSkip(hours) }, tone = Tone.Sun, small = true)
                 }
                 Btn("Probar avisos", { game.devCheckAlerts() }, tone = Tone.Sun, small = true)
+                // Criaturas de modelo (.glb) en vez de esculpidas, donde las hay.
+                Btn(if (game.modelsOn) "Modelos nuevos: sí" else "Modelos nuevos: no", { game.devModels(!game.modelsOn) }, tone = Tone.Sun, small = true)
             }
         }
 

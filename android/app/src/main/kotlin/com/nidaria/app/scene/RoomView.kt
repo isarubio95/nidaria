@@ -71,6 +71,9 @@ class RoomView(context: Context) : GLSurfaceView(context), GLSurfaceView.Rendere
         // (la actividad se puede recrear) hay que poder pedirlas otra vez.
         Thumbs.pending.clear()
         renderer.setEnvironment(context.assets.open("env.bin").use { it.readBytes() })
+        // Los modelos de criatura (.glb) van en los recursos de la app.
+        val assets = context.applicationContext.assets
+        Glb.open = { name -> assets.open(name).use { it.readBytes() } }
         // Esculpir va en hilos aparte, con las mallas guardadas en la caché.
         Sculptor.start(context.cacheDir)
         setEGLContextClientVersion(3)
@@ -198,6 +201,7 @@ class RoomView(context: Context) : GLSurfaceView(context), GLSurfaceView.Rendere
         }
     }
 
+    fun forget() = post { forget() }
     fun showCreature(view: Creature) = post { showCreature(view) }
     fun showDemo() = post { showDemo() }
     fun showEmpty() = post { showEmpty() }

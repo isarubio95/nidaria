@@ -386,6 +386,12 @@ class Room(private val painter: Painter, private val reduce: Boolean) {
 
     private fun wearKey(view: Creature) = "${view.equipped.cabeza}|${view.equipped.cara}|${view.equipped.cuello}"
 
+    // Olvida lo que enseña: lo siguiente que se pida se vuelve a construir
+    // (al cambiar el interruptor de modelos, la misma criatura cambia).
+    fun forget() {
+        currentKey = ""
+    }
+
     fun showCreature(view: Creature) {
         val key = "${view.id}|${view.formId}|${wearKey(view)}"
         if (key == currentKey) {

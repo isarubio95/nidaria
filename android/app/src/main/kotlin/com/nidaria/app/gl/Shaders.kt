@@ -166,6 +166,9 @@ uniform float uSheenRoughness;
 uniform float uClearcoat;
 uniform float uClearcoatRoughness;
 uniform vec3 uEmissive;
+uniform sampler2D uEmissiveMap;
+uniform float uUseEmissiveMap;
+uniform vec3 uTint;
 uniform float uWrap;
 uniform vec3 uSss;
 uniform sampler2D uBumpMap;
@@ -286,6 +289,21 @@ vec3 bumped(vec3 N) {
   return normalize(abs(det) * N - grad);
 }
 
+// Giro de tono en YIQ (sobre el color aproximado en sRGB), más saturación
+// y luz: el color según el ADN de los modelos .glb. En YIQ el ángulo baja
+// cuando el tono sube (rojo, amarillo, verde), así que se gira al revés.
+vec3 nidTint(vec3 c) {
+  if (uTint.x == 0.0 && uTint.y == 1.0 && uTint.z == 1.0) return c;
+  vec3 s = pow(max(c, 0.0), vec3(1.0 / 2.2));
+  const mat3 toYiq = mat3(0.299, 0.596, 0.211, 0.587, -0.274, -0.523, 0.114, -0.322, 0.312);
+  const mat3 toRgb = mat3(1.0, 1.0, 1.0, 0.956, -0.272, -1.106, 0.621, -0.647, 1.703);
+  vec3 yiq = toYiq * s;
+  float cs = cos(uTint.x), sn = -sin(uTint.x);
+  yiq.yz = mat2(cs, sn, -sn, cs) * yiq.yz * uTint.y;
+  yiq.x *= uTint.z;
+  return pow(max(toRgb * yiq, 0.0), vec3(2.2));
+}
+
 void main() {
   vec3 N = normalize(vNormal);
   if (!gl_FrontFacing) N = -N;
@@ -296,6 +314,7 @@ void main() {
 
   vec4 base = vec4(uColor * vColor, uOpacity);
   if (uUseMap > 0.5) base *= texture(uMap, vUv);
+  base.rgb = nidTint(base.rgb);
   vec3 diffuseColor = base.rgb * (1.0 - uMetalness);
   float roughness = min(max(uRoughness, 0.0525) + geometryRoughness, 1.0);
   vec3 specularColor = mix(vec3(0.04), base.rgb, uMetalness);
@@ -381,8 +400,99 @@ void main() {
     vec3 Fcc = F_Schlick(vec3(0.04), 1.0, clamp(dot(N, V), 0.0, 1.0));
     outgoing = outgoing * (1.0 - uClearcoat * Fcc) + (coatDirect + coatIndirect) * uClearcoat;
   }
-  outgoing += uEmissive;
+  vec3 emissive = uEmissive;
+  if (uUseEmissiveMap > 0.5) emissive *= nidTint(texture(uEmissiveMap, vUv).rgb);
+  outgoing += emissive;
   fragColor = finish(outgoing, base.a);
+}
+"""
+
+    // ── Llamas (scene/Fire.kt, como fire.js de la web) ──
+    // El plano va de cara a la cámara (Mesh.billboard); aquí crece con lo
+    // que arde y se acerca un poco a la cámara para envolver la punta de la cola.
+    const val FLAME_VERTEX = ATTRIBUTES + """
+uniform vec3 uCameraPos;
+uniform float uLift;
+uniform float uPower;
+out vec2 vUv;
+void main() {
+  vec4 world = uModel * vec4(aPosition * uPower, 1.0);
+  world.xyz += normalize(uCameraPos - world.xyz) * uLift;
+  vUv = aUv;
+  gl_Position = uViewProj * world;
+}
+"""
+
+    private const val NOISE = """
+float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+float noise(vec2 p) {
+  vec2 i = floor(p), f = fract(p);
+  vec2 u = f * f * (3.0 - 2.0 * f);
+  return mix(mix(hash(i), hash(i + vec2(1.0, 0.0)), u.x), mix(hash(i + vec2(0.0, 1.0)), hash(i + vec2(1.0, 1.0)), u.x), u.y);
+}
+float fbm(vec2 p) {
+  float v = 0.0, a = 0.5;
+  for (int i = 0; i < 4; i++) { v += a * noise(p); p *= 2.03; a *= 0.5; }
+  return v;
+}
+"""
+
+    // Tres capas de color plano (roja, naranja, amarilla) con una sola
+    // deformación que sube, y unas chispas. Los colores van en sRGB.
+    const val FLAME_FRAGMENT = """#version 300 es
+precision highp float;
+in vec2 vUv;
+out vec4 fragColor;
+uniform float uTime;
+uniform float uSeed;
+uniform vec3 uOuter;
+uniform vec3 uMid;
+uniform vec3 uCore;
+""" + NOISE + """
+float drop(vec2 p, float R, float tip) {
+  float w = p.y < 0.0 ? sqrt(max(R * R - p.y * p.y, 0.0)) : R * pow(1.0 - clamp(p.y / tip, 0.0, 1.0), 0.7);
+  return w - abs(p.x);
+}
+float edge(float d) { return smoothstep(-0.75, 0.75, d / max(fwidth(d), 1e-5)); }
+void main() {
+  float t = uTime;
+  vec2 p = vec2((vUv.x - 0.5) * 0.8, vUv.y * 1.5 - 0.25);
+  float h = clamp(p.y / 0.9, 0.0, 1.0);
+  float n = fbm(vec2(p.x * 3.0 + uSeed, p.y * 2.6 - t * 2.2));
+  p.x -= ((n - 0.5) * 0.3 + sin(t * 2.3 + uSeed) * 0.04) * h * h;
+  float tongue = (fbm(vec2(p.x * 8.0 + uSeed * 3.0, p.y * 4.0 - t * 4.2)) - 0.5) * 0.13 * smoothstep(0.02, 0.5, p.y);
+  float flick = 0.06 * sin(t * 7.0 + uSeed) + 0.04 * sin(t * 11.3 + uSeed * 2.0);
+  float aOut = edge(drop(p, 0.24, 0.88 + flick) + tongue - 0.006);
+  float aMid = edge(drop(p + vec2(0.0, 0.035), 0.17, 0.6 + flick * 0.8) + tongue * 0.8 - 0.006);
+  float aCore = edge(drop(p + vec2(0.0, 0.07), 0.1, 0.34 + flick * 0.5) + tongue * 0.5 - 0.006);
+  vec3 col = mix(mix(uOuter, uMid, aMid), uCore, aCore);
+  float alpha = aOut;
+  for (int i = 0; i < 4; i++) {
+    float fi = float(i);
+    float ph = fract(t * 0.5 + fi * 0.27 + uSeed * 0.13);
+    vec2 sp = vec2(sin(fi * 12.9 + uSeed + ph * 5.0) * 0.12, 0.45 + ph * 0.7);
+    float a = edge(0.026 * (1.0 - ph) - length(p - sp)) * (1.0 - ph * ph);
+    col = mix(col, ph < 0.45 ? uCore : uMid, a * (1.0 - alpha));
+    alpha = max(alpha, a);
+  }
+  if (alpha < 0.01) discard;
+  fragColor = vec4(col, alpha);
+}
+"""
+
+    // El halo: un brillo suave que se suma a lo de detrás.
+    const val FLAME_GLOW_FRAGMENT = """#version 300 es
+precision highp float;
+in vec2 vUv;
+out vec4 fragColor;
+uniform float uTime;
+uniform float uSeed;
+uniform float uGlow;
+uniform vec3 uColor;
+void main() {
+  float r = length(vUv - 0.5) * 2.0;
+  float flick = 0.85 + 0.15 * sin(uTime * 9.0 + uSeed) * sin(uTime * 5.3 + uSeed * 1.7);
+  fragColor = vec4(uColor, exp(-r * r * 4.0) * uGlow * flick);
 }
 """
 }

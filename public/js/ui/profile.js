@@ -13,6 +13,7 @@ import { settingsSection } from './settings.js';
 import { recoverySection } from './recovery.js';
 import { shareCard } from './card.js';
 import { disablePush } from '../pwa.js';
+import { modelsEnabled, setModelsEnabled } from '../scene/models.js';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -127,6 +128,15 @@ export function openProfile(room) {
           run(api.devSkip({ hours }));
         },
       }, `Adelantar ${label}`))),
+      // Criaturas de modelo (.glb) en vez de esculpidas, donde las hay (ver
+      // scene/models.js). Se guarda en este navegador y recarga la página.
+      h('div', { class: 'row' }, [h('button', {
+        class: 'btn btn-small btn-sun', type: 'button',
+        onclick: () => {
+          setModelsEnabled(!modelsEnabled());
+          location.reload();
+        },
+      }, modelsEnabled() ? 'Modelos nuevos: sí' : 'Modelos nuevos: no')]),
     ] : [];
 
     const photo = h('button', {

@@ -137,6 +137,8 @@ class Rig(
     // Opacidad de los coloretes en reposo y cuando está feliz.
     val blushRest: Float = 0.62f,
     val blushHappy: Float = 0.8f,
+    // Lo que arde (las llamas y brasas de los modelos .glb): sigue el humor.
+    val fx: CreatureFx? = null,
 )
 
 // Lo que la habitación necesita saber del cuerpo para encuadrarlo.
@@ -152,6 +154,8 @@ class Built(val obj: Group, val plan: Look, val height: Float, val anchors: Anch
 // las siluetas del Criadex, que solo necesitan el contorno. Cada especie
 // esculpe su figura en su archivo (Monster.kt, Pet.kt), como en la web.
 fun buildCreature(formId: String, genes: Genes, detail: String = "high"): Built {
+    // Las formas con modelo (.glb, ver Models.kt), si el interruptor está puesto.
+    Models.modelFor(formId, genes)?.let { return buildGlbCreature(formId, genes, it) }
     val family = getForm(formId).family ?: genes.family
     return if (isPet(family)) buildPet(formId, genes, detail) else buildMonster(formId, genes, detail)
 }
@@ -253,6 +257,7 @@ class Actor(private val built: Built, private val anim: Animator, private val st
 
     fun setMood(value: String) {
         mood = value
+        rig.fx?.mood(value)
         applyEyes()
         if (!busy) setMouth(restMouth())
         val pale = value == "enferma"
@@ -293,6 +298,7 @@ class Actor(private val built: Built, private val anim: Animator, private val st
 
     fun update(t: Float, dt: Float) {
         now = t
+        rig.fx?.update(t, dt)
         val asleep = mood == "dormida"
         val low = mood == "mal" || mood == "fatal" || mood == "enferma"
         val happy = mood == "feliz"
