@@ -24,6 +24,7 @@ import { closeSheet } from './ui/sheet.js';
 import { shareCard } from './ui/card.js';
 import { line, bondLine } from './ui/speech.js';
 import { sfx } from './audio/sfx.js';
+import { zoomLevel, onZoom } from './zoom.js';
 
 const app = document.getElementById('app');
 const canvas = document.getElementById('stage');
@@ -39,6 +40,8 @@ function message(title, text, action) {
 let room = null;
 try {
   room = createRoom(canvas);
+  room.setZoom(zoomLevel());
+  onZoom((level) => room.setZoom(level));
 } catch (error) {
   console.error(error);
   message('No se puede dibujar la escena', 'Tu navegador no tiene activados los gráficos 3D (WebGL). Actívalos o prueba con otro navegador.');

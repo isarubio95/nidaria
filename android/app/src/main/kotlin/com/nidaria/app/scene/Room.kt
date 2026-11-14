@@ -196,6 +196,9 @@ class Room(private val painter: Painter, private val reduce: Boolean) {
     private val subjectTarget = Any()
     private var width = 1f
     private var height = 1f
+    // El zoom de toda la pantalla (ui/Zoom.kt): por debajo de 1 la cámara
+    // se aleja en la misma medida en que se encoge la interfaz.
+    private var zoom = 1f
 
     private var press: Press? = null
     private var last = 0f
@@ -859,7 +862,7 @@ class Room(private val painter: Painter, private val reduce: Boolean) {
     private fun frame() {
         val bottom = if (focusBottom != 0f) focusBottom else height
         val free = max(140f, bottom - focusTop)
-        val perUnit = min((free * 0.8f) / subjectH, (width * 0.78f) / subjectW)
+        val perUnit = min((free * 0.8f) / subjectH, (width * 0.78f) / subjectW) * zoom
         val distance = height / perUnit / (2f * tanDeg(FOV / 2f))
         camera.position.set(0f, 0.5f + subjectH * 0.68f, distance)
         camera.lookAt(0f, subjectH * 0.47f, 0f)
@@ -876,6 +879,13 @@ class Room(private val painter: Painter, private val reduce: Boolean) {
         width = max(1f, widthDp)
         height = max(1f, heightDp)
         frame()
+    }
+
+    // Con el zoom cambian también las medidas: la escena se mide en las
+    // mismas unidades que la interfaz, que con el zoom son más pequeñas.
+    fun setZoom(level: Float, widthDp: Float, heightDp: Float) {
+        zoom = level
+        resize(widthDp, heightDp)
     }
 
     fun setFocus(top: Float, bottom: Float, animate: Boolean = true) {
@@ -982,16 +992,24 @@ class Room(private val painter: Painter, private val reduce: Boolean) {
         }
     }
 
-    fun pointerUp(id: Int, x: Float, y: Float) {
-        val p = press ?: return
-        if (p.id != id) return
-        val tapped = p.moved < 9f
-        val index = if (tapped) hitAt(x, y) else -1
+    // Un segundo dedo (un pellizco) o un toque que el sistema cancela: ni
+    // caricia ni toque.
+    fun pointerCancel() = letGo()
+
+    private fun letGo() {
         actor?.let { a ->
             a.leanTarget = 0f
             for (cheek in a.rig.cheeks) cheek.material.opacity = if (a.mood == "feliz") 0.8f else 0.62f
         }
         press = null
+    }
+
+    fun pointerUp(id: Int, x: Float, y: Float) {
+        val p = press ?: return
+        if (p.id != id) return
+        val tapped = p.moved < 9f
+        val index = if (tapped) hitAt(x, y) else -1
+        letGo()
         if (index < 0) return
         when (mode) {
             "eggs" -> {

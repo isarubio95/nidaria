@@ -975,11 +975,14 @@ export function createRoom(canvas) {
   }
   let width = 1;
   let height = 1;
+  // El zoom de toda la pantalla (zoom.js): por debajo de 1 la cámara se
+  // aleja en la misma medida en que se encoge la interfaz.
+  let zoom = 1;
 
   function frame() {
     const bottom = focus.bottom || height;
     const free = Math.max(140, bottom - focus.top);
-    const perUnit = Math.min((free * 0.8) / subject.h, (width * 0.78) / subject.w);
+    const perUnit = Math.min((free * 0.8) / subject.h, (width * 0.78) / subject.w) * zoom;
     const distance = height / perUnit / (2 * Math.tan(THREE.MathUtils.degToRad(FOV / 2)));
     camera.position.set(0, 0.5 + subject.h * 0.68, distance);
     camera.lookAt(0, subject.h * 0.47, 0);
@@ -1064,7 +1067,24 @@ export function createRoom(canvas) {
     return camera.position.clone().addScaledVector(direction, t);
   }
 
+  // Con un segundo dedo es un pellizco (el zoom): ni caricia ni toque.
+  const fingers = new Set();
+  function letGo() {
+    if (actor) {
+      actor.leanTarget = 0;
+      for (const cheek of actor.rig.cheeks) cheek.material.opacity = actor.mood === 'feliz' ? 0.8 : 0.62;
+    }
+    press = null;
+  }
+
   canvas.addEventListener('pointerdown', (event) => {
+    // El primer dedo empieza de cero, por si algún «soltar» se perdió.
+    if (event.isPrimary) fingers.clear();
+    fingers.add(event.pointerId);
+    if (fingers.size > 1) {
+      letGo();
+      return;
+    }
     const index = hitAt(event);
     press = { id: event.pointerId, x: event.clientX, y: event.clientY, moved: 0, stroke: 0, index, strokes: 0 };
     canvas.setPointerCapture?.(event.pointerId);
@@ -1099,14 +1119,11 @@ export function createRoom(canvas) {
   });
 
   const release = (event) => {
+    fingers.delete(event.pointerId);
     if (!press || press.id !== event.pointerId) return;
     const tapped = press.moved < 9;
     const index = tapped ? hitAt(event) : -1;
-    if (actor) {
-      actor.leanTarget = 0;
-      for (const cheek of actor.rig.cheeks) cheek.material.opacity = actor.mood === 'feliz' ? 0.8 : 0.62;
-    }
-    press = null;
+    letGo();
     if (index < 0) return;
     if (mode === 'eggs') {
       sfx('toque');
@@ -1206,6 +1223,10 @@ export function createRoom(canvas) {
     setWeather,
     setDecor,
     setPaused(value) { paused = value; },
+    setZoom(value) {
+      zoom = value;
+      frame();
+    },
     // Promesa de que todo lo que hay en la habitación está esculpido.
     ready: () => Promise.all([...reveals]).then(() => whenSculpted(scene)),
     snapshot,

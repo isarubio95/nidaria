@@ -20,7 +20,8 @@ body {
   font: 500 var(--text-md)/1.45 var(--font);
   caret-color: var(--primary-edge);
   -webkit-tap-highlight-color: transparent;
-  touch-action: manipulation;
+  /* Sin el zoom del navegador: el pellizco lo lleva zoom.js. */
+  touch-action: pan-x pan-y;
   overscroll-behavior: none;
 }
 
@@ -58,6 +59,20 @@ img:not([src]) { visibility: hidden; }
   display: block;
   touch-action: none;
 }
+
+/* Toda la interfaz, encogida con el zoom (zoom.js). Mide más que la
+   pantalla en la misma medida en que se encoge, así que sigue llenándola. */
+#ui {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: calc(100% / var(--zoom));
+  height: calc(100% / var(--zoom));
+  transform: scale(var(--zoom));
+  transform-origin: 0 0;
+  pointer-events: none;
+}
+#sheets, #games { pointer-events: auto; }
 
 #app { position: fixed; inset: 0; pointer-events: none; }
 #app > * { pointer-events: auto; }

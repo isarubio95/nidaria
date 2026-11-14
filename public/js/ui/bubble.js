@@ -3,6 +3,7 @@
 
 import { h } from '../dom.js';
 import { sheetTop } from './sheet.js';
+import { zoomLevel } from '../zoom.js';
 
 // Se coloca sobre su cabeza, sin tapar la placa con el nombre, y la sigue
 // mientras está abierto. `say` devuelve si ha llegado a decirlo.
@@ -11,12 +12,15 @@ export function speechBubble(room, plate) {
   let timer = null;
   let stopped = false;
 
+  // La cabeza llega en píxeles de pantalla; el bocadillo se coloca en los
+  // de la interfaz, que con el zoom van encogidos.
   function place() {
+    const zoom = zoomLevel();
     const point = room.headPoint(0.16);
     const half = el.offsetWidth / 2 + 12;
-    const x = Math.max(half, Math.min(window.innerWidth - half, point.x));
+    const x = Math.max(half, Math.min(window.innerWidth / zoom - half, point.x / zoom));
     el.style.left = `${x}px`;
-    el.style.top = `${Math.max(point.y, plate.getBoundingClientRect().bottom + el.offsetHeight + 8)}px`;
+    el.style.top = `${Math.max(point.y / zoom, plate.getBoundingClientRect().bottom / zoom + el.offsetHeight + 8)}px`;
   }
 
   function say(text, seconds = 2.6) {

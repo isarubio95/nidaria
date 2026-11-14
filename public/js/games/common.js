@@ -59,9 +59,14 @@ export function loop(step) {
   };
 }
 
+// El punto del lienzo en sus propias medidas (las de `fitCanvas`), que con
+// el zoom de la pantalla no son las de pantalla.
 export function pointerX(event, canvas) {
   const rect = canvas.getBoundingClientRect();
-  return { x: event.clientX - rect.left, y: event.clientY - rect.top };
+  return {
+    x: ((event.clientX - rect.left) * canvas.clientWidth) / Math.max(1, rect.width),
+    y: ((event.clientY - rect.top) * canvas.clientHeight) / Math.max(1, rect.height),
+  };
 }
 
 export const rand = (a, b) => a + Math.random() * (b - a);

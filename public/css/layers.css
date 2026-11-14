@@ -1,5 +1,6 @@
 /* Orden de apilado, de abajo arriba. Un solo sitio para todos los z-index. */
 #stage { z-index: 0; }
+#ui { z-index: 1; }
 #app { z-index: 1; }
 .scrim { z-index: 10; }
 .sheet { z-index: 11; }

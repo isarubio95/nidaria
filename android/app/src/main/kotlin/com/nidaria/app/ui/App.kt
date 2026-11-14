@@ -14,16 +14,28 @@ import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.layout.union
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.unit.Density
 import com.nidaria.app.Game
 import com.nidaria.app.Screen
 
 private fun Modifier.hiddenWhen(covered: Boolean): Modifier = if (covered) clearAndSetSemantics { } else this
 
+// Con el zoom de la pantalla (Zoom.kt) cada dp mide menos: todo se encoge
+// a la vez y la interfaz gana sitio, como al alejar la vista.
 @Composable
-fun App(game: Game) {
+fun App(game: Game, zoom: Zoom) {
+    val base = LocalDensity.current
+    val level = zoom.level
+    val zoomed = remember(base, level) { Density(base.density * level, base.fontScale) }
+    CompositionLocalProvider(LocalDensity provides zoomed) { Layers(game) }
+}
+
+@Composable
+private fun Layers(game: Game) {
     val density = LocalDensity.current
     val bars = WindowInsets.systemBars.union(WindowInsets.displayCutout)
     val insets = with(density) {

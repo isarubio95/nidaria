@@ -164,6 +164,10 @@
   --revert-hold: 3000ms;
   --revert-dur: 280ms;
 
-  --safe-top: env(safe-area-inset-top, 0px);
-  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  /* Zoom de toda la pantalla, de 0.8 a 1: lo pone zoom.js. La interfaz
+     va encogida dentro de #ui, así que los márgenes del sistema se
+     agrandan en la misma medida para seguir librando la muesca. */
+  --zoom: 1;
+  --safe-top: calc(env(safe-area-inset-top, 0px) / var(--zoom));
+  --safe-bottom: calc(env(safe-area-inset-bottom, 0px) / var(--zoom));
 }

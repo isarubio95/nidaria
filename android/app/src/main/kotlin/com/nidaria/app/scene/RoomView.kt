@@ -33,6 +33,9 @@ import kotlinx.coroutines.suspendCancellableCoroutine
 class RoomView(context: Context) : GLSurfaceView(context), GLSurfaceView.Renderer, Room.Listener {
     private val main = Handler(Looper.getMainLooper())
     private val density = resources.displayMetrics.density
+    // Píxeles por unidad de la escena: los dp de la interfaz, que con el
+    // zoom de la pantalla (ui/Zoom.kt) son más pequeños.
+    @Volatile private var unit = density
     private val renderer = Renderer()
     private val studio = ThumbStudio()
     private val jobs = ArrayDeque<ThumbSpec>()
@@ -94,7 +97,7 @@ class RoomView(context: Context) : GLSurfaceView(context), GLSurfaceView.Rendere
         heightPx = height
         // El búfer puede ser más pequeño que la vista (ver onSizeChanged);
         // la escena se encuadra con el tamaño de la vista, en dp.
-        room.resize(this.width / density, this.height / density)
+        room.resize(this.width / unit, this.height / unit)
     }
 
     // Como la web, que no pasa de dos píxeles por punto: en pantallas más
@@ -168,17 +171,19 @@ class RoomView(context: Context) : GLSurfaceView(context), GLSurfaceView.Rendere
     @SuppressLint("ClickableViewAccessibility")
     override fun onTouchEvent(event: MotionEvent): Boolean {
         val id = event.getPointerId(event.actionIndex)
-        val x = event.getX(event.actionIndex) / density
-        val y = event.getY(event.actionIndex) / density
+        val x = event.getX(event.actionIndex) / unit
+        val y = event.getY(event.actionIndex) / unit
         when (event.actionMasked) {
             MotionEvent.ACTION_DOWN -> queueEvent { room.pointerDown(id, x, y) }
             MotionEvent.ACTION_MOVE -> {
                 val firstId = event.getPointerId(0)
-                val fx = event.getX(0) / density
-                val fy = event.getY(0) / density
+                val fx = event.getX(0) / unit
+                val fy = event.getY(0) / unit
                 queueEvent { room.pointerMove(firstId, fx, fy) }
             }
-            MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> queueEvent { room.pointerUp(id, x, y) }
+            MotionEvent.ACTION_UP -> queueEvent { room.pointerUp(id, x, y) }
+            // Con un segundo dedo es un pellizco (el zoom).
+            MotionEvent.ACTION_POINTER_DOWN, MotionEvent.ACTION_CANCEL -> queueEvent { room.pointerCancel() }
         }
         return true
     }
@@ -206,6 +211,14 @@ class RoomView(context: Context) : GLSurfaceView(context), GLSurfaceView.Rendere
     fun setDecor(decor: Decor) = post { setDecor(decor) }
     fun setWeather(kind: String?) = post { setWeather(kind) }
     fun setFocus(top: Float, bottom: Float, animate: Boolean = true) = post { setFocus(top, bottom, animate) }
+
+    fun setZoom(level: Float) {
+        unit = density * level
+        val w = width / unit
+        val h = height / unit
+        post { setZoom(level, w, h) }
+    }
+
     fun bath() = post { bath() }
     fun heal() = post { heal() }
     fun cheer(won: Boolean) = post { cheer(won) }

@@ -2,6 +2,7 @@
 // atrapa el foco y se cierra con Escape, con el botón o tocando fuera.
 
 import { h, icon } from '../dom.js';
+import { zoomLevel } from '../zoom.js';
 
 const root = document.getElementById('sheets');
 const scrim = document.getElementById('scrim');
@@ -20,11 +21,12 @@ export function onSheetChange(fn) {
   return () => watchers.delete(fn);
 }
 
-// Borde superior de la hoja abierta en su posición final, o null.
+// Borde superior de la hoja abierta en su posición final, en píxeles de
+// pantalla (como getBoundingClientRect), o null.
 export function sheetTop() {
   if (!current) return null;
   const el = current.el;
-  return el.offsetTop;
+  return el.offsetTop * zoomLevel();
 }
 
 function focusables(el) {

@@ -1,7 +1,7 @@
 // Al escondite: la criatura se mete bajo un cojín, los cojines se mezclan
 // y hay que tocar el suyo. Solo lo juegan las criaturas juguetonas.
 
-import { COLORS, fitCanvas, loop, createPops } from './common.js';
+import { COLORS, fitCanvas, loop, createPops, pointerX } from './common.js';
 import { sfx } from '../audio/sfx.js';
 
 const easeInOut = (t) => (t < 0.5 ? 2 * t * t : 1 - (-2 * t + 2) ** 2 / 2);
@@ -105,9 +105,7 @@ export async function create({ area, level, avatar, hud, onEnd }) {
 
   const onPointer = (event) => {
     event.preventDefault();
-    const rect = canvas.getBoundingClientRect();
-    const x = event.clientX - rect.left;
-    const y = event.clientY - rect.top;
+    const { x, y } = pointerX(event, canvas);
     const { cw, ch, ground, xOf } = layout();
     if (y < ground - ch * 2.2 || y > ground + ch) return;
     let best = -1;
