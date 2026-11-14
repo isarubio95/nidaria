@@ -1,6 +1,7 @@
 // Pantalla principal: monedas y tienda arriba, la criatura en el centro
 // (la dibuja el motor 3D) y, abajo, sus necesidades y las acciones.
 
+import { breedOf } from '/shared/dna.js';
 import { h, icon, coin, fmt, duration } from '../dom.js';
 import { api } from '../api.js';
 import { store, run } from '../store.js';
@@ -59,7 +60,7 @@ export function mountHome(app, room) {
     },
   }, coin(true), h('span', { class: 'sr-only' }, 'Recoger '), '+', piggyAmount);
 
-  const shopButton = h('button', { class: 'btn btn-pink', type: 'button', onclick: () => openShop() }, icon('bag'), 'Tienda');
+  const shopButton = h('button', { class: 'btn btn-primary', type: 'button', onclick: () => openShop() }, icon('bag'), 'Tienda');
   const dailyBadge = h('span', { class: 'badge num', 'aria-hidden': 'true', hidden: true });
   const dailyLabel = h('span', { class: 'sr-only' });
   const dailyButton = h('button', { class: 'side-btn', type: 'button', onclick: () => openDaily() }, icon('target'), 'Misiones', dailyBadge, dailyLabel);
@@ -217,7 +218,9 @@ export function mountHome(app, room) {
       room.setEggProgress(done);
     } else {
       const day = Math.floor(((now - live.bornAt) * scale) / DAY_MS) + 1;
-      plateSub.textContent = `${STAGE_INFO[live.stage].name} · día ${day} · ${MOOD_TEXT[mood]}`;
+      // En perros y gatos, la raza va delante de la etapa.
+      const breed = breedOf(live.genes)?.name;
+      plateSub.textContent = `${breed ? `${breed} · ` : ''}${STAGE_INFO[live.stage].name} · día ${day} · ${MOOD_TEXT[mood]}`;
     }
     needs.hidden = egg;
     actsNav.hidden = egg;

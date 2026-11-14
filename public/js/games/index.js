@@ -54,7 +54,7 @@ export async function launchGame(gameId, difficulty, { room, say }) {
   };
 
   const area = h('div', { class: 'game-area' });
-  const startButton = h('button', { class: 'btn btn-pink btn-wide', type: 'button' }, 'Empezar');
+  const startButton = h('button', { class: 'btn btn-primary btn-wide', type: 'button' }, 'Empezar');
   const cover = h('div', { class: 'game-cover' },
     h('div', { class: 'dialog' },
       h('h2', {}, game.name),
@@ -121,7 +121,7 @@ export async function launchGame(gameId, difficulty, { room, say }) {
     const sure = await dialog({
       title: '¿Salir del juego?',
       text: 'Perderás esta partida y la energía de juego que ha costado.',
-      actions: [{ label: 'Seguir jugando', value: false, tone: 'pink' }, { label: 'Salir', value: true }],
+      actions: [{ label: 'Seguir jugando', value: false, tone: 'primary' }, { label: 'Salir', value: true }],
     });
     if (sure) close(0, true);
   });

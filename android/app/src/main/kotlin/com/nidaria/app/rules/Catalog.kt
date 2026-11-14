@@ -17,8 +17,8 @@ val SLOTS = listOf(Category("cabeza", "Cabeza"), Category("cara", "Cara"), Categ
 class Spot(val id: String, val name: String, val base: String?)
 
 val SPOTS = listOf(
-    Spot("pared", "Pared", "Lunares de cielo"),
-    Spot("alfombra", "Alfombra", "Alfombra rosa"),
+    Spot("pared", "Pared", "Tablas azules"),
+    Spot("alfombra", "Alfombra", "Alfombra marinera"),
     Spot("rincon", "Rincón", "Planta"),
     Spot("ventana", "Ventana", null),
 )
@@ -89,7 +89,7 @@ val ITEMS = listOf(
     wear("cascabel", "Cascabel", 100, "cuello", "Suena al andar."),
 
     decor("papel-rayas", "Rayas de menta", 180, "pared", "Rayas finas, frescas y tranquilas."),
-    decor("papel-vichy", "Cuadros rosa", 240, "pared", "Como un mantel de merienda."),
+    decor("papel-vichy", "Cuadros", 240, "pared", "Como un mantel de merienda."),
     decor("papel-flores", "Florecitas", 300, "pared", "Margaritas por todas partes."),
     decor("papel-olas", "Olas", 360, "pared", "Para soñar con el mar."),
     decor("papel-estrellas", "Noche de estrellas", 450, "pared", "Lila, con estrellas de oro."),

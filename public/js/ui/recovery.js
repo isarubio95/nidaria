@@ -42,7 +42,7 @@ export function showRecoveryCode(code, reason) {
     text,
     extra: h('p', { class: 'recovery-code num', translate: 'no', 'aria-label': `Código: ${code.split('').join(' ')}` }, code),
     actions: [
-      { label: 'Ya lo he guardado', value: true, tone: 'pink' },
+      { label: 'Ya lo he guardado', value: true, tone: 'primary' },
       { label: 'Copiar', keep: true, run: () => copy(code) },
     ],
   });

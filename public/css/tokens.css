@@ -44,44 +44,44 @@
 }
 
 :root {
-  /* Color: la habitación */
-  --sky: #bfe3ff;
-  --cream: #fff8ec;
-  --cream-deep: #f3e7d3;
-  --paper: #fffdf8;
+  /* Color: el fondo (la pared mientras carga la escena) */
+  --sky: #a9c4d6;
+  --cream: #f1eee8;
+  --cream-deep: #e2ddd3;
+  --paper: #fcfbf8;
 
-  /* Color: tinta. Cacao, nunca negro. */
-  --ink: #5b3a29;
-  --ink-soft: #84644f;
-  --ink-faint: #b89f8c;
-  --line: #eadfce;
+  /* Color: tinta. Azul marino, nunca negro. */
+  --ink: #1f2638;
+  --ink-soft: #4d5670;
+  --ink-faint: #979eb0;
+  --line: #dfdbd2;
 
-  /* Color: caramelos. Cada uno con su canto más oscuro. */
-  --pink: #ff8fb1;
-  --pink-edge: #e2648b;
-  --pink-wash: #ffe3ec;
-  --mint: #7ed6a5;
-  --mint-edge: #4fae7c;
-  --mint-wash: #dff5e8;
-  --sun: #ffd166;
-  --sun-edge: #e0a038;
-  --sun-wash: #fff1cc;
+  /* Color: los que se pulsan. Cada uno con su canto más oscuro. */
+  --primary: #ff6a3d;
+  --primary-edge: #d2461d;
+  --primary-wash: #ffe3d8;
+  --mint: #3fc79e;
+  --mint-edge: #1f9a76;
+  --mint-wash: #d6f3e8;
+  --sun: #ffc23d;
+  --sun-edge: #d48f17;
+  --sun-wash: #fff0c6;
 
   /* Color: una necesidad, un color fijo. */
-  --need-hunger: #ffb45c;
-  --need-hunger-edge: #e08f2e;
-  --need-energy: #9db7ff;
-  --need-energy-edge: #6f8de6;
-  --need-hygiene: #7ed6a5;
-  --need-hygiene-edge: #4fae7c;
-  --need-fun: #ff8fb1;
-  --need-fun-edge: #e2648b;
-  --need-health: #ff7a7a;
-  --need-health-edge: #df5252;
-  --track: #f0e6d6;
+  --need-hunger: #ff9f43;
+  --need-hunger-edge: #d27a1b;
+  --need-energy: #5b8def;
+  --need-energy-edge: #3a69cc;
+  --need-hygiene: #3fc79e;
+  --need-hygiene-edge: #1f9a76;
+  --need-fun: #8d6cff;
+  --need-fun-edge: #6447dc;
+  --need-health: #ff5c64;
+  --need-health-edge: #d23a43;
+  --track: #e9e5dc;
 
-  --danger: #c2403f;
-  --scrim: rgb(91 58 41 / 0.34);
+  --danger: #d0332f;
+  --scrim: rgb(31 38 56 / 0.4);
 
   /* Tipografía */
   --font: "Zen Maru Gothic", ui-rounded, "Hiragino Maru Gothic ProN", "Arial Rounded MT Bold", system-ui, sans-serif;
@@ -109,10 +109,10 @@
   --r-lg: 28px;
   --r-pill: 999px;
 
-  /* Sombra: marrón, con desplazamiento y difuminado. */
-  --shadow-sm: 0 2px 4px rgb(91 58 41 / 0.1), 0 6px 14px -6px rgb(91 58 41 / 0.22);
-  --shadow-md: 0 3px 6px rgb(91 58 41 / 0.1), 0 14px 28px -10px rgb(91 58 41 / 0.3);
-  --shadow-lg: 0 6px 12px rgb(91 58 41 / 0.1), 0 28px 56px -16px rgb(91 58 41 / 0.36);
+  /* Sombra: azul tinta, con desplazamiento y difuminado. */
+  --shadow-sm: 0 2px 4px rgb(31 38 56 / 0.1), 0 6px 14px -6px rgb(31 38 56 / 0.22);
+  --shadow-md: 0 3px 6px rgb(31 38 56 / 0.1), 0 14px 28px -10px rgb(31 38 56 / 0.3);
+  --shadow-lg: 0 6px 12px rgb(31 38 56 / 0.1), 0 28px 56px -16px rgb(31 38 56 / 0.36);
 
   /* Movimiento: escala de transitions.dev */
   --duration-stagger: 40ms;

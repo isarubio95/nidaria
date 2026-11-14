@@ -23,7 +23,7 @@ export function mountAuth(app) {
   const pass = field({ id: 'clave', label: 'Contraseña', type: 'password', autocomplete: 'current-password' });
   const hint = h('p', { class: 'field-hint', hidden: true });
   pass.wrap.insertBefore(hint, pass.wrap.lastElementChild);
-  const submit = h('button', { class: 'btn btn-pink btn-wide', type: 'submit' }, 'Entrar');
+  const submit = h('button', { class: 'btn btn-primary btn-wide', type: 'submit' }, 'Entrar');
   const title = h('h1', { class: 'wordmark' }, 'Nidaria');
   const lead = h('p', { class: 'lead' }, LEAD.login);
   const switcher = tabs([{ id: 'login', label: 'Ya tengo cuenta' }, { id: 'register', label: 'Crear cuenta' }], mode, (next) => setMode(next), 'Tipo de entrada');

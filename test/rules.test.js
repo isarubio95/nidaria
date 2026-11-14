@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createGenes, inheritGenes, dnaCode, FAMILIES } from '../shared/dna.js';
+import { createGenes, inheritGenes, dnaCode, FAMILIES, MONSTER_FAMILIES, speciesOf, breedOf } from '../shared/dna.js';
+import { BREEDS, breedsOf, getBreed, SPECIES, EAR_TYPES, COAT_TYPES, TAIL_TYPES } from '../shared/breeds.js';
 import {
   FORM_LIST, getForm, chooseBranch, nextFormId, emptyCare, childrenOf, secretsOf, hintFor,
 } from '../shared/forms.js';
@@ -46,8 +47,10 @@ test('el huevo heredero conserva un rasgo y casi siempre la familia', () => {
   assert.ok(sameFamily > 140 && sameFamily < 200, `misma familia: ${sameFamily}`);
 });
 
-test('el árbol tiene 64 formas y 15 ocultas, con nombres únicos', () => {
-  assert.equal(FORM_LIST.length, 1 + 3 + 12 + 48 + 15);
+test('el árbol tiene 129 formas y 23 ocultas, con nombres únicos', () => {
+  // Huevo, cinco familias (tres de monstruo, perro y gato) con su cría,
+  // cuatro jóvenes y dieciséis adultas cada una, y sus ocultas.
+  assert.equal(FORM_LIST.length, 1 + 5 + 20 + 80 + 15 + 8);
   assert.equal(new Set(FORM_LIST.map((form) => form.name)).size, FORM_LIST.length);
   for (const form of FORM_LIST) {
     if (form.parent) assert.ok(getForm(form.parent));
@@ -55,7 +58,9 @@ test('el árbol tiene 64 formas y 15 ocultas, con nombres únicos', () => {
   for (const family of FAMILIES) {
     assert.equal(childrenOf(`cria-${family}`).length, 4);
     const secrets = secretsOf(family);
-    assert.equal(secrets.length, 5);
+    // Los monstruos tienen dos mestizas (una por familia de origen); perros
+    // y gatos, una sola (cruce de razas).
+    assert.equal(secrets.length, MONSTER_FAMILIES.includes(family) ? 5 : 4);
     for (const form of secrets) {
       assert.equal(form.stage, 'adulto');
       assert.ok(hintFor(form.id).length > 10);
@@ -378,4 +383,64 @@ test('el escondite solo lo juegan las juguetonas', () => {
   creature.formId = 'oculta-pelusa-radiante';
   assert.ok(actions.gameLock(game, creature));
   for (const difficulty of Object.keys(DIFFICULTIES)) assert.ok(game.levels[difficulty].target <= game.maxScore);
+});
+
+test('perros y gatos: cada huevo trae una raza válida y su capa', () => {
+  assert.deepEqual(SPECIES, ['perro', 'gato', 'monstruo']);
+  assert.equal(new Set(BREEDS.map((breed) => breed.id)).size, BREEDS.length);
+  assert.ok(breedsOf('perro').length >= 40);
+  assert.ok(breedsOf('gato').length >= 25);
+  for (const breed of BREEDS) {
+    assert.ok(EAR_TYPES.includes(breed.ears.type), `${breed.id}: orejas ${breed.ears.type}`);
+    assert.ok(COAT_TYPES.includes(breed.coat), `${breed.id}: pelo ${breed.coat}`);
+    assert.ok(TAIL_TYPES.includes(breed.tail.type), `${breed.id}: cola ${breed.tail.type}`);
+    assert.ok(breed.coats.length > 0 && breed.eyes.length > 0, breed.id);
+    for (const coat of breed.coats) assert.match(coat.base, /^#[0-9a-f]{6}$/, `${breed.id}: ${coat.name}`);
+  }
+  const seen = new Set();
+  for (let seed = 1; seed <= 400; seed++) {
+    for (const species of ['perro', 'gato']) {
+      const genes = createGenes(seed, species);
+      assert.deepEqual(genes, createGenes(seed, species));
+      assert.equal(genes.family, species);
+      assert.equal(speciesOf(genes), species);
+      const breed = breedOf(genes);
+      assert.equal(breed.species, species);
+      assert.ok(genes.coat >= 0 && genes.coat < breed.coats.length);
+      assert.ok(genes.eyes >= 0 && genes.eyes < breed.eyes.length);
+      seen.add(breed.id);
+    }
+  }
+  // Con suficientes huevos salen todas las razas.
+  assert.equal(seen.size, BREEDS.length);
+  assert.match(dnaCode(createGenes(9, 'perro')), /^C-/);
+  assert.match(dnaCode(createGenes(9, 'gato')), /^M-/);
+  assert.equal(speciesOf(createGenes(9)), 'monstruo');
+});
+
+test('el heredero de una mascota es de su especie y casi siempre de su raza', () => {
+  const parent = createGenes(31, 'perro');
+  let sameBreed = 0;
+  for (let seed = 1; seed <= 200; seed++) {
+    const child = inheritGenes(parent, seed);
+    assert.equal(child.family, 'perro');
+    assert.ok(getBreed(child.breed));
+    assert.notEqual(child.favFood, child.hateFood);
+    if (child.breed === parent.breed) {
+      sameBreed++;
+      assert.equal(child.origin, undefined);
+    } else {
+      assert.equal(child.origin, parent.breed);
+    }
+  }
+  assert.ok(sameBreed > 130 && sameBreed < 190, `misma raza: ${sameBreed}`);
+});
+
+test('el chucho mestizo sale de un heredero que cambió de raza', () => {
+  const genes = { ...createGenes(12, 'perro'), breed: 'beagle', origin: 'labrador' };
+  const care = { ...emptyCare(), hours: 24, sumHunger: 70 * 24, sumEnergy: 70 * 24, sumHygiene: 70 * 24, sumFun: 70 * 24, feeds: 5, mistakes: 1 };
+  const young = { formId: 'joven-perro-jugueton', care, genes, lifeCare: { hours: 1, sum: 280, mistakes: 1 } };
+  assert.equal(nextFormId(young), 'oculta-perro-mestiza');
+  assert.equal(nextFormId({ ...young, genes: { ...genes, origin: 'beagle' } }).startsWith('adulto-perro-jugueton-'), true);
+  assert.equal(nextFormId({ ...young, formId: 'huevo' }), 'cria-perro');
 });

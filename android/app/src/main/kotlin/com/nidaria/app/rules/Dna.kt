@@ -7,15 +7,27 @@ import java.math.RoundingMode
 import kotlin.math.floor
 import kotlinx.serialization.Serializable
 
-val FAMILIES = listOf("pelusa", "hoja", "gota")
+// Familias de monstruo y de mascota (ver shared/dna.js). Perros y gatos
+// son una familia cada uno; su aspecto sale de la raza.
+val MONSTER_FAMILIES = listOf("pelusa", "hoja", "gota")
+val PET_FAMILIES = listOf("perro", "gato")
+val FAMILIES = MONSTER_FAMILIES + PET_FAMILIES
 
-class FamilyInfo(val name: String, val blurb: String, val hues: List<IntArray>)
+class FamilyInfo(val name: String, val blurb: String, val hues: List<IntArray>, val species: String)
 
 val FAMILY_INFO = mapOf(
-    "pelusa" to FamilyInfo("Pelusa", "Blandas y de pelo esponjoso.", listOf(intArrayOf(8, 48), intArrayOf(318, 352))),
-    "hoja" to FamilyInfo("Hoja", "Brotan con hojas y tallos.", listOf(intArrayOf(72, 158))),
-    "gota" to FamilyInfo("Gota", "Lisas y de agua.", listOf(intArrayOf(172, 232), intArrayOf(246, 286))),
+    "pelusa" to FamilyInfo("Pelusa", "Zorros de pelo encendido y mucho genio.", listOf(intArrayOf(4, 40), intArrayOf(196, 212)), "monstruo"),
+    "hoja" to FamilyInfo("Hoja", "Pequeños dinosaurios con hojas por cresta.", listOf(intArrayOf(78, 160)), "monstruo"),
+    "gota" to FamilyInfo("Gota", "Anfibios lisos, con aletas, de agua.", listOf(intArrayOf(186, 228), intArrayOf(232, 248)), "monstruo"),
+    "perro" to FamilyInfo("Perro", "Leal y con ganas de jugar.", emptyList(), "perro"),
+    "gato" to FamilyInfo("Gato", "Curioso y muy suyo.", emptyList(), "gato"),
 )
+
+fun isPet(family: String?): Boolean = family in PET_FAMILIES
+
+// Especie de una familia: perro, gato o monstruo.
+fun speciesOf(family: String?): String = FAMILY_INFO[family]?.species ?: "monstruo"
+
 
 class TraitInfo(val name: String, val blurb: String)
 
@@ -60,14 +72,25 @@ data class Genes(
     val traits: List<String> = emptyList(),
     val favFood: String = "",
     val hateFood: String = "",
-    // Familia del progenitor si el huevo heredero cambió de familia.
+    // Familia (o raza, en las mascotas) del progenitor si el huevo
+    // heredero cambió de familia (o de raza).
     val origin: String? = null,
+    // Solo perros y gatos: raza, capa y color de ojos (índices).
+    val breed: String? = null,
+    val coat: Int? = null,
+    val eyes: Int? = null,
 )
+
+fun Genes.breedInfo(): BreedInfo? = getBreed(breed)
+
+// La raza en las mascotas; la familia en los monstruos.
+fun Genes.kindName(): String = breedInfo()?.name ?: FAMILY_INFO[family]?.name ?: ""
 
 // Lo que se sabe de un huevo antes de elegirlo: solo sus colores.
 @Serializable
 data class EggLook(
     val index: Int = 0,
+    val species: String = "monstruo",
     val heir: Boolean = false,
     val family: String = "pelusa",
     val hue: Int = 0,
@@ -88,10 +111,44 @@ private fun pickHue(rng: Rng, family: String): Int {
     return jsRound(rng.range(band[0].toDouble(), band[1].toDouble()))
 }
 
+// Color en hexadecimal a tono, saturación y luz, como hexToHsl en dna.js.
+fun hexToHsl(hex: String): IntArray {
+    val n = hex.substring(1).toInt(16)
+    val r = ((n shr 16) and 255) / 255.0
+    val g = ((n shr 8) and 255) / 255.0
+    val b = (n and 255) / 255.0
+    val hi = maxOf(r, g, b)
+    val lo = minOf(r, g, b)
+    val l = (hi + lo) / 2
+    var h = 0.0
+    var s = 0.0
+    if (hi != lo) {
+        val d = hi - lo
+        s = if (l > 0.5) d / (2 - hi - lo) else d / (hi + lo)
+        h = when (hi) {
+            r -> (g - b) / d + (if (g < b) 6 else 0)
+            g -> (b - r) / d + 2
+            else -> (r - g) / d + 4
+        }
+        h *= 60
+    }
+    return intArrayOf(jsRound(h) % 360, jsRound(s * 100), jsRound(l * 100))
+}
+
+// Los colores de una mascota (para el huevo y la tarjeta) salen de su capa.
+private fun Genes.withCoat(breed: BreedInfo, coat: Int, eyes: Int): Genes {
+    val info = breed.coats[coat]
+    val hsl = hexToHsl(info.base)
+    val hue2 = info.second?.let { hexToHsl(it)[0] } ?: hsl[0]
+    return copy(breed = breed.id, coat = coat, eyes = eyes, hue = hsl[0], sat = hsl[1], light = hsl[2], hue2 = hue2)
+}
+
+// `family` puede faltar: entonces sale una familia de monstruo al azar.
 fun createGenes(seed: Long, family: String? = null): Genes {
     val rng = Rng(seed)
-    val fam = family ?: rng.pick(FAMILIES)
-    val hue = pickHue(rng, fam)
+    val fam = family ?: rng.pick(MONSTER_FAMILIES)
+    val pet = isPet(fam)
+    val hue = if (pet) 0 else pickHue(rng, fam)
     val first = rng.pick(TRAIT_IDS)
     var second = rng.pick(TRAIT_IDS)
     while (second == first) second = rng.pick(TRAIT_IDS)
@@ -112,9 +169,14 @@ fun createGenes(seed: Long, family: String? = null): Genes {
         tail = fixed2(rng.range(0.0, 1.0)),
     )
     val eyeStyle = rng.int(0, 2)
-    return Genes(
+    val genes = Genes(
         v = 1, seed = seed and 0xffffffffL, family = fam, hue = hue, sat = sat, light = light, hue2 = hue2,
         pattern = pattern, patternAmt = patternAmt, build = build, eyeStyle = eyeStyle,
         traits = listOf(first, second), favFood = fav, hateFood = hate,
     )
+    if (!pet) return genes
+    val breed = rng.pick(breedsOf(fam))
+    val coat = rng.int(0, breed.coats.size - 1)
+    val eyes = rng.int(0, breed.eyes - 1)
+    return genes.withCoat(breed, coat, eyes)
 }

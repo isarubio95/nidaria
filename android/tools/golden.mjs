@@ -29,7 +29,7 @@ const mixes = [[0, 0], [1, 2], [4294967295, 4294967295], [123456789, 42], [26544
 
 const genes = [];
 for (const seed of [...seeds, 5, 99, 1000, 31337, 777777, 3000000000]) {
-  for (const family of [null, 'pelusa', 'hoja', 'gota']) genes.push({ seed, family, genes: createGenes(seed, family ?? undefined) });
+  for (const family of [null, 'pelusa', 'hoja', 'gota', 'perro', 'gato']) genes.push({ seed, family, genes: createGenes(seed, family ?? undefined) });
 }
 
 const forms = FORM_LIST.map((form) => ({
@@ -115,9 +115,11 @@ const secrets = [];
 for (const seed of [5, 101, 31337]) {
   for (const b1 of ['gloton', 'arisco']) {
     for (const [care, opts] of secretCases) {
-      const genes = createGenes(seed);
-      if (opts.origin === 'other') genes.origin = genes.family === 'gota' ? 'hoja' : 'gota';
-      if (opts.origin === 'same') genes.origin = genes.family;
+      // También perros y gatos: su mestizo sale de un cambio de raza.
+      const family = [undefined, 'perro', 'gato'][(seed + (b1 === 'arisco' ? 1 : 0)) % 3];
+      const genes = createGenes(seed, family);
+      if (opts.origin === 'other') genes.origin = genes.breed ? (genes.breed === 'beagle' ? 'galgo' : 'beagle') : genes.family === 'gota' ? 'hoja' : 'gota';
+      if (opts.origin === 'same') genes.origin = genes.breed ?? genes.family;
       const creature = {
         formId: `joven-${genes.family}-${b1}`,
         genes,

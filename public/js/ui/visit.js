@@ -70,7 +70,7 @@ export function mountVisit(app, room, visit, leave) {
   const bubble = speechBubble(room, plate);
 
   const note = h('p', { class: 'visit-status' }, status(creature, visit.name));
-  const giftButton = h('button', { class: 'btn btn-pink btn-wide', type: 'button', onclick: chooseGift });
+  const giftButton = h('button', { class: 'btn btn-primary btn-wide', type: 'button', onclick: chooseGift });
   const remove = h('button', { class: 'text-link', type: 'button', onclick: removeFriend }, 'Quitar de amigos');
   const dock = h('footer', { class: 'dock' }, h('section', { class: 'visit-card', 'aria-label': `Casa de ${visit.name}` }, note, giftButton, remove));
   app.replaceChildren(top, plate, bubble.el, dock);
@@ -115,7 +115,7 @@ export function mountVisit(app, room, visit, leave) {
       ? h('div', { class: 'items' }, ownedTiles(owned, give))
       : h('div', { class: 'empty' },
         h('p', {}, 'No tienes comida ni cuidados que regalar. Compra algo en la tienda y vuelve.'),
-        h('button', { class: 'btn btn-pink', type: 'button', onclick: () => openShop('comida') }, 'Ir a la tienda'),
+        h('button', { class: 'btn btn-primary', type: 'button', onclick: () => openShop('comida') }, 'Ir a la tienda'),
       );
     openSheet({
       title: `Un regalo para ${visit.name}`,
@@ -145,7 +145,7 @@ export function mountVisit(app, room, visit, leave) {
     const sure = await dialog({
       title: `¿Quitar a ${visit.name} de tus amigos?`,
       text: 'Dejaréis de poder visitaros y de dejaros regalos. Para volver a ser amigos, uno tendrá que añadir otra vez al otro.',
-      actions: [{ label: 'Seguir siendo amigos', value: false, tone: 'pink' }, { label: 'Quitar', value: true }],
+      actions: [{ label: 'Seguir siendo amigos', value: false, tone: 'primary' }, { label: 'Quitar', value: true }],
     });
     if (!sure || destroyed) return;
     const payload = await run(api.removeFriend({ id: visit.id }));

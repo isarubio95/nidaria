@@ -43,46 +43,46 @@ import kotlin.math.min
 
 object Nd {
     // La habitación
-    val sky = Color(0xFFBFE3FF)
-    val cream = Color(0xFFFFF8EC)
-    val creamDeep = Color(0xFFF3E7D3)
-    val paper = Color(0xFFFFFDF8)
+    val sky = Color(0xFFA9C4D6)
+    val cream = Color(0xFFF1EEE8)
+    val creamDeep = Color(0xFFE2DDD3)
+    val paper = Color(0xFFFCFBF8)
 
     // Tinta. Cacao, nunca negro.
-    val ink = Color(0xFF5B3A29)
-    val inkSoft = Color(0xFF84644F)
-    val inkFaint = Color(0xFFB89F8C)
-    val line = Color(0xFFEADFCE)
+    val ink = Color(0xFF1F2638)
+    val inkSoft = Color(0xFF4D5670)
+    val inkFaint = Color(0xFF979EB0)
+    val line = Color(0xFFDFDBD2)
 
     // Caramelos, cada uno con su canto más oscuro.
-    val pink = Color(0xFFFF8FB1)
-    val pinkEdge = Color(0xFFE2648B)
-    val pinkWash = Color(0xFFFFE3EC)
-    val mint = Color(0xFF7ED6A5)
-    val mintEdge = Color(0xFF4FAE7C)
-    val mintWash = Color(0xFFDFF5E8)
-    val sun = Color(0xFFFFD166)
-    val sunEdge = Color(0xFFE0A038)
-    val sunWash = Color(0xFFFFF1CC)
+    val pink = Color(0xFFFF6A3D)
+    val pinkEdge = Color(0xFFD2461D)
+    val pinkWash = Color(0xFFFFE3D8)
+    val mint = Color(0xFF3FC79E)
+    val mintEdge = Color(0xFF1F9A76)
+    val mintWash = Color(0xFFD6F3E8)
+    val sun = Color(0xFFFFC23D)
+    val sunEdge = Color(0xFFD48F17)
+    val sunWash = Color(0xFFFFF0C6)
 
     // Una necesidad, un color fijo.
-    val hunger = Color(0xFFFFB45C)
-    val hungerEdge = Color(0xFFE08F2E)
-    val energy = Color(0xFF9DB7FF)
-    val energyEdge = Color(0xFF6F8DE6)
+    val hunger = Color(0xFFFF9F43)
+    val hungerEdge = Color(0xFFD27A1B)
+    val energy = Color(0xFF5B8DEF)
+    val energyEdge = Color(0xFF3A69CC)
     val hygiene = mint
     val hygieneEdge = mintEdge
-    val funny = pink
-    val funnyEdge = pinkEdge
-    val health = Color(0xFFFF7A7A)
-    val healthEdge = Color(0xFFDF5252)
-    val track = Color(0xFFF0E6D6)
+    val funny = Color(0xFF8D6CFF)
+    val funnyEdge = Color(0xFF6447DC)
+    val health = Color(0xFFFF5C64)
+    val healthEdge = Color(0xFFD23A43)
+    val track = Color(0xFFE9E5DC)
 
-    val danger = Color(0xFFC2403F)
-    val scrim = Color(0x575B3A29)
+    val danger = Color(0xFFD0332F)
+    val scrim = Color(0x661F2638)
 
     // Colores extra de los minijuegos
-    val skyEdge = Color(0xFF8FBFE8)
+    val skyEdge = Color(0xFF7FA3BD)
     val grey = Color(0xFFB9AEA4)
     val greyEdge = Color(0xFF8F8378)
 

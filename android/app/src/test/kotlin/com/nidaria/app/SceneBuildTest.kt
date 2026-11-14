@@ -73,7 +73,7 @@ class SceneBuildTest {
             }
         }
         assertEquals((FORM_LIST.size - 1) * 3, built)
-        assertEquals(78, FORM_LIST.size - 1)
+        assertEquals(128, FORM_LIST.size - 1)
     }
 
     // La pieza de adulta puede ir fundida con el cuerpo (melena) o aparte

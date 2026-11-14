@@ -4,7 +4,8 @@
 
 import crypto from 'node:crypto';
 import { HttpError } from '../auth.js';
-import { createGenes, inheritGenes, dnaCode, FAMILIES } from '../../shared/dna.js';
+import { createGenes, inheritGenes, dnaCode, speciesOf, kindName } from '../../shared/dna.js';
+import { SPECIES } from '../../shared/breeds.js';
 import { getForm, STAGE_INFO, chooseBranch, NIGHT_HOURS } from '../../shared/forms.js';
 import { bondOf, bondLevel } from '../../shared/bond.js';
 import { simulate, newCreature, nextStageAt, moodOf } from '../../shared/needs.js';
@@ -89,21 +90,25 @@ export function createGame(db, config, push = null) {
     return cleanDecor(user.decor ? JSON.parse(user.decor) : null);
   }
 
-  // Tres huevos para elegir. Tras una muerte, el primero es el heredero.
+  // Un huevo preparado por especie: el jugador elige especie y le toca
+  // ese huevo, con la raza (o la familia) ya decidida y escondida. Tras una
+  // muerte, el de la especie de la que se fue es su heredero. Se guarda
+  // para que volver atrás no cambie el huevo.
   async function ensureEggOffer(user, deadCreature) {
-    if (user.egg_offer) return JSON.parse(user.egg_offer);
-    const offer = [];
-    if (deadCreature) {
-      const genes = inheritGenes(deadCreature.genes, randomSeed());
-      offer.push({ genes, heir: true });
-      for (const family of FAMILIES.filter((f) => f !== genes.family)) {
-        offer.push({ genes: createGenes(randomSeed(), family), heir: false });
+    const stored = user.egg_offer ? JSON.parse(user.egg_offer) : null;
+    // Las ofertas antiguas eran una lista de tres huevos de monstruo.
+    if (stored && !Array.isArray(stored) && stored.eggs) return stored.eggs;
+    const heirSpecies = deadCreature ? speciesOf(deadCreature.genes) : null;
+    const eggs = {};
+    for (const species of SPECIES) {
+      if (species === heirSpecies) {
+        eggs[species] = { genes: inheritGenes(deadCreature.genes, randomSeed()), heir: true };
+      } else {
+        eggs[species] = { genes: createGenes(randomSeed(), species === 'monstruo' ? undefined : species), heir: false };
       }
-    } else {
-      for (const family of FAMILIES) offer.push({ genes: createGenes(randomSeed(), family), heir: false });
     }
-    await db.run('UPDATE users SET egg_offer = ? WHERE id = ?', [JSON.stringify(offer), user.id]);
-    return offer;
+    await db.run('UPDATE users SET egg_offer = ? WHERE id = ?', [JSON.stringify({ v: 2, eggs }), user.id]);
+    return eggs;
   }
 
   // Misiones del día del jugador. Si ha cambiado el día, salen otras.
@@ -158,7 +163,10 @@ export function createGame(db, config, push = null) {
     if (!creature) return { creature: null, events: [] };
     const result = simulate(creature, now, { scale });
     for (const event of result.events) {
-      if (event.type === 'evolved') await recordForm(userId, event.to, event.at);
+      if (event.type !== 'evolved') continue;
+      await recordForm(userId, event.to, event.at);
+      // Al nacer se descubre la raza: cuenta en el Criadex de razas.
+      if (event.from === 'huevo' && creature.genes.breed) await recordForm(userId, `raza:${creature.genes.breed}`, event.at);
     }
     return result;
   }
@@ -169,15 +177,17 @@ export function createGame(db, config, push = null) {
     const criadexRows = await db.all('SELECT form_id, first_at, times FROM criadex WHERE user_id = ?', [user.id]);
     let eggOffer = null;
     if (!creature || !creature.alive) {
-      const offer = await ensureEggOffer(user, creature);
-      eggOffer = offer.map((egg, index) => ({
+      const eggs = await ensureEggOffer(user, creature);
+      // Solo lo que se ve del huevo: la raza no se sabe hasta que nace.
+      eggOffer = SPECIES.map((species, index) => ({
         index,
-        heir: egg.heir,
-        family: egg.genes.family,
-        hue: egg.genes.hue,
-        sat: egg.genes.sat,
-        light: egg.genes.light,
-        hue2: egg.genes.hue2,
+        species,
+        heir: eggs[species].heir,
+        family: species === 'monstruo' ? eggs[species].genes.family : species,
+        hue: eggs[species].genes.hue,
+        sat: eggs[species].genes.sat,
+        light: eggs[species].genes.light,
+        hue2: eggs[species].genes.hue2,
       }));
     }
     let view = null;
@@ -186,6 +196,10 @@ export function createGame(db, config, push = null) {
       view = {
         ...creature,
         code: dnaCode(creature.genes),
+        species: speciesOf(creature.genes),
+        // La raza en perros y gatos; la familia en los monstruos. Mientras
+        // es huevo no se sabe.
+        kindName: creature.stage === 'huevo' ? null : kindName(creature.genes),
         formName: form.name,
         stageName: STAGE_INFO[creature.stage].name,
         nextStageAt: creature.alive ? nextStageAt(creature, scale) : null,
@@ -233,6 +247,7 @@ export function createGame(db, config, push = null) {
       genes: creature.genes,
       formId: creature.formId,
       formName: form.name,
+      kindName: kindName(creature.genes),
       stage: creature.stage,
       secret: form.secret ?? null,
       history: creature.history,
@@ -298,11 +313,11 @@ export function createGame(db, config, push = null) {
     openGift: friends.open,
     renewFriendCode: friends.renewCode,
 
-    pickEgg: (userId, index, name) => operation(userId, async (ctx) => {
+    pickEgg: (userId, species, name) => operation(userId, async (ctx) => {
       if (ctx.creature && ctx.creature.alive) throw new HttpError(400, 'Ya tienes una criatura.');
-      const offer = await ensureEggOffer(ctx.user, ctx.creature);
-      const egg = offer[index];
-      if (!egg) throw new HttpError(400, 'Ese huevo no está.');
+      if (!SPECIES.includes(species)) throw new HttpError(400, 'Elige perro, gato o monstruo.');
+      const eggs = await ensureEggOffer(ctx.user, ctx.creature);
+      const egg = eggs[species];
       const previous = ctx.creature;
       const hour = localHour(ctx.now, ctx.user.time_zone ?? DEFAULT_TIME_ZONE);
       const creature = newCreature({
@@ -324,7 +339,7 @@ export function createGame(db, config, push = null) {
       await db.run('UPDATE users SET egg_offer = NULL WHERE id = ?', [userId]);
       await recordForm(userId, 'huevo', ctx.now);
       ctx.creature = creature;
-      return { picked: index };
+      return { picked: species };
     }),
 
     // Dar calor al huevo adelanta la eclosión segundo y medio por toque.

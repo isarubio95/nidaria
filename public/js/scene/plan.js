@@ -7,7 +7,7 @@
 import { getForm } from '/shared/forms.js';
 
 export const FAMILY_BASE = {
-  pelusa: { ears: 'fox', top: 'flame', tail: 'flame', finish: 'plush', snout: 0.55 },
+  pelusa: { ears: 'fox', top: 'flame', tail: 'flame', finish: 'matte', snout: 0.55 },
   hoja: { ears: 'leaf', top: 'leaf', tail: 'leaf', finish: 'matte', snout: 0.45 },
   gota: { ears: 'fin', top: 'fin', tail: 'fish', finish: 'gloss', snout: 0.12 },
 };
@@ -29,12 +29,12 @@ export function planFor(formId, genes) {
     scale: STAGE_SCALE[form.stage] ?? 1,
     blob: form.stage === 'cria',
     body: adult
-      ? { w: 0.27 + build.round * 0.05, h: 0.46, d: 0.25 + build.round * 0.03 }
-      : { w: 0.25 + build.round * 0.04, h: 0.36, d: 0.23 + build.round * 0.03 },
+      ? { w: 0.25 + build.round * 0.05, h: 0.44, d: 0.23 + build.round * 0.03 }
+      : { w: 0.22 + build.round * 0.04, h: 0.33, d: 0.21 + build.round * 0.03 },
     legs: adult ? 0.2 : 0.14,
     head: adult
-      ? { rx: 0.32 + build.head * 0.03, ry: 0.29 + build.head * 0.025, rz: 0.29 + build.head * 0.03 }
-      : { rx: 0.34 + build.head * 0.03, ry: 0.31 + build.head * 0.025, rz: 0.3 + build.head * 0.03 },
+      ? { rx: 0.33 + build.head * 0.03, ry: 0.3 + build.head * 0.025, rz: 0.3 + build.head * 0.03 }
+      : { rx: 0.35 + build.head * 0.03, ry: 0.32 + build.head * 0.025, rz: 0.31 + build.head * 0.03 },
     snout: base.snout,
     ears: { type: base.ears, size: 0.85 + build.ears * 0.35, droop: 0 },
     top: { type: form.stage === 'cria' && family === 'hoja' ? 'sprout' : base.top, size: 1 },

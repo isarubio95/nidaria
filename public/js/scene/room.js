@@ -26,7 +26,7 @@ const EGG_SCALE = 1.08;
 const DAY = {
   wall: new THREE.Color('#ffffff'), floor: new THREE.Color('#ffffff'), trim: new THREE.Color('#ffffff'),
   key: new THREE.Color('#fff0dc'), sky: new THREE.Color('#e8f3ff'), ground: new THREE.Color('#f2d7b8'),
-  back: new THREE.Color('#bfe3ff'),
+  back: new THREE.Color('#a9c4d6'),
 };
 const NIGHT = {
   wall: new THREE.Color('#c6cdf0'), floor: new THREE.Color('#d2c8e2'), trim: new THREE.Color('#d8d8f0'),
@@ -522,15 +522,17 @@ export function createRoom(canvas) {
     clearMount();
     mode = 'eggs';
     selectedEgg = -1;
+    // En fila y centrados: uno solo (el de la especie elegida) va en medio.
+    const middle = (offer.length - 1) / 2;
     eggs = offer.map((genes, index) => {
       const egg = buildEgg(genes);
-      egg.position.x = (index - 1) * 0.7;
+      egg.position.x = (index - middle) * 0.7;
       egg.scale.setScalar(0.8);
       mount.add(egg);
       return egg;
     });
-    setSubject(1.3, 2.25);
-    setHits(offer.map((_, index) => ({ x: (index - 1) * 0.7, y: 0.42, rx: 0.33, ry: 0.48, rz: 0.4 })));
+    setSubject(1.3, offer.length > 1 ? 2.25 : 1.4);
+    setHits(offer.map((_, index) => ({ x: (index - middle) * 0.7, y: 0.42, rx: 0.33, ry: 0.48, rz: 0.4 })));
   }
 
   function selectEgg(index) {
@@ -749,7 +751,7 @@ export function createRoom(canvas) {
     sfx('burbujas');
     bubbles(16);
     actor.wash();
-    if (!reduce) gsap.delayedCall(1.3, () => sparks(bodyCenter(), 8, 0.65, '#bfe3ff'));
+    if (!reduce) gsap.delayedCall(1.3, () => sparks(bodyCenter(), 8, 0.65, '#a9c4d6'));
   }
 
   function heal() {

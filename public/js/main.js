@@ -11,7 +11,7 @@ import { watchMissions } from './ui/daily.js';
 import { createRoom } from './scene/room.js';
 import { creatureThumb } from './scene/thumbs.js';
 import { getForm, BRANCH_INFO, SECRET_INFO } from '/shared/forms.js';
-import { FAMILY_INFO } from '/shared/dna.js';
+import { FAMILY_INFO, breedOf } from '/shared/dna.js';
 import { BOND_LEVELS } from '/shared/bond.js';
 import { mountAuth } from './ui/auth.js';
 import { mountEggs } from './ui/eggs.js';
@@ -80,7 +80,7 @@ async function offerPush(creature) {
   const yes = await dialog({
     title: `¿Te aviso si ${creature.name} te necesita?`,
     text: 'Te mandaremos un aviso si tiene hambre, se pone enferma o va a evolucionar, aunque tengas el juego cerrado. De noche, nunca.',
-    actions: [{ label: 'Sí, avísame', value: true, tone: 'pink' }, { label: 'Ahora no', value: false }],
+    actions: [{ label: 'Sí, avísame', value: true, tone: 'primary' }, { label: 'Ahora no', value: false }],
   });
   if (!yes) return;
   const result = await enablePush(key);
@@ -128,9 +128,11 @@ function announce(creature, first) {
   if (first.from === 'huevo' && form.stage === 'cria') {
     return dialog({
       title: `¡${creature.name} ha nacido!`,
-      text: `Es ${form.name}, de la familia ${FAMILY_INFO[form.family].name}. Según cómo la cuides, crecerá por una rama u otra.`,
+      text: breedOf(creature.genes)
+        ? `¡Es de raza ${breedOf(creature.genes).name}! Según cómo la cuides, crecerá de una forma u otra.`
+        : `Es ${form.name}, de la familia ${FAMILY_INFO[form.family].name}. Según cómo la cuides, crecerá por una rama u otra.`,
       art,
-      actions: [{ label: 'Conocerla', value: true, tone: 'pink' }, PHOTO],
+      actions: [{ label: 'Conocerla', value: true, tone: 'primary' }, PHOTO],
     });
   }
   if (form.secret) {
@@ -138,14 +140,14 @@ function announce(creature, first) {
       title: '¡Una forma oculta!',
       text: `${creature.name} ahora es ${form.name}. ${SECRET_INFO[form.secret].reason}`,
       art,
-      actions: [{ label: 'Verla', value: true, tone: 'pink' }, PHOTO],
+      actions: [{ label: 'Verla', value: true, tone: 'primary' }, PHOTO],
     });
   }
   return dialog({
     title: `¡${creature.name} ha evolucionado!`,
     text: `Ahora es ${form.name}. La has criado ${BRANCH_INFO[form.branch].name.toLowerCase()} y por eso ha seguido esa rama.`,
     art,
-    actions: [{ label: 'Verla', value: true, tone: 'pink' }, PHOTO],
+    actions: [{ label: 'Verla', value: true, tone: 'primary' }, PHOTO],
   });
 }
 
@@ -178,7 +180,7 @@ function route(state, payload = {}) {
     if (screenName !== 'eggs') {
       closeSheet();
       room.setNight(false);
-      show('eggs', () => mountEggs(app, room, state));
+      show('eggs', () => mountEggs(app, room, state, () => refocus()));
     }
     return;
   }
@@ -277,7 +279,7 @@ async function boot() {
       return;
     }
     room.showDemo();
-    message('No hay conexión', error.message, h('button', { class: 'btn btn-pink btn-wide', type: 'button', onclick: boot }, 'Reintentar'));
+    message('No hay conexión', error.message, h('button', { class: 'btn btn-primary btn-wide', type: 'button', onclick: boot }, 'Reintentar'));
   }
 }
 

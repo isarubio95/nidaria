@@ -111,7 +111,7 @@ export function openFriends() {
     const yes = await dialog({
       title: '¿Cambiar tu código?',
       text: 'El de ahora dejará de valer. Tus amigos y las solicitudes que ya tienes se quedan como están.',
-      actions: [{ label: 'Cambiar el código', value: true, tone: 'pink' }, { label: 'Ahora no', value: false }],
+      actions: [{ label: 'Cambiar el código', value: true, tone: 'primary' }, { label: 'Ahora no', value: false }],
     });
     if (!yes) return false;
     const payload = await run(api.renewFriendCode());
@@ -130,7 +130,7 @@ export function openFriends() {
       type: 'text', autocomplete: 'off', autocapitalize: 'characters', spellcheck: 'false',
       maxlength: '12', placeholder: 'K7QM-4XPA', 'aria-label': 'Código de amigo',
     });
-    const submit = h('button', { class: 'btn btn-pink', type: 'submit' }, 'Añadir');
+    const submit = h('button', { class: 'btn btn-primary', type: 'submit' }, 'Añadir');
     return h('form', {
       class: 'add-friend',
       onsubmit: async (event) => {

@@ -56,6 +56,7 @@ import com.nidaria.app.rules.DIFFICULTIES
 import com.nidaria.app.rules.FEATURED_MULT
 import com.nidaria.app.rules.FAMILIES
 import com.nidaria.app.rules.FAMILY_INFO
+import com.nidaria.app.rules.breedInfo
 import com.nidaria.app.rules.FORM_LIST
 import com.nidaria.app.rules.Form
 import com.nidaria.app.rules.Item
@@ -697,8 +698,13 @@ fun ProfileSheet(game: Game) {
                 val branch = BRANCH_INFO.getValue(tendency)
                 Fact("Va camino de", "Ser ${branch.name.lowercase()}", "Evoluciona en ${duration(nextAt - now)}. ${branch.hint}")
             }
-            val family = FAMILY_INFO.getValue(creature.genes.family)
-            Fact("Familia", family.name, family.blurb)
+            val breed = creature.genes.breedInfo()
+            if (breed != null) {
+                Fact("Raza", breed.name, "Capa: ${breed.coats.getOrNull(creature.genes.coat ?: 0)?.name?.lowercase() ?: ""}")
+            } else {
+                val family = FAMILY_INFO.getValue(creature.genes.family)
+                Fact("Familia", family.name, family.blurb)
+            }
             Fact(
                 "Edad", if (days == 0) "Menos de un día" else duration(days * DAY),
                 if (creature.generation > 1) "Generación ${creature.generation}" else null,

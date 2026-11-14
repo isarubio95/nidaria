@@ -29,7 +29,7 @@ export function ownedTiles(items, onPick) {
 function empty(text, category) {
   return h('div', { class: 'empty' },
     h('p', {}, text),
-    h('button', { class: 'btn btn-pink', type: 'button', onclick: () => openShop(category) }, 'Ir a la tienda'),
+    h('button', { class: 'btn btn-primary', type: 'button', onclick: () => openShop(category) }, 'Ir a la tienda'),
   );
 }
 

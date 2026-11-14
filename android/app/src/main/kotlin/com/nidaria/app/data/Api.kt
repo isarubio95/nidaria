@@ -147,7 +147,7 @@ class Api(context: Context) {
         session = null
     }
 
-    suspend fun pickEgg(index: Int, name: String) = call("POST", "/egg/pick", body("index" to index, "name" to name))
+    suspend fun pickEgg(species: String, name: String) = call("POST", "/egg/pick", body("species" to species, "name" to name))
     suspend fun warmEgg(taps: Int) = call("POST", "/egg/warm", body("taps" to taps))
     suspend fun feed(itemId: String) = call("POST", "/creature/feed", body("itemId" to itemId))
     suspend fun sleep(asleep: Boolean) = call("POST", "/creature/sleep", body("asleep" to asleep))

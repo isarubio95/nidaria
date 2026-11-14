@@ -33,7 +33,7 @@ import kotlin.math.sin
 import kotlin.math.sqrt
 
 // Lo que hay en cada sitio si el jugador no ha puesto nada.
-val BASE_DECOR: Map<String, String?> = mapOf("pared" to "papel-lunares", "alfombra" to "alfombra-rosa", "rincon" to "planta", "ventana" to null)
+val BASE_DECOR: Map<String, String?> = mapOf("pared" to "papel-tablas", "alfombra" to "alfombra-marina", "rincon" to "planta", "ventana" to null)
 
 const val TILE = 256
 const val TILE_METERS = 0.5f
@@ -174,6 +174,14 @@ private fun Tile.grain(seed: Long, strength: Float = 1f) {
 
 // Pinta una baldosa de 256 × 256, igual que en la web. Todas se repiten sin costuras.
 private val WALLPAPERS: Map<String, Tile.() -> Unit> = mapOf(
+    // La de serie: tablas pintadas de azul pizarra, con sus juntas.
+    "papel-tablas" to {
+        fill("#9fbccd")
+        box(0f, 0f, 24f, 96f, "#93b1c3")
+        box(48f, 0f, 24f, 96f, "#93b1c3")
+        for (x in listOf(23f, 47f, 71f, 95f)) box(x, 0f, 1.2f, 96f, "#7f9db0")
+        grain(17)
+    },
     "papel-lunares" to {
         fill("#bfe3ff")
         dots(listOf(48f to 48f, 0f to 0f, 96f to 0f, 0f to 96f, 96f to 96f), 7f, "#d4edff")
@@ -189,9 +197,9 @@ private val WALLPAPERS: Map<String, Tile.() -> Unit> = mapOf(
         grain(12)
     },
     "papel-vichy" to {
-        fill("#fff4f7")
+        fill("#f6f1ea")
         for ((x, y, w, h) in listOf(listOf(0f, 0f, 96f, 24f), listOf(0f, 48f, 96f, 24f), listOf(0f, 0f, 24f, 96f), listOf(48f, 0f, 24f, 96f))) {
-            box(x, y, w, h, "#ff8fb1", 0.28f)
+            box(x, y, w, h, "#c65a37", 0.26f)
         }
         grain(13)
     },
@@ -231,7 +239,7 @@ private val wallpapers = HashMap<String, Texture>()
 fun wallpaperTexture(id: String): Texture = synchronized(wallpapers) {
     wallpapers.getOrPut(id) {
         val tile = Tile(TILE)
-        (WALLPAPERS[id] ?: WALLPAPERS.getValue("papel-lunares")).invoke(tile)
+        (WALLPAPERS[id] ?: WALLPAPERS.getValue("papel-tablas")).invoke(tile)
         Texture(TILE, TILE, repeat = true, mipmaps = true).also { it.update(tile.bytes()) }
     }
 }
@@ -249,6 +257,7 @@ private class Rug(val edge: String, val layers: List<Pair<Double, String>>)
 
 // `layers` van de fuera adentro; el número es el tamaño de cada capa.
 private val RUGS = mapOf(
+    "alfombra-marina" to Rug("disc", listOf(1.0 to "#2f4b72", 0.9 to "#c65a37", 0.84 to "#2f4b72", 0.62 to "#3b5c86")),
     "alfombra-rosa" to Rug("disc", listOf(1.0 to "#ff8fb1", 0.88 to "#ffb3c9", 0.78 to "#ff94b5")),
     "alfombra-menta" to Rug("disc", listOf(1.0 to "#7ed6a5", 0.88 to "#aee8c5", 0.78 to "#84d9aa")),
     "alfombra-flor" to Rug("flor", listOf(1.0 to "#ffd56b", 0.82 to "#fff1c4", 0.66 to "#ffc44d")),
@@ -366,7 +375,7 @@ class BuiltRug(val obj: Group, val material: Material)
 
 // La alfombra entera, lista para poner en el suelo.
 fun buildRug(id: String): BuiltRug {
-    val key = if (RUGS.containsKey(id)) id else "alfombra-rosa"
+    val key = if (RUGS.containsKey(id)) id else "alfombra-marina"
     val spec = RUGS.getValue(key)
     val material = Material.standard(Color(1f, 1f, 1f), 0.96f) {
         map = rugTexture(key, spec)

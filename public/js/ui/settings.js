@@ -60,7 +60,7 @@ export function settingsSection() {
       pushBox.replaceChildren(
         note(`Te avisamos cuando ${name} te necesite, aunque tengas el juego cerrado.`),
         h('button', {
-          class: 'btn btn-pink', type: 'button',
+          class: 'btn btn-primary', type: 'button',
           onclick: async (event) => {
             event.currentTarget.disabled = true;
             const result = await enablePush(push.key);

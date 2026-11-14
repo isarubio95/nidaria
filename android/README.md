@@ -163,12 +163,20 @@ node tools/golden.mjs          # con Node 22 o posterior
 ./gradlew testDebugUnitTest    # falla hasta que rules/ haga lo mismo
 ```
 
+Las razas de perros y gatos (`shared/breeds.js`) no se copian a mano: `tools/breeds.mjs` genera `rules/Breeds.kt` con lo que necesitan las reglas (especies, nombres, capas y ojos). Tras tocar las razas:
+
+```bash
+node tools/breeds.mjs && node tools/golden.mjs
+```
+
 **Modelos 3D.** `tools/sculpt-golden.mjs` construye en la web todas las formas de criatura, los artículos, la ropa puesta en varias criaturas, los huevos y la casa, y guarda lo que encargan al escultor (cada forma con sus medidas y colores) en `app/src/test/resources/sculpt.json`, junto con la huella de varias mallas. `SculptParityTest` exige que Kotlin haga los mismos encargos y que su escultor saque las mismas mallas, byte a byte. Tras tocar un modelo en `public/js/scene/`:
 
 ```bash
 node tools/sculpt-golden.mjs   # tarda unos segundos
 ./gradlew testDebugUnitTest    # falla hasta que scene/ haga lo mismo
 ```
+
+**Pendiente: las criaturas nuevas.** La web rehízo los monstruos (`scene/monster.js`) y añadió perros y gatos (`scene/pet.js`, con los ojos nuevos de `scene/creature-kit.js`). Eso aún no está portado a `scene/Creature.kt`: en la app los monstruos salen con su aspecto anterior y perros y gatos, de momento, como una bola peluda con los colores de su capa. Mientras tanto `tools/sculpt-golden.mjs` no guarda criaturas (`PORTED = false`) y `SculptParityTest` solo compara artículos, huevos y casa. Al portarlas, se pone `PORTED = true` y se regenera.
 
 Los dos ficheros de referencia se comprueban en la integración continua: si no están al día con la web, falla.
 
@@ -180,7 +188,7 @@ node tools/cdp.mjs http://localhost:3000/ tools/bake-env.page.mjs
 
 Necesita Google Chrome instalado.
 
-Las pruebas cubren además el motor (matrices, cámara, geometrías, animaciones) y construyen las 78 formas de criatura, todos los artículos y toda la ropa para comprobar que ninguna se rompe.
+Las pruebas cubren además el motor (matrices, cámara, geometrías, animaciones) y construyen las 128 formas de criatura, todos los artículos y toda la ropa para comprobar que ninguna se rompe.
 
 ## Diferencias con la web
 

@@ -320,9 +320,9 @@ private fun curtainTexture(): Texture = painted(128, 512, mipmaps = true) { canv
         y += 36
     }
     // Ribete rosa abajo.
-    paint.color = css("#ffb3c6")
+    paint.color = css("#c65a37")
     canvas.drawRect(0f, h - 40f, w, h - 14f, paint)
-    paint.color = css("#ffd3de")
+    paint.color = css("#e3a184")
     canvas.drawRect(0f, h - 14f, w, h, paint)
     // Trama de la tela.
     paint.color = rgba(120, 80, 60, 0.035f)
@@ -404,7 +404,7 @@ private fun curtain(width: Float, height: Float, side: Int, material: Material):
     val mesh = Mesh(geometry, material)
     mesh.castShadow = true
     mesh.receiveShadow = true
-    val tie = Mesh(torusGeometry(width * 0.2f, 0.018f, 10, 28), plain("#ff9fb8", "fabric"))
+    val tie = Mesh(torusGeometry(width * 0.2f, 0.018f, 10, 28), plain("#c65a37", "fabric"))
     tie.scale.set(1f, 0.42f, 1f)
     tie.rotation.x = PI_F / 2f
     tie.position.set(outer - side * width * 0.2f, tieY, 0.04f)
@@ -509,7 +509,7 @@ private fun buildShelf(): Group {
         bracket.position.set(side * 0.36f, -0.1f, -0.01f)
         shelf.add(bracket)
     }
-    val books = arrayOf(Triple("#ff8fb1", 0.26f, 0.07f), Triple("#9db7ff", 0.3f, 0.065f), Triple("#ffd166", 0.22f, 0.06f), Triple("#7ed6a5", 0.27f, 0.07f))
+    val books = arrayOf(Triple("#c65a37", 0.26f, 0.07f), Triple("#3f6fb0", 0.3f, 0.065f), Triple("#e0a93b", 0.22f, 0.06f), Triple("#3f9a7a", 0.27f, 0.07f))
     var bx = -0.42f
     books.forEachIndexed { i, (color, tall, thick) ->
         val book = rounded(thick, tall, 0.17f, 0.008f, color, "matte")

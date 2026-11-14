@@ -51,6 +51,10 @@ private val FAMILY_BASE = mapOf(
     "pelusa" to FamilyBase("round", "tuft", "pom", "plush"),
     "hoja" to FamilyBase("leaf", "sprout", "leaf", "matte"),
     "gota" to FamilyBase("fin", "drop", "drop", "gloss"),
+    // Perros y gatos aún no están esculpidos en la app: de momento salen
+    // como una bola peluda con orejas de punta y los colores de su capa.
+    "perro" to FamilyBase("pointy", "tuft", "pom", "plush"),
+    "gato" to FamilyBase("pointy", "tuft", "pom", "plush"),
 )
 
 private val STAGE_SCALE = mapOf("cria" to 0.74, "joven" to 0.86, "adulto" to 1.0)

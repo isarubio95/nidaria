@@ -3,7 +3,7 @@
 import { h, icon, duration } from '../dom.js';
 import { api } from '../api.js';
 import { store, run } from '../store.js';
-import { FAMILY_INFO, TRAITS } from '/shared/dna.js';
+import { FAMILY_INFO, TRAITS, breedOf } from '/shared/dna.js';
 import { BRANCH_INFO } from '/shared/forms.js';
 import { BOND_LEVELS, SHY_UNTIL, bondOf, bondLevel } from '/shared/bond.js';
 import { getItem } from '/shared/catalog.js';
@@ -96,7 +96,9 @@ export function openProfile(room) {
 
     const facts = [
       fact('Forma', creature.formName, `Etapa: ${creature.stageName.toLowerCase()}`),
-      fact('Familia', FAMILY_INFO[creature.genes.family].name, FAMILY_INFO[creature.genes.family].blurb),
+      breedOf(creature.genes)
+        ? fact('Raza', breedOf(creature.genes).name, `Capa: ${breedOf(creature.genes).coats[creature.genes.coat ?? 0]?.name.toLowerCase() ?? ''}`)
+        : fact('Familia', FAMILY_INFO[creature.genes.family].name, FAMILY_INFO[creature.genes.family].blurb),
       fact('Edad', days === 0 ? 'Menos de un día' : duration(days * DAY_MS), creature.generation > 1 ? `Generación ${creature.generation}` : null),
       bondFact(creature),
       fact(
@@ -128,7 +130,7 @@ export function openProfile(room) {
     ] : [];
 
     const photo = h('button', {
-      class: 'btn btn-pink btn-wide', type: 'button',
+      class: 'btn btn-primary btn-wide', type: 'button',
       onclick: async (event) => {
         const button = event.currentTarget;
         button.disabled = true;

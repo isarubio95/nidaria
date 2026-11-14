@@ -35,7 +35,8 @@ import com.nidaria.app.DialogSpec
 import com.nidaria.app.Game
 import com.nidaria.app.data.Api
 import com.nidaria.app.data.ApiError
-import com.nidaria.app.rules.FAMILY_INFO
+import com.nidaria.app.rules.SPECIES_INFO
+import com.nidaria.app.rules.speciesOf
 import com.nidaria.app.scene.ThumbSpec
 import kotlinx.coroutines.launch
 
@@ -192,7 +193,8 @@ fun AuthScreen(game: Game, insets: Insets) {
     }
 }
 
-// Elección de huevo: al empezar y cada vez que una criatura se va.
+// Empezar una criatura: se elige especie (perro, gato o monstruo) y se
+// lleva su huevo, con la raza o la familia ya decidida y escondida.
 @Composable
 fun EggsScreen(game: Game, insets: Insets) {
     val state = game.store.state ?: return
@@ -211,28 +213,28 @@ fun EggsScreen(game: Game, insets: Insets) {
         sending = true
         focus.clearFocus()
         scope.launch {
-            game.send { pickEgg(selected, clean) }
+            game.send { pickEgg(offer[selected].species, clean) }
             sending = false
         }
     }
 
     CardScreen(insets) {
-        T("Elige un huevo", Nd.xl)
+        T(if (previous != null) "¿Qué vas a criar ahora?" else "¿Qué quieres criar?", Nd.xl)
         val egg = offer[selected]
-        val family = FAMILY_INFO.getValue(egg.family)
+        val info = SPECIES_INFO.getValue(egg.species)
         T(
-            if (egg.heir && previous != null) "Hereda rasgos de ${previous.name}. ${family.blurb}" else "Familia ${family.name}. ${family.blurb}",
+            if (egg.heir && previous != null) "Es el heredero de ${previous.name}: lleva parte de sus rasgos. ${info.blurb}" else info.blurb,
             Nd.lead,
         )
         Grid(offer.size, columns = 3) { index ->
             val look = offer[index]
             ItemTile(
-                FAMILY_INFO.getValue(look.family).name, ThumbSpec.Egg(look.copy(index = 0, heir = false)),
+                SPECIES_INFO.getValue(look.species).plural, ThumbSpec.Egg(look.copy(index = 0, heir = false)),
                 onClick = { game.selectEgg(index) }, selected = index == selected, thumbSize = 92.dp, padBottom = 8.dp,
             ) { if (look.heir) Tag("Heredero") }
         }
         Field(
-            name, "¿Cómo se va a llamar?", Modifier.fillMaxWidth(), placeholder = "Mota, Trasto, Nube…", maxLength = 14,
+            name, "¿Cómo se va a llamar?", Modifier.fillMaxWidth(), placeholder = "Rayo, Luna, Chispa…", maxLength = 14,
             capitalize = true, imeAction = ImeAction.Done, onDone = submit,
         )
         Btn("Empezar a incubar", submit, Modifier.fillMaxWidth(), tone = Tone.Pink, enabled = !sending)
@@ -249,8 +251,9 @@ fun FarewellScreen(game: Game, insets: Insets) {
     CardScreen(insets) {
         T("${creature.name} se ha ido", Nd.xl)
         T("${causeText(creature.deathCause)} Vivió ${livedSpan(lived)} y llegó a ser ${creature.formName}.${if (bond.isNotEmpty()) " $bond" else ""}", Nd.lead)
-        T("Ha dejado un huevo que hereda parte de sus rasgos. Tus monedas y tus cosas siguen contigo, y podrás recordarla en el Criadex.", Nd.lead)
-        Btn("Ver los huevos", { game.continueFromFarewell() }, Modifier.fillMaxWidth(), tone = Tone.Pink)
+        val species = SPECIES_INFO.getValue(speciesOf(creature.genes.family)).name.lowercase()
+        T("Ha dejado un huevo que hereda parte de sus rasgos: es el de $species. Tus monedas y tus cosas siguen contigo, y podrás recordarla en el Criadex.", Nd.lead)
+        Btn("Empezar otra", { game.continueFromFarewell() }, Modifier.fillMaxWidth(), tone = Tone.Pink)
     }
 }
 

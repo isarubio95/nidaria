@@ -19,17 +19,25 @@ import {
 const { sin, cos, PI, max, min, abs } = Math;
 const col = (c) => new THREE.Color(c);
 
+const IRIS = {
+  pelusa: ['#c23a26', '#2f63c9', '#d99a1c'],
+  hoja: ['#c23a26', '#e0761a', '#d99a1c'],
+  gota: ['#d99a1c', '#cf4a26', '#1f2f7a'],
+};
+
 // Colores con fuerza: el ADN da el tono; aquí se llevan a juguete vivo,
 // con barriga clara, marcas oscuras y un acento que contrasta.
 function palette(genes, plan) {
-  const s = clamp(genes.sat + 14 + plan.tone.sat, 42, 90);
-  const l = clamp(genes.light - 17 + plan.tone.light, 34, 62);
+  // El verde vivo enseguida parece plástico: la familia hoja va más apagada.
+  const s = clamp(genes.sat + (plan.family === 'hoja' ? 0 : 10) + plan.tone.sat, 44, 84);
+  const l = clamp(genes.light - 30 + plan.tone.light, 28, 46);
   const body = hsl(genes.hue, s, l);
   const warm = plan.family === 'pelusa';
   return {
     body,
-    dark: hsl(genes.hue + (warm ? -6 : 4), s + 4, l - 15),
-    light: hsl(genes.hue + 10, s * 0.5, Math.min(l + 32, 90)),
+    dark: hsl(genes.hue + (warm ? -8 : 6), clamp(s - 10, 30, 80), l - 22),
+    // Barriga crema, tirando a amarillo: nunca blanco puro.
+    light: hsl(warm ? 40 : genes.hue + 20, warm ? 70 : 45, 80),
     accent: hsl(genes.hue2, clamp(s + 6, 50, 92), clamp(l + 4, 42, 64)),
     // La llama de la cola y el mechón: un tono más cálido y brillante.
     flame: warm ? hsl(genes.hue + 28, 95, 60) : hsl(genes.hue2, 90, 62),
@@ -38,8 +46,8 @@ function palette(genes, plan) {
     claw: col('#f3e6d0'),
     horn: hsl(genes.hue, 18, 22),
     nose: hsl(genes.hue, 30, 16),
-    // Iris: el complementario del cuerpo, para que los ojos destaquen.
-    iris: `#${hsl(genes.hue + 180, 72, 46).getHexString()}`,
+    // Iris con carácter: tres por familia, según el ADN.
+    iris: IRIS[plan.family][genes.eyeStyle % 3],
   };
 }
 
@@ -49,7 +57,7 @@ export function buildMonster(formId, genes, { detail = 'high' } = {}) {
   const rng = createRng((genes.seed ^ 0x9e3779b9) >>> 0);
   const cacheKey = `mon|${formId}|${genes.seed}|${genes.hue}|${genes.hue2}|${genes.sat}|${genes.light}|${genes.pattern}|${genes.patternAmt}|${JSON.stringify(genes.build)}|${genes.eyeStyle}`;
   const geo = detail === 'high' ? sculptCache(cacheKey) : {};
-  const cell = { high: 0.016, low: 0.026, tiny: 0.04 }[detail] ?? 0.026;
+  const cell = { high: 0.016, 'high-thumb': 0.018, low: 0.026, tiny: 0.04 }[detail] ?? 0.026;
   const sock = plan.pattern === 'calcetines' ? pal.accent : pal.body;
   const fam = plan.family;
 
@@ -75,29 +83,30 @@ export function buildMonster(formId, genes, { detail = 'high' } = {}) {
     }
     bodyTop = h;
   } else {
-    const ty = legH + h * 0.48;
-    bonePos[HEAD].set(0, legH + h * 0.92, 0.02);
-    S.add(shape.ellipsoid([0, ty, 0], [w, h * 0.56, d]), { color: pal.body, k: 0, bone: BODY });
-    S.add(shape.ellipsoid([0, legH + h * 0.2, -0.01], [w * 1.04, h * 0.32, d * 1.0]), { color: pal.body, k: 0.1, bone: BODY });
+    const ty = legH + h * 0.46;
+    bonePos[HEAD].set(0, legH + h * 0.9, 0.02);
+    // Torso de huevo: estrecho arriba (el cuello) y con barriga abajo.
+    S.add(shape.ellipsoid([0, ty, 0.01], [w * 0.92, h * 0.54, d * 0.95]), { color: pal.body, k: 0, bone: BODY });
+    S.add(shape.ellipsoid([0, legH + h * 0.26, 0.0], [w * 1.0, h * 0.34, d * 1.0]), { color: pal.body, k: 0.08, bone: BODY });
     for (const side of [-1, 1]) {
       // Muslo, pie con garras y brazo con su mano.
-      S.add(shape.ellipsoid([side * w * 0.56, legH * 0.92, 0.01], [0.1 + w * 0.1, legH * 0.62 + 0.04, 0.11]), { color: pal.body, k: 0.06, bone: BODY });
-      foot(V(side * w * 0.6, 0, 0.05), 1, BODY);
+      S.add(shape.ellipsoid([side * w * 0.58, legH * 0.95, 0.0], [0.11 + w * 0.12, legH * 0.66 + 0.05, 0.125]), { color: pal.body, k: 0.06, bone: BODY });
+      foot(V(side * w * 0.62, 0, 0.05), 1.18, BODY);
       const bone = side < 0 ? ARM_L : ARM_R;
-      const shoulder = V(side * w * 0.86, legH + h * 0.8, 0.03);
-      const hand = V(side * w * 1.1, legH + h * 0.42, 0.13);
+      const shoulder = V(side * w * 0.88, legH + h * 0.8, 0.04);
+      const hand = V(side * w * 1.18, legH + h * 0.4, 0.14);
       shoulders.push(shoulder);
       bonePos[bone].copy(shoulder);
-      S.add(shape.cone(shoulder.toArray(), hand.toArray(), 0.058, 0.05), { color: pal.body, k: 0.05, bone });
-      S.add(shape.sphere(hand.toArray(), 0.058), { color: sock, k: 0.03, bone });
+      S.add(shape.cone(shoulder.toArray(), hand.toArray(), 0.07, 0.058), { color: pal.body, k: 0.05, bone });
+      S.add(shape.ellipsoid(hand.toArray(), [0.068, 0.072, 0.065]), { color: fam === 'pelusa' ? pal.dark : sock, k: 0.03, bone });
       for (const t of [-1, 0, 1]) {
         const c = hand.clone().add(V(side * 0.01 + t * 0.022, -0.045, 0.03));
         S.add(shape.cone(c.toArray(), c.clone().add(V(t * 0.006, -0.03, 0.022)).toArray(), 0.014, 0.004), { color: pal.claw, k: 0.008, bone, colorK: 0.004 });
       }
     }
     const { rx, ry, rz } = plan.head;
-    host = { center: V(0, legH + h + ry * 0.55, 0.03), rx, ry, rz };
-    S.add(shape.ellipsoid(host.center.toArray(), [rx, ry, rz]), { color: pal.body, k: 0.1, bone: HEAD });
+    host = { center: V(0, legH + h + ry * 0.68, 0.03), rx: rx * 1.06, ry, rz };
+    S.add(shape.ellipsoid(host.center.toArray(), [host.rx, ry, rz]), { color: pal.body, k: 0.045, bone: HEAD });
     bodyTop = legH + h;
   }
   const unit = host.rx / 0.5;
@@ -138,12 +147,14 @@ export function buildMonster(formId, genes, { detail = 'high' } = {}) {
   // ── Hocico ──
   let snoutTip = null;
   if (plan.snout > 0.2) {
-    const s = plan.snout;
-    const c = onHost(0, facePitch - 0.42);
-    const len = host.rz * 0.32 * s;
-    const sc = c.clone().add(V(0, 0.01 * unit, len * 0.6));
-    S.add(shape.ellipsoid(sc.toArray(), [host.rx * 0.36, host.ry * 0.24, host.rz * 0.2 + len * 0.6]), { color: pal.body, k: 0.06, bone: HEAD });
-    snoutTip = sc.clone().add(V(0, host.ry * 0.12, host.rz * 0.2 + len * 0.6));
+    const s = plan.snout * (plan.blob ? 0.6 : 1);
+    const fox = fam === 'pelusa';
+    const c = onHost(0, facePitch - (fox ? 0.36 : 0.42));
+    const len = host.rz * (fox ? 0.55 : 0.34) * s;
+    const sc = c.clone().add(V(0, 0, len * 0.55));
+    const sw = host.rx * (fox ? 0.3 : 0.38);
+    S.add(shape.ellipsoid(sc.toArray(), [sw, host.ry * (fox ? 0.2 : 0.24), host.rz * 0.18 + len * 0.6], [fox ? 0.12 : 0.05, 0, 0]), { color: pal.body, k: 0.07, bone: HEAD });
+    snoutTip = sc.clone().add(V(0, host.ry * (fox ? 0.06 : 0.1), host.rz * 0.18 + len * 0.6));
   }
 
   // ── Orejas ──
@@ -154,12 +165,12 @@ export function buildMonster(formId, genes, { detail = 'high' } = {}) {
     const type = plan.ears.type;
     if (type === 'fox') {
       // Orejas grandes de zorro, con el interior oscuro y la punta de acento.
-      const base = onHost(side * 0.62, 0.78 - droop * 0.3);
-      const dir = V(side * (0.42 + droop * 0.6), 1 - droop * 0.5, -0.12).add(hostNormal(base).multiplyScalar(0.2)).normalize();
-      const q = basis(dir, V(side * 0.2, 0, 1));
-      const len = earSize * 2.3;
-      const start = base.clone().addScaledVector(dir, -len * 0.4);
-      S.add(shape.leaf(start.toArray(), q, len * 1.45, len * 0.95, 0.06 * unit, -0.05), { color: pal.body, k: 0.04, bone });
+      const base = onHost(side * 0.7, 0.7 - droop * 0.3);
+      const dir = V(side * (0.62 + droop * 0.6), 1 - droop * 0.5, -0.15).add(hostNormal(base).multiplyScalar(0.2)).normalize();
+      const q = basis(dir, V(side * 0.25, 0, 1));
+      const len = earSize * 2.1;
+      const start = base.clone().addScaledVector(dir, -len * 0.42);
+      S.add(shape.leaf(start.toArray(), q, len * 1.55, len * 0.86, 0.07 * unit, -0.06), { color: pal.body, k: 0.04, bone });
       const inner = start.clone().addScaledVector(dir, len * 0.2).add(V(0, 0, 0.03 * unit).applyQuaternion(q));
       S.paint(shape.leaf(inner.toArray(), q, len * 1.1, len * 0.55, 0.04 * unit, -0.05), { color: pal.dark, soft: 0.01 });
       S.paint(shape.sphere(start.clone().addScaledVector(dir, len * 1.45).toArray(), len * 0.32), { color: pal.dark, soft: 0.02 });
@@ -186,9 +197,9 @@ export function buildMonster(formId, genes, { detail = 'high' } = {}) {
       bonePos[bone].copy(base);
     } else {
       // Aletas de agua: hacia atrás y hacia fuera, con radios.
-      const s = earSize * 1.1;
-      const base = onHost(side * 1.2, 0.35 - droop * 0.2);
-      const dir = V(side * 0.85, 0.5 - droop * 0.6, -0.55).normalize();
+      const s = earSize * 0.8;
+      const base = onHost(side * 1.3, 0.3 - droop * 0.2);
+      const dir = V(side * 0.7, 0.45 - droop * 0.6, -0.75).normalize();
       const q = basis(dir, V(side * 0.4, 1, 0.2));
       S.add(shape.leaf(base.clone().addScaledVector(dir, -s * 0.3).toArray(), q, s * 2.4, s * 1.3, 0.04 * unit, 0.15), { color: pal.accent, k: 0.035, bone, colorK: 0.03 });
       for (const t of [-0.25, 0, 0.25]) {
@@ -204,19 +215,28 @@ export function buildMonster(formId, genes, { detail = 'high' } = {}) {
   const ts = plan.top.size * unit;
   if (plan.top.type === 'flame') {
     // Mechón de llama: tres lenguas curvas hacia atrás.
-    for (const [x, len, lean] of [[0, 0.34, 0], [-0.09, 0.24, -0.35], [0.09, 0.26, 0.35]]) {
-      const a = crown.clone().add(V(x * ts, -0.04 * ts, 0.06 * ts));
-      const pts = curve([a, a.clone().add(V(lean * 0.06 * ts, len * 0.5 * ts, 0.02 * ts)), a.clone().add(V(lean * 0.12 * ts, len * 0.95 * ts, -0.08 * ts)), a.clone().add(V(lean * 0.1 * ts, len * 1.1 * ts, -0.18 * ts))], 6);
-      tube(pts, 0.07 * ts, 0.01 * ts, pal.body, HEAD, 0.02, 0.06);
-      S.paint(shape.sphere(pts[pts.length - 1].toArray(), 0.1 * ts), { color: pal.flame, soft: 0.04 });
+    // Tupé de llama: tres lenguas gruesas que salen de la frente y se
+    // curvan hacia delante y arriba.
+    for (const [x, len, lean, back] of [[0, 1, 0, 0], [-0.1, 0.62, -0.7, 0.12], [0.1, 0.66, 0.7, 0.12]]) {
+      const a = onHost(x * 2.2, 1.0 - back);
+      const pts = curve([
+        a.clone().add(V(0, -0.04 * ts, -0.06 * ts)),
+        a.clone().add(V(lean * 0.05 * ts, 0.16 * len * ts, 0.0)),
+        a.clone().add(V(lean * 0.1 * ts, 0.3 * len * ts, 0.06 * ts)),
+        a.clone().add(V(lean * 0.12 * ts, 0.36 * len * ts, 0.16 * ts)),
+      ], 8);
+      tube(pts, 0.11 * ts, 0.01 * ts, pal.body, HEAD, 0.025, 0.08);
+      S.paint(shape.sphere(pts[pts.length - 1].toArray(), 0.13 * ts * len), { color: pal.flame, soft: 0.05 });
     }
   } else if (plan.top.type === 'leaf' && !plan.blob) {
     // Cresta: una hoja grande que nace en la frente y se curva hacia atrás.
-    const a = onHost(0, 0.75);
-    const dir = V(0, 0.9, -0.45).normalize();
-    const q = quatFromTo(Y, dir).multiply(new THREE.Quaternion().setFromAxisAngle(Y, PI / 2));
-    S.add(shape.leaf(a.clone().addScaledVector(dir, -0.05 * ts).toArray(), q, 0.62 * ts, 0.3 * ts, 0.05 * ts, 0.25), { color: pal.leaf, k: 0.04, bone: HEAD, colorK: 0.03 });
-    S.paint(shape.capsule(a.toArray(), a.clone().addScaledVector(dir, 0.5 * ts).add(V(0, 0, -0.08 * ts)).toArray(), 0.012 * ts), { color: pal.dark, soft: 0.006, amount: 0.6 });
+    for (const side of [-1, 1]) {
+      const a = onHost(side * 0.18, 0.95);
+      const dir = V(side * 0.45, 0.75, -0.5).normalize();
+      const q = basis(dir, V(side * 0.6, 0.4, 0.6));
+      S.add(shape.leaf(a.clone().addScaledVector(dir, -0.04 * ts).toArray(), q, 0.5 * ts, 0.26 * ts, 0.045 * ts, -0.25), { color: pal.leaf, k: 0.04, bone: HEAD, colorK: 0.03 });
+      S.paint(shape.capsule(a.toArray(), a.clone().addScaledVector(dir, 0.42 * ts).toArray(), 0.011 * ts), { color: pal.dark, soft: 0.006, amount: 0.5 });
+    }
   } else if (plan.top.type === 'fin' && !plan.blob) {
     // Aleta dorsal de la frente a la nuca.
     const a = onHost(0, 0.95);
@@ -257,7 +277,7 @@ export function buildMonster(formId, genes, { detail = 'high' } = {}) {
       for (let i = 0; i < 2; i++) {
         const a = onHost(side * (1.3 + i * 0.2), -0.25 - i * 0.18);
         const dir = V(side * 0.9, -0.15 + i * 0.1, -0.4).normalize();
-        S.add(shape.cone(a.toArray(), a.clone().addScaledVector(dir, (0.15 - i * 0.03) * unit).toArray(), 0.07 * unit, 0.008), { color: plan.belly ? pal.light : pal.body, k: 0.04, bone: HEAD, colorK: 0.02 });
+        S.add(shape.cone(a.toArray(), a.clone().addScaledVector(dir, (0.2 - i * 0.05) * unit).toArray(), 0.1 * unit, 0.02 * unit), { color: pal.body, k: 0.05, bone: HEAD, colorK: 0.02 });
       }
     }
   }
@@ -270,20 +290,20 @@ export function buildMonster(formId, genes, { detail = 'high' } = {}) {
   if (plan.tail.type === 'flame') {
     // Cola tupida que sube y acaba en llama.
     const k = plan.blob ? 0.7 : 1;
-    const pts = curve([tailBase, tailBase.clone().add(V(0.12 * k, 0.06 * k, -0.14 * k)), tailBase.clone().add(V(0.2 * k * tsz, 0.26 * k * tsz, -0.16 * k)), tailBase.clone().add(V(0.18 * k * tsz, 0.46 * k * tsz, -0.06 * k))], 10);
-    tube(pts, 0.06 * k, 0.11 * k * tsz, pal.body, tailBone, 0.03, 0.05);
+    const pts = curve([tailBase, tailBase.clone().add(V(0.16 * k, 0.02 * k, -0.12 * k)), tailBase.clone().add(V(0.32 * k * tsz, 0.18 * k * tsz, -0.08 * k)), tailBase.clone().add(V(0.36 * k * tsz, 0.42 * k * tsz, 0.02 * k))], 10);
+    tube(pts, 0.06 * k, 0.12 * k * tsz, pal.body, tailBone, 0.03, 0.05);
     const tip = pts[pts.length - 1];
     S.add(shape.cone(tip.toArray(), tip.clone().add(V(-0.02 * k, 0.14 * k * tsz, 0.04 * k)).toArray(), 0.1 * k * tsz, 0.01), { color: pal.flame, k: 0.04, bone: tailBone, colorK: 0.03 });
     S.paint(shape.sphere(tip.toArray(), 0.12 * k * tsz), { color: pal.flame, soft: 0.03 });
   } else if (plan.tail.type === 'leaf') {
     const k = plan.blob ? 0.6 : 1;
-    const pts = curve([tailBase, tailBase.clone().add(V(0.1 * k, -0.04 * k, -0.14 * k)), tailBase.clone().add(V(0.22 * k * tsz, -0.02 * k, -0.2 * k * tsz)), tailBase.clone().add(V(0.32 * k * tsz, 0.06 * k, -0.18 * k * tsz))], 8);
+    const pts = curve([tailBase, tailBase.clone().add(V(0.14 * k, -0.06 * k, -0.12 * k)), tailBase.clone().add(V(0.3 * k * tsz, -0.06 * k, -0.08 * k * tsz)), tailBase.clone().add(V(0.42 * k * tsz, 0.04 * k, 0.04 * k * tsz))], 8);
     tube(pts, 0.085 * k, 0.03 * k, pal.body, tailBone);
     const tip = pts[pts.length - 1];
     S.add(shape.leaf(tip.toArray(), quatFromTo(Y, V(0.5, 0.8, 0.1).normalize()), 0.3 * k * tsz, 0.18 * k * tsz, 0.035 * k, 0.2), { color: pal.leaf, k: 0.03, bone: tailBone, colorK: 0.02 });
   } else if (plan.tail.type === 'fish') {
     const k = plan.blob ? 0.7 : 1;
-    const pts = curve([tailBase, tailBase.clone().add(V(0.08 * k, -0.02, -0.12 * k)), tailBase.clone().add(V(0.18 * k * tsz, 0.02, -0.18 * k * tsz))], 6);
+    const pts = curve([tailBase, tailBase.clone().add(V(0.12 * k, -0.04, -0.12 * k)), tailBase.clone().add(V(0.28 * k * tsz, 0.0, -0.1 * k * tsz))], 6);
     tube(pts, 0.08 * k, 0.035 * k, pal.body, tailBone);
     const tip = pts[pts.length - 1];
     for (const side of [-1, 1]) {
@@ -295,16 +315,19 @@ export function buildMonster(formId, genes, { detail = 'high' } = {}) {
   // ── Piezas de adulta fundidas con el cuerpo ──
   if (plan.extra === 'mane') {
     // Collar: de llamas, de pétalos o de aletas.
-    const ny = bodyTop - 0.02;
-    for (let i = 0; i < 12; i++) {
-      const a = (i / 12) * PI * 2;
-      const r = w * 0.82;
-      const base = V(sin(a) * r, ny, cos(a) * r * 0.9);
-      const out = V(sin(a), fam === 'pelusa' ? 0.55 : -0.2, cos(a)).normalize();
+    // Gorguera por los hombros y la espalda; por delante queda libre la cara.
+    const ny = bodyTop - 0.04;
+    for (let i = 0; i < 11; i++) {
+      const a = PI * 0.42 + (i / 10) * PI * 1.16;
+      const r = w * 0.86;
+      const base = V(sin(a) * r, ny, cos(a) * r * 0.95);
+      const out = V(sin(a), fam === 'pelusa' ? 0.25 : -0.25, cos(a) - 0.2).normalize();
       if (fam === 'pelusa') {
-        S.add(shape.cone(base.toArray(), base.clone().addScaledVector(out, 0.16).toArray(), 0.075, 0.01), { color: i % 2 ? pal.flame : pal.light, k: 0.04, bone: BODY, colorK: 0.02 });
+        const tip = base.clone().addScaledVector(out, 0.2);
+        S.add(shape.cone(base.toArray(), tip.toArray(), 0.085, 0.012), { color: pal.body, k: 0.04, bone: BODY, colorK: 0.02 });
+        S.paint(shape.sphere(tip.toArray(), 0.07), { color: pal.flame, soft: 0.03 });
       } else {
-        S.add(shape.leaf(base.clone().addScaledVector(out, -0.03).toArray(), quatFromTo(Y, out), 0.24, 0.15, 0.03, -0.12), { color: i % 2 ? pal.accent : fam === 'hoja' ? pal.leaf : pal.light, k: 0.025, bone: BODY, colorK: 0.02 });
+        S.add(shape.leaf(base.clone().addScaledVector(out, -0.03).toArray(), quatFromTo(Y, out), 0.26, 0.16, 0.03, -0.12), { color: i % 2 ? pal.accent : fam === 'hoja' ? pal.leaf : pal.dark, k: 0.025, bone: BODY, colorK: 0.02 });
       }
     }
   }
@@ -382,20 +405,22 @@ export function buildMonster(formId, genes, { detail = 'high' } = {}) {
 
   // Ojos grandes con iris; los de las crías, aún más.
   const gap = plan.eyes.gap * (plan.blob ? 1.05 : 1.1);
-  const eyeR = 0.085 * unit * plan.eyes.size * (plan.blob ? 1.05 : 1);
+  const eyeR = (plan.blob ? 0.09 : 0.1) * unit * plan.eyes.size;
+  // Las de pie miran con decisión: el párpado tapa un poco el ojo.
+  const restLid = plan.blob ? plan.eyes.lids : Math.max(plan.eyes.lids, 0.14);
   const content = plan.eyes.lids >= 0.35 && plan.top.type === 'cherry';
   const eyes = [];
   for (const side of [-1, 1]) {
     const { point, normal } = S.project(onHost(side * gap, facePitch));
     const skin = S.colorNear(point.clone().add(V(0, eyeR * 1.3, 0)));
-    const eye = makeEye({ point, normal, r: eyeR, tall: 1.16, iris: pal.iris, kind: 'round', skin, tilt: -side * 0.06, sparkle: plan.eyes.style === 2 });
+    const eye = makeEye({ point, normal, r: eyeR, tall: plan.blob ? 1.12 : 1.22, iris: pal.iris, kind: plan.blob ? 'round' : 'sclera', skin, tilt: -side * (plan.blob ? 0.04 : 0.12), sparkle: plan.eyes.style === 2 });
     toHead(eye.group);
     if (plan.brows) eye.lid.rotation.z = side * 0.36;
     const lidMat = own(decalMaterial(lidTexture('sleep')));
     const closed = decal(`lid${side}`, point, normal, eyeR * 3.2, eyeR * 2.4, lidMat);
     closed.visible = content;
     eye.open.visible = !content;
-    eyes.push({ group: eye.group, open: eye.open, closed, side, r: eyeR, tall: eye.tall, content, restLid: plan.brows ? Math.max(plan.eyes.lids, 0.2) : plan.eyes.lids, lidValue: 0, lid: eye.lid, ball: eye.bead });
+    eyes.push({ group: eye.group, open: eye.open, closed, side, r: eyeR, tall: eye.tall, content, restLid: plan.brows ? Math.max(restLid, 0.22) : restLid, lidValue: 0, lid: eye.lid, ball: eye.bead });
   }
 
   // Boca, en el hocico si lo tiene.

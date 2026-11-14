@@ -22,7 +22,7 @@ function picture(art) {
 // dialog({ title, text, art, extra, actions: [{ label, value, tone, run, keep }] })
 // `run` se llama dentro del toque (hace falta para compartir o descargar)
 // y, con `keep`, el diálogo sigue abierto.
-export function dialog({ title, text, art, extra, actions = [{ label: 'Vale', value: true, tone: 'pink' }] }) {
+export function dialog({ title, text, art, extra, actions = [{ label: 'Vale', value: true, tone: 'primary' }] }) {
   return new Promise((resolve) => {
     const titleId = `dialogo-${Date.now()}`;
     const hadSheet = scrim.dataset.open === 'true';

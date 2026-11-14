@@ -173,7 +173,7 @@ export function buildPet(formId, genes, { detail = 'high' } = {}) {
   const rng = createRng((genes.seed ^ 0x5bd1e995) >>> 0);
   const cacheKey = `pet|${formId}|${genes.breed}|${genes.coat}|${genes.eyes}|${genes.seed}|${JSON.stringify(genes.build)}|${genes.origin ?? ''}`;
   const geo = detail === 'high' ? sculptCache(cacheKey) : {};
-  const cell = { high: 0.0125, low: 0.022, tiny: 0.034 }[detail] ?? 0.022;
+  const cell = { high: 0.0125, 'high-thumb': 0.015, low: 0.022, tiny: 0.034 }[detail] ?? 0.022;
 
   // Colores de zona que también dan forma (orejas, cola).
   const region = (name) => {
@@ -452,7 +452,8 @@ export function buildPet(formId, genes, { detail = 'high' } = {}) {
   if (m.coatType === 'fluffy' || (cat && m.coatType === 'long') || m.fluff > 0.2) {
     const f = (m.coatType === 'fluffy' ? 1 : cat && m.coatType === 'long' ? 1.35 : 0.5) + m.fluff;
     // Golilla: mechones alrededor del cuello y la cara.
-    const fc = min(f, 1.5);
+    // En los cachorros, los mechones de la cara apenas asoman.
+    const fc = min(f, 1.5) * (1 - P.kid * 0.45);
     for (const side of [-1, 1]) {
       for (let i = 0; i < 3; i++) {
         const a = onHead(side * (1.1 + i * 0.25), -0.38 - i * 0.1);

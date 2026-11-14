@@ -222,9 +222,9 @@ function curtainTexture() {
       }
     }
     // Ribete rosa abajo.
-    ctx.fillStyle = '#ffb3c6';
+    ctx.fillStyle = '#c65a37';
     ctx.fillRect(0, h - 40, w, 26);
-    ctx.fillStyle = '#ffd3de';
+    ctx.fillStyle = '#e3a184';
     ctx.fillRect(0, h - 14, w, 14);
     // Trama de la tela.
     ctx.fillStyle = 'rgba(120,80,60,0.035)';
@@ -297,7 +297,7 @@ function curtain(width, height, side, material) {
   const mesh = new THREE.Mesh(geometry, material);
   mesh.castShadow = true;
   mesh.receiveShadow = true;
-  const tie = new THREE.Mesh(new THREE.TorusGeometry(width * 0.2, 0.018, 10, 28), plain('#ff9fb8', 'fabric'));
+  const tie = new THREE.Mesh(new THREE.TorusGeometry(width * 0.2, 0.018, 10, 28), plain('#c65a37', 'fabric'));
   tie.scale.set(1, 0.42, 1);
   tie.rotation.x = Math.PI / 2;
   tie.position.set(outer - side * width * 0.2, tieY, 0.04);
@@ -399,7 +399,7 @@ function buildShelf() {
     bracket.position.set(side * 0.36, -0.1, -0.01);
     shelf.add(bracket);
   }
-  const books = [['#ff8fb1', 0.26, 0.07], ['#9db7ff', 0.3, 0.065], ['#ffd166', 0.22, 0.06], ['#7ed6a5', 0.27, 0.07]];
+  const books = [['#c65a37', 0.26, 0.07], ['#3f6fb0', 0.3, 0.065], ['#e0a93b', 0.22, 0.06], ['#3f9a7a', 0.27, 0.07]];
   let bx = -0.42;
   books.forEach(([color, tall, thick], i) => {
     const book = rounded(thick, tall, 0.17, 0.008, color, 'matte');

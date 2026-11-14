@@ -18,8 +18,8 @@ export const SLOTS = [
 // jugador, no de la criatura: se queda igual cuando llega otra. `base` es
 // lo que hay si no se ha puesto nada (null: el sitio queda vacío).
 export const SPOTS = [
-  { id: 'pared', name: 'Pared', base: 'Lunares de cielo' },
-  { id: 'alfombra', name: 'Alfombra', base: 'Alfombra rosa' },
+  { id: 'pared', name: 'Pared', base: 'Tablas azules' },
+  { id: 'alfombra', name: 'Alfombra', base: 'Alfombra marinera' },
   { id: 'rincon', name: 'Rincón', base: 'Planta' },
   { id: 'ventana', name: 'Ventana', base: null },
 ];
@@ -75,7 +75,7 @@ export const ITEMS = [
 
   // La decoración es lo más caro de la tienda: es la meta a largo plazo.
   decor('papel-rayas', 'Rayas de menta', 180, 'pared', 'Rayas finas, frescas y tranquilas.'),
-  decor('papel-vichy', 'Cuadros rosa', 240, 'pared', 'Como un mantel de merienda.'),
+  decor('papel-vichy', 'Cuadros', 240, 'pared', 'Como un mantel de merienda.'),
   decor('papel-flores', 'Florecitas', 300, 'pared', 'Margaritas por todas partes.'),
   decor('papel-olas', 'Olas', 360, 'pared', 'Para soñar con el mar.'),
   decor('papel-estrellas', 'Noche de estrellas', 450, 'pared', 'Lila, con estrellas de oro.'),

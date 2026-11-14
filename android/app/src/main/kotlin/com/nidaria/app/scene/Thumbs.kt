@@ -52,6 +52,8 @@ private val CANON = mapOf(
     "pelusa" to createGenes(101, "pelusa"),
     "hoja" to createGenes(202, "hoja"),
     "gota" to createGenes(303, "gota"),
+    "perro" to createGenes(404, "perro"),
+    "gato" to createGenes(505, "gato"),
 )
 
 // Genes de muestra de cada familia, para las formas que aún no se han criado.

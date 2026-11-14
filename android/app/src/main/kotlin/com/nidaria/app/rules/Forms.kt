@@ -31,18 +31,22 @@ val BRANCH_INFO = mapOf(
     "arisco" to BranchInfo("Arisca", "Sale cuando pasa hambre, sueño o aburrimiento a menudo."),
 )
 
-private val BABY_NAMES = mapOf("pelusa" to "Pelusín", "hoja" to "Brotín", "gota" to "Gotín")
+private val BABY_NAMES = mapOf("pelusa" to "Pelusín", "hoja" to "Brotín", "gota" to "Gotín", "perro" to "Cachorro", "gato" to "Gatito")
 
 private val YOUNG_NAMES = mapOf(
     "pelusa" to mapOf("gloton" to "Bolón", "jugueton" to "Brincol", "tranquilo" to "Arrullo", "arisco" to "Zarzo"),
     "hoja" to mapOf("gloton" to "Calabazo", "jugueton" to "Trepín", "tranquilo" to "Musguel", "arisco" to "Cardo"),
     "gota" to mapOf("gloton" to "Globul", "jugueton" to "Chapotín", "tranquilo" to "Remanso", "arisco" to "Erizal"),
+    "perro" to mapOf("gloton" to "Tragón", "jugueton" to "Trasto", "tranquilo" to "Bonachón", "arisco" to "Gruñón"),
+    "gato" to mapOf("gloton" to "Zampón", "jugueton" to "Brincos", "tranquilo" to "Ronroneo", "arisco" to "Bufido"),
 )
 
 private val ADULT_EPITHETS = mapOf(
     "pelusa" to mapOf("gloton" to "Goloso", "jugueton" to "Saltarín", "tranquilo" to "Sereno", "arisco" to "Bravo"),
     "hoja" to mapOf("gloton" to "Frondoso", "jugueton" to "Trepador", "tranquilo" to "Florido", "arisco" to "Espinoso"),
     "gota" to mapOf("gloton" to "Orondo", "jugueton" to "Saltaolas", "tranquilo" to "Manso", "arisco" to "Bravío"),
+    "perro" to mapOf("gloton" to "Grandote", "jugueton" to "Atleta", "tranquilo" to "Noble", "arisco" to "Fiero"),
+    "gato" to mapOf("gloton" to "Orondo", "jugueton" to "Acróbata", "tranquilo" to "Elegante", "arisco" to "Salvaje"),
 )
 
 // Formas ocultas: adultas fuera de las cuatro ramas, para crianzas raras.
@@ -79,6 +83,8 @@ private val SECRET_NAMES = mapOf(
     "pelusa" to mapOf("radiante" to "Nimbo Radiante", "sibarita" to "Merengue Sibarita", "lunar" to "Plumón Lunar"),
     "hoja" to mapOf("radiante" to "Girasol Radiante", "sibarita" to "Higo Sibarita", "lunar" to "Helecho Lunar"),
     "gota" to mapOf("radiante" to "Rocío Radiante", "sibarita" to "Almíbar Sibarita", "lunar" to "Marea Lunar"),
+    "perro" to mapOf("radiante" to "Lucero Radiante", "sibarita" to "Bollito Sibarita", "lunar" to "Aullido Lunar", "mestiza" to "Chucho Mestizo"),
+    "gato" to mapOf("radiante" to "Michi Radiante", "sibarita" to "Bombón Sibarita", "lunar" to "Sombra Lunar", "mestiza" to "Gato Callejero"),
 )
 
 // Familia de la criatura y familia de la que viene.
@@ -135,8 +141,14 @@ private fun buildForms(): LinkedHashMap<String, Form> {
         for (kind in listOf("radiante", "sibarita", "lunar")) {
             secret("oculta-$family-$kind", kind, SECRET_NAMES.getValue(family).getValue(kind))
         }
-        for (origin in FAMILIES.filter { it != family }) {
-            secret("oculta-$family-$origin", "mestiza", MIXED_NAMES.getValue(family).getValue(origin), origin)
+        // Mestizas: en los monstruos, una por familia de origen; en las
+        // mascotas, una sola (cruce de dos razas).
+        if (isPet(family)) {
+            secret("oculta-$family-mestiza", "mestiza", SECRET_NAMES.getValue(family).getValue("mestiza"))
+        } else {
+            for (origin in MONSTER_FAMILIES.filter { it != family }) {
+                secret("oculta-$family-$origin", "mestiza", MIXED_NAMES.getValue(family).getValue(origin), origin)
+            }
         }
     }
     return forms
@@ -228,6 +240,10 @@ fun secretFor(creature: Creature, branch: String): String? {
     if (care.feeds >= GOURMET_FEEDS && care.favs == care.feeds) return "oculta-$family-sibarita"
     if (creature.bornNight && branch == "tranquilo") return "oculta-$family-lunar"
     val origin = genes.origin
+    if (isPet(family)) {
+        if (origin != null && origin != genes.breed && lifeQuality(creature) >= MIXED_QUALITY) return "oculta-$family-mestiza"
+        return null
+    }
     if (origin != null && origin != family && lifeQuality(creature) >= MIXED_QUALITY) return "oculta-$family-$origin"
     return null
 }
@@ -251,7 +267,14 @@ fun nextFormId(creature: Creature): String? {
 // Pista para el Criadex: cómo se llega a una forma aún no descubierta.
 fun hintFor(formId: String): String {
     val form = getForm(formId)
-    if (form.stage == "cria") return "Nace de un huevo de la familia ${form.family}."
+    if (form.stage == "cria") {
+        return when (form.family) {
+            "perro" -> "Nace de un huevo de perro."
+            "gato" -> "Nace de un huevo de gato."
+            else -> "Nace de un huevo de la familia ${form.family}."
+        }
+    }
+    if (form.secret == "mestiza" && isPet(form.family)) return "Sale de un huevo heredero que cambió de raza, si se le cuida bien."
     form.secret?.let { return SECRET_INFO.getValue(it).hint }
     val branch = form.branch ?: return ""
     return BRANCH_INFO.getValue(branch).hint

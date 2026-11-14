@@ -22,7 +22,7 @@ import androidx.core.content.FileProvider
 import androidx.core.content.res.ResourcesCompat
 import com.nidaria.app.R
 import com.nidaria.app.rules.Creature
-import com.nidaria.app.rules.FAMILY_INFO
+import com.nidaria.app.rules.kindName
 import com.nidaria.app.rules.TRAITS
 import java.io.ByteArrayOutputStream
 import java.io.File
@@ -110,8 +110,8 @@ object Card {
         // Familia y carácter.
         y += 34f
         text.typeface = black
-        val family = FAMILY_INFO[creature.genes.family]?.name ?: ""
-        var x = chip(canvas, text, left, y, "Familia $family", MINT_WASH)
+        val kind = creature.genes.kindName()
+        var x = chip(canvas, text, left, y, if (creature.genes.breed != null) kind else "Familia $kind", MINT_WASH)
         for (trait in creature.genes.traits) {
             val name = TRAITS[trait]?.name ?: continue
             text.textSize = 30f

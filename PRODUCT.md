@@ -46,6 +46,11 @@ Pedido por el usuario:
 - Modo mundo libre: conectarse con otros jugadores y subir puntos de relación al interactuar, monstruos contra los que luchar, mapa, lugares ocultos, cofres, easter eggs.
 - Casa propia en el mundo libre, con cosas que comprar para ella.
 
+Pedido por el usuario en noviembre de 2026, a petición de los jugadores:
+
+- Tres especies para elegir al empezar: perros, gatos y monstruos (los de siempre). Se eligen en tres tarjetas grandes con un adulto de muestra; después se recibe directamente el huevo de esa especie, sin elegir entre varios.
+- Perros y gatos de todas las razas, con la misma calidad esculpida que el resto. Hoy hay 46 razas de perro y 28 de gato; la raza la decide el huevo y no se ve hasta que nace.
+
 Confirmado en la entrevista:
 
 - Si se la descuida demasiado, la criatura puede morir, como en los clásicos.
@@ -69,7 +74,7 @@ Sin decidir:
 
 - El juego se llama Nidaria. El nombre lo eligió el usuario entre varias propuestas; no se ha comprobado si está registrado como marca.
 - No se usa el nombre Tamagotchi ni sus personajes, arte o música: es una marca de Bandai. Nidaria comparte el género, no la obra.
-- Preferencia visual del usuario: el estándar del género, sin rarezas añadidas. Habitación acogedora en tonos pastel, botones redondos y barras de colores. El listón de acabado es Animal Crossing, como referencia de calidad y no como modelo que copiar.
+- Preferencia visual del usuario: el estándar del género, sin rarezas añadidas, pero nada pastel ni infantil (lo pidió en noviembre de 2026: «que no parezca para niñas»). Habitación acogedora, botones redondos y barras de colores vivos. Los monstruos con un toque de criatura de aventura, de diseño propio. El listón de acabado es Animal Crossing, como referencia de calidad y no como modelo que copiar.
 
 ## Evidence on Hand
 

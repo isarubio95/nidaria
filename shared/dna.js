@@ -12,9 +12,9 @@ export const PET_FAMILIES = ['perro', 'gato'];
 export const FAMILIES = [...MONSTER_FAMILIES, ...PET_FAMILIES];
 
 export const FAMILY_INFO = {
-  pelusa: { name: 'Pelusa', blurb: 'Peludas y con mucho genio.', hues: [[2, 44], [266, 296]], species: 'monstruo' },
-  hoja: { name: 'Hoja', blurb: 'Brotan con hojas, tallos y espinas.', hues: [[72, 156]], species: 'monstruo' },
-  gota: { name: 'Gota', blurb: 'Lisas, con aletas, de agua.', hues: [[182, 236], [240, 262]], species: 'monstruo' },
+  pelusa: { name: 'Pelusa', blurb: 'Zorros de pelo encendido y mucho genio.', hues: [[4, 40], [196, 212]], species: 'monstruo' },
+  hoja: { name: 'Hoja', blurb: 'Pequeños dinosaurios con hojas por cresta.', hues: [[78, 160]], species: 'monstruo' },
+  gota: { name: 'Gota', blurb: 'Anfibios lisos, con aletas, de agua.', hues: [[186, 228], [232, 248]], species: 'monstruo' },
   perro: { name: 'Perro', blurb: 'Leal y con ganas de jugar.', hues: [], species: 'perro' },
   gato: { name: 'Gato', blurb: 'Curioso y muy suyo.', hues: [], species: 'gato' },
 };
@@ -194,7 +194,7 @@ function inheritPet(parent, seed) {
     const coat = rng.chance(0.7) ? parent.coat : rng.int(0, breed.coats.length - 1);
     const eyes = rng.chance(0.7) ? parent.eyes : rng.int(0, breed.eyes.length - 1);
     Object.assign(genes, { breed: breed.id, coat, eyes }, coatTone(breed, coat));
-  } else {
+  } else if (genes.breed !== parent.breed) {
     genes.origin = parent.breed;
   }
   if (genes.favFood === genes.hateFood) genes.hateFood = FOODS.find((food) => food !== genes.favFood);

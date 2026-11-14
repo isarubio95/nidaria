@@ -64,8 +64,12 @@ function setup() {
   return kit;
 }
 
-function render(object, view, silhouette) {
+function render(object, view, silhouette, px = SIZE) {
   const { canvas, renderer, scene, camera, flat, ctx } = setup();
+  if (canvas.width !== px) {
+    renderer.setSize(px, px, false);
+    flat.width = flat.height = px;
+  }
   scene.add(object);
   const box = new THREE.Box3().setFromObject(object);
   const center = box.getCenter(new THREE.Vector3());
@@ -81,12 +85,12 @@ function render(object, view, silhouette) {
   renderer.getContext().finish();
   scene.remove(object);
   ctx.globalCompositeOperation = 'source-over';
-  ctx.clearRect(0, 0, SIZE, SIZE);
+  ctx.clearRect(0, 0, px, px);
   ctx.drawImage(canvas, 0, 0);
   if (silhouette) {
     ctx.globalCompositeOperation = 'source-in';
-    ctx.fillStyle = '#b89f8c';
-    ctx.fillRect(0, 0, SIZE, SIZE);
+    ctx.fillStyle = '#979eb0';
+    ctx.fillRect(0, 0, px, px);
   }
   return flat.toDataURL('image/png');
 }
@@ -150,19 +154,35 @@ export function eggThumb(egg) {
   return cached(`egg:${egg.hue}:${egg.sat}:${egg.light}:${egg.hue2}`, () => snap(() => buildEgg(egg), [0.2, 0.18]));
 }
 
-const CANON = { pelusa: createGenes(101, 'pelusa'), hoja: createGenes(202, 'hoja'), gota: createGenes(303, 'gota') };
-export const canonGenes = (family) => CANON[family];
+// ADN de muestra de cada familia: el que se enseña en el Criadex para las
+// formas que aún no ha tenido tu criatura. Perros y gatos, con una raza
+// fija (ver breedGenes para las demás).
+const CANON = {
+  pelusa: createGenes(101, 'pelusa'),
+  hoja: createGenes(202, 'hoja'),
+  gota: createGenes(303, 'gota'),
+  perro: { ...createGenes(404, 'perro'), breed: 'golden', coat: 0, eyes: 0 },
+  gato: { ...createGenes(505, 'gato'), breed: 'europeo', coat: 1, eyes: 0 },
+};
+export const canonGenes = (family) => CANON[family] ?? CANON.pelusa;
 
-export function creatureThumb(formId, genes, silhouette = false) {
+// Un ADN de muestra con una raza y capa concretas.
+export function breedGenes(family, breed, coat = 0) {
+  return { ...canonGenes(family), breed, coat, eyes: 0 };
+}
+
+// `size`: lado de la imagen en píxeles (las tarjetas grandes piden más).
+export function creatureThumb(formId, genes, silhouette = false, { size = SIZE, detail } = {}) {
   if (formId === 'huevo') {
     if (!silhouette) return eggThumb(genes);
     return cached('egg:silhouette', () => snap(() => buildEgg(genes), [0.2, 0.18], { silhouette: true }));
   }
-  return cached(`form:${formId}:${fingerprint(JSON.stringify(genes))}:${silhouette}`, async () => {
-    const built = sculptingAs({ priority: 'low', persist: false }, () => buildCreature(formId, genes, { detail: silhouette ? 'tiny' : 'low' }));
+  return cached(`form:${formId}:${fingerprint(JSON.stringify(genes))}:${silhouette}:${size}`, async () => {
+    const quality = detail ?? (silhouette ? 'tiny' : size > SIZE ? 'high-thumb' : 'low');
+    const built = sculptingAs({ priority: 'low', persist: false }, () => buildCreature(formId, genes, { detail: quality }));
     try {
       await drawable(built.object);
-      return render(built.object, [0.28, 0.16], silhouette);
+      return render(built.object, [0.28, 0.16], silhouette, size);
     } finally {
       built.dispose();
     }

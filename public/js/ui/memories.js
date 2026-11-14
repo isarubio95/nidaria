@@ -40,7 +40,7 @@ function open(entry) {
     title: entry.name,
     text,
     art: creatureThumb(entry.formId, entry.genes),
-    actions: [{ label: 'Cerrar', value: true, tone: 'pink' }],
+    actions: [{ label: 'Cerrar', value: true, tone: 'primary' }],
   });
 }
 

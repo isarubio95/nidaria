@@ -31,15 +31,17 @@ jobs:
           node-version-file: .nvmrc
           cache: npm
       - run: npm ci
-      # Los vectores de referencia salen de las reglas y los modelos en JS:
+      # Los vectores de referencia (y la tabla de razas de Kotlin) salen de
+      # las reglas y los modelos en JS:
       # si alguien cambia shared/ o la escena sin regenerarlos, Kotlin
       # compararía contra datos viejos.
       - name: Vectores de referencia al día
         working-directory: android
         run: |
+          node tools/breeds.mjs
           node tools/golden.mjs
           node tools/sculpt-golden.mjs
-          git diff --exit-code -- app/src/test/resources/
+          git diff --exit-code -- app/src/test/resources/ app/src/main/kotlin/com/nidaria/app/rules/Breeds.kt
       - uses: actions/setup-java@v4
         with:
           distribution: temurin

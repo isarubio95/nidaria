@@ -130,7 +130,7 @@ export function openShop(initial = 'comida') {
       action = h('button', { class: 'btn', type: 'button', disabled: true }, 'Ya es tuyo');
     } else {
       action = h('button', {
-        class: 'btn btn-pink', type: 'button', disabled: short > 0,
+        class: 'btn btn-primary', type: 'button', disabled: short > 0,
         onclick: async (event) => {
           event.currentTarget.disabled = true;
           const payload = await run(api.buy({ itemId: item.id, qty }));

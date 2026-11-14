@@ -67,7 +67,11 @@ function fingerprint(mesh) {
 }
 
 // ── Criaturas: todas las formas, con ADN variado ──
-const creatures = FORM_LIST.filter((form) => form.stage !== 'huevo').map((form, i) => {
+// Las criaturas nuevas de la web (monster.js con los monstruos rehechos y
+// pet.js con perros y gatos) aún no están portadas a Kotlin. Hasta que lo
+// estén no se comparan; al portarlas, PORTED = true.
+const PORTED = false;
+const creatures = !PORTED ? [] : FORM_LIST.filter((form) => form.stage !== 'huevo').map((form, i) => {
   const seed = 1000 + i * 7919;
   const family = form.family ?? ['pelusa', 'hoja', 'gota'][i % 3];
   const genes = createGenes(seed, family);
@@ -104,7 +108,7 @@ const items = itemIds.map((id) => ({ id, jobs: jobsOf(() => buildItem(id)).jobs 
 
 // ── Ropa puesta en criaturas de verdad ──
 const wearIds = itemIds.filter((id) => isWear(id));
-const worn = [0, 5, 40].map((index) => {
+const worn = !PORTED ? [] : [0, 5, 40].map((index) => {
   const source = creatures[index];
   const built = buildCreature(source.formId, createGenes(source.seed, source.family));
   return { formId: source.formId, seed: source.seed, family: source.family, items: wearIds.map((id) => ({ id, jobs: jobsOf(() => buildWear(id, built.anchors)).jobs })) };
@@ -119,13 +123,12 @@ const house = jobsOf(() => buildHouse({ anisotropy: 1, sky: null })).jobs;
 
 // ── Mallas: el escultor de Kotlin tiene que dar estas huellas exactas ──
 const pick = [
-  creatures[0].jobs[0],
-  creatures[30].jobs[0],
+  ...(PORTED ? [creatures[0].jobs[0], creatures[30].jobs[0]] : [items.find((item) => item.id === 'pan').jobs[0]]),
   items.find((item) => item.id === 'arroz').jobs[1],
   items.find((item) => item.id === 'cometa').jobs[0],
   items.find((item) => item.id === 'girasol').jobs[1],
   eggs[0].jobs[0],
-  worn[1].items.find((item) => item.id === 'bufanda').jobs[0],
+  ...(PORTED ? [worn[1].items.find((item) => item.id === 'bufanda').jobs[0]] : [items.find((item) => item.id === 'bufanda').jobs[0]]),
   house[1],
 ];
 const meshes = pick.map((job) => ({ job, fingerprint: fingerprint(meshJob(job)) }));

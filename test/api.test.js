@@ -156,9 +156,12 @@ test('partida completa: huevo, cuidados, tienda y minijuego', async () => {
     await app.call('POST', '/api/auth/register', { name: 'Jugador', password: 'secreta123' });
     assert.equal((await app.call('POST', '/api/creature/feed', { itemId: 'pan' })).status, 400);
 
-    const picked = await app.call('POST', '/api/egg/pick', { index: 1, name: 'Mota' });
+    const picked = await app.call('POST', '/api/egg/pick', { species: 'perro', name: 'Mota' });
     assert.equal(picked.status, 200);
     assert.equal(picked.data.state.creature.stage, 'huevo');
+    assert.equal(picked.data.state.creature.species, 'perro');
+    // Mientras es huevo no se sabe la raza.
+    assert.equal(picked.data.state.creature.kindName, null);
     assert.equal(picked.data.state.eggOffer, null);
 
     let hatched = null;
@@ -170,6 +173,10 @@ test('partida completa: huevo, cuidados, tienda y minijuego', async () => {
     assert.equal(hatched.state.creature.stage, 'cria');
     assert.ok(hatched.events.some((event) => event.type === 'evolved'));
     assert.ok(hatched.state.criadex[hatched.state.creature.formId]);
+    // Al nacer se ve la raza y queda en el Criadex de razas.
+    assert.equal(hatched.state.creature.genes.family, 'perro');
+    assert.ok(hatched.state.creature.kindName);
+    assert.ok(hatched.state.criadex[`raza:${hatched.state.creature.genes.breed}`]);
 
     const fed = await app.call('POST', '/api/creature/feed', { itemId: 'pan' });
     assert.equal(fed.status, 200);
@@ -217,7 +224,7 @@ test('la energía de juego se agota y se recarga', async () => {
   const app = await startServer();
   try {
     await app.call('POST', '/api/auth/register', { name: 'Cansado', password: 'secreta123' });
-    await app.call('POST', '/api/egg/pick', { index: 0, name: 'Trasto' });
+    await app.call('POST', '/api/egg/pick', { species: 'monstruo', name: 'Trasto' });
     for (let i = 0; i < 4; i++) await app.call('POST', '/api/egg/warm', { taps: 20 });
     let last = null;
     for (let i = 0; i < 5; i++) {
@@ -238,18 +245,24 @@ test('la muerte deja un huevo heredero', async () => {
   const app = await startServer();
   try {
     await app.call('POST', '/api/auth/register', { name: 'Olvido', password: 'secreta123' });
-    await app.call('POST', '/api/egg/pick', { index: 2, name: 'Nube' });
+    await app.call('POST', '/api/egg/pick', { species: 'gato', name: 'Nube' });
     for (let i = 0; i < 4; i++) await app.call('POST', '/api/egg/warm', { taps: 20 });
     const gone = await app.call('POST', '/api/dev/skip', { hours: 24 * 6 });
     assert.equal(gone.data.state.creature.alive, false);
     assert.ok(gone.data.events.some((event) => event.type === 'died'));
-    assert.equal(gone.data.state.eggOffer.length, 3);
-    assert.equal(gone.data.state.eggOffer[0].heir, true);
+    // Un huevo por especie; el de gato es el heredero y no dice su raza.
+    assert.deepEqual(gone.data.state.eggOffer.map((egg) => egg.species), ['perro', 'gato', 'monstruo']);
+    assert.deepEqual(gone.data.state.eggOffer.map((egg) => egg.heir), [false, true, false]);
+    assert.equal(gone.data.state.eggOffer[1].breed, undefined);
     assert.equal((await app.call('POST', '/api/creature/feed', { itemId: 'pan' })).status, 400);
-    const next = await app.call('POST', '/api/egg/pick', { index: 0, name: 'Nube II' });
+    assert.equal((await app.call('POST', '/api/egg/pick', { species: 'dragon', name: 'Nube II' })).status, 400);
+    const next = await app.call('POST', '/api/egg/pick', { species: 'gato', name: 'Nube II' });
     assert.equal(next.data.state.creature.generation, 2);
     assert.equal(next.data.state.creature.alive, true);
+    assert.equal(next.data.state.creature.genes.family, 'gato');
     assert.ok(Object.keys(next.data.state.criadex).length >= 3);
+    // La raza de la que se fue quedó apuntada al nacer.
+    assert.ok(Object.keys(next.data.state.criadex).some((id) => id.startsWith('raza:')));
   } finally {
     await app.close();
   }
@@ -262,7 +275,7 @@ test('recuerdos: las criaturas que se fueron, con su heredera', async () => {
     const empty = await app.call('GET', '/api/memorial');
     assert.equal(empty.status, 200);
     assert.deepEqual(empty.data.result.creatures, []);
-    await app.call('POST', '/api/egg/pick', { index: 0, name: 'Bruma' });
+    await app.call('POST', '/api/egg/pick', { species: 'monstruo', name: 'Bruma' });
     for (let i = 0; i < 4; i++) await app.call('POST', '/api/egg/warm', { taps: 20 });
     await app.call('POST', '/api/dev/skip', { hours: 24 * 6 });
     // Recién ida, ya sale aunque no se haya elegido otro huevo.
@@ -274,7 +287,7 @@ test('recuerdos: las criaturas que se fueron, con su heredera', async () => {
     assert.ok(first.cause);
     assert.ok(first.formName);
     assert.equal(first.heir, null);
-    await app.call('POST', '/api/egg/pick', { index: 0, name: 'Bruma II' });
+    await app.call('POST', '/api/egg/pick', { species: 'monstruo', name: 'Bruma II' });
     const later = await app.call('GET', '/api/memorial');
     assert.equal(later.data.result.creatures.length, 1);
     assert.equal(later.data.result.creatures[0].heir, 'Bruma II');
@@ -289,7 +302,7 @@ test('el vínculo sube al cuidarla y avisa al cambiar de nivel', async () => {
   const app = await startServer({ timeScale: 3600 });
   try {
     await app.call('POST', '/api/auth/register', { name: 'Caricias', password: 'secreta123' });
-    await app.call('POST', '/api/egg/pick', { index: 0, name: 'Mimo' });
+    await app.call('POST', '/api/egg/pick', { species: 'monstruo', name: 'Mimo' });
     await new Promise((resolve) => setTimeout(resolve, 60));
     const born = await app.call('GET', '/api/state');
     assert.equal(born.data.state.creature.stage, 'cria');
@@ -311,7 +324,7 @@ test('el vínculo sube al cuidarla y avisa al cambiar de nivel', async () => {
 
 async function hatchedPlayer(app, name) {
   await app.call('POST', '/api/auth/register', { name, password: 'secreta123', timeZone: 'Europe/Madrid' });
-  await app.call('POST', '/api/egg/pick', { index: 0, name: 'Pipo' });
+  await app.call('POST', '/api/egg/pick', { species: 'monstruo', name: 'Pipo' });
   for (let i = 0; i < 4; i++) await app.call('POST', '/api/egg/warm', { taps: 20 });
   return (await app.call('GET', '/api/state')).data.state;
 }
@@ -405,7 +418,7 @@ test('decoración: comprar, colocar en su sitio y volver a lo de base', async ()
     assert.equal((await app.call('POST', '/api/decor/place', { spot: 'techo', itemId: null })).status, 400);
 
     // Se queda puesta al cambiar de criatura y se puede volver a la de base.
-    await app.call('POST', '/api/egg/pick', { index: 0, name: 'Nube' });
+    await app.call('POST', '/api/egg/pick', { species: 'monstruo', name: 'Nube' });
     const back = await app.call('POST', '/api/decor/place', { spot: 'pared', itemId: null });
     assert.deepEqual(back.data.state.decor, { pared: null, alfombra: null, rincon: 'baul', ventana: null });
   } finally {

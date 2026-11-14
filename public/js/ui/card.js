@@ -2,7 +2,7 @@
 // nombre, su forma y su ADN, lista para mandar o guardar.
 
 import { h } from '../dom.js';
-import { FAMILY_INFO, TRAITS } from '/shared/dna.js';
+import { TRAITS, kindName } from '/shared/dna.js';
 import { dialog } from './dialog.js';
 import { toast } from './toast.js';
 import { sfx } from '../audio/sfx.js';
@@ -13,8 +13,8 @@ const H = 1350;
 const PAD = 48;
 const PHOTO_H = 860;
 const C = {
-  cream: '#fff8ec', paper: '#fffdf8', ink: '#5b3a29', inkSoft: '#84644f', inkFaint: '#b89f8c',
-  track: '#f0e6d6', line: '#eadfce', pink: '#ff8fb1', pinkWash: '#ffe3ec', mintWash: '#dff5e8', sunWash: '#fff1cc',
+  cream: '#f1eee8', paper: '#fcfbf8', ink: '#1f2638', inkSoft: '#4d5670', inkFaint: '#979eb0',
+  track: '#e9e5dc', line: '#dfdbd2', primary: '#ff6a3d', primaryWash: '#ffe3d8', mintWash: '#d6f3e8', sunWash: '#fff0c6',
 };
 const FONT = '"Zen Maru Gothic", ui-rounded, system-ui, sans-serif';
 
@@ -98,7 +98,7 @@ export async function makeCard(room, creature) {
 
   // Familia y carácter.
   y += 34;
-  let x = chip(ctx, left, y, `Familia ${FAMILY_INFO[creature.genes.family].name}`, C.mintWash);
+  let x = chip(ctx, left, y, creature.genes.breed ? kindName(creature.genes) : `Familia ${kindName(creature.genes)}`, C.mintWash);
   for (const trait of creature.genes.traits) {
     const name = TRAITS[trait]?.name;
     if (!name) continue;
@@ -174,13 +174,13 @@ export async function shareCard(room, creature) {
   const actions = [];
   if (canShare) {
     actions.push({
-      label: 'Compartir', tone: 'pink', keep: true,
+      label: 'Compartir', tone: 'primary', keep: true,
       run: () => navigator.share(data).catch((error) => {
         if (error?.name !== 'AbortError') toast('No se ha podido compartir. Prueba a guardarla.', 'error');
       }),
     });
   }
-  actions.push({ label: 'Guardar imagen', tone: canShare ? null : 'pink', keep: true, run: () => download(blob, name) });
+  actions.push({ label: 'Guardar imagen', tone: canShare ? null : 'primary', keep: true, run: () => download(blob, name) });
   actions.push({ label: 'Cerrar', value: null });
 
   await dialog({

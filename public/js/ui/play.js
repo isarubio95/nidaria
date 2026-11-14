@@ -69,7 +69,7 @@ export function openPlay(room, say, initial = 'juegos') {
       const lock = gameLock(game, creature);
       const prize = h('span', { class: 'num' }, fmt(baseReward(game, level, mult)));
       const start = h('button', {
-        class: 'btn btn-pink', type: 'button',
+        class: 'btn btn-primary', type: 'button',
         onclick: async () => {
           await closeSheet();
           launchGame(game.id, level, { room, say });
@@ -111,7 +111,7 @@ export function openPlay(room, say, initial = 'juegos') {
     if (!toys.length) {
       body.replaceChildren(h('div', { class: 'empty' },
         h('p', {}, 'Todavía no tienes juguetes. Jugar con uno divierte sin gastar energía de juego.'),
-        h('button', { class: 'btn btn-pink', type: 'button', onclick: () => openShop('juguete') }, 'Ir a la tienda'),
+        h('button', { class: 'btn btn-primary', type: 'button', onclick: () => openShop('juguete') }, 'Ir a la tienda'),
       ));
       return;
     }

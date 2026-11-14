@@ -9,7 +9,7 @@ import * as THREE from 'three';
 import { createRng } from '/shared/rng.js';
 
 // Lo que hay en cada sitio si el jugador no ha puesto nada.
-export const BASE_DECOR = { pared: 'papel-lunares', alfombra: 'alfombra-rosa', rincon: 'planta', ventana: null };
+export const BASE_DECOR = { pared: 'papel-tablas', alfombra: 'alfombra-marina', rincon: 'planta', ventana: null };
 
 export const TILE = 256;
 export const TILE_METERS = 0.5;
@@ -65,6 +65,20 @@ const rect = (ctx, x, y, w, h) => ctx.fillRect(x * U, y * U, w * U, h * U);
 
 // Pinta una baldosa de 256 × 256. Todas se repiten sin costuras.
 const WALLPAPERS = {
+  // La de serie: tablas pintadas de azul pizarra, con sus juntas.
+  'papel-tablas': (ctx, w, h) => {
+    ctx.fillStyle = '#9fbccd';
+    ctx.fillRect(0, 0, w, h);
+    ctx.fillStyle = '#93b1c3';
+    rect(ctx, 0, 0, 24, 96);
+    rect(ctx, 48, 0, 24, 96);
+    ctx.fillStyle = '#7f9db0';
+    rect(ctx, 23, 0, 1.2, 96);
+    rect(ctx, 47, 0, 1.2, 96);
+    rect(ctx, 71, 0, 1.2, 96);
+    rect(ctx, 95, 0, 1.2, 96);
+    grain(ctx, w, h, 17);
+  },
   'papel-lunares': (ctx, w, h) => {
     ctx.fillStyle = '#bfe3ff';
     ctx.fillRect(0, 0, w, h);
@@ -86,9 +100,9 @@ const WALLPAPERS = {
     grain(ctx, w, h, 12);
   },
   'papel-vichy': (ctx, w, h) => {
-    ctx.fillStyle = '#fff4f7';
+    ctx.fillStyle = '#f6f1ea';
     ctx.fillRect(0, 0, w, h);
-    ctx.fillStyle = 'rgba(255, 143, 177, 0.28)';
+    ctx.fillStyle = 'rgba(198, 90, 55, 0.26)';
     rect(ctx, 0, 0, 96, 24);
     rect(ctx, 0, 48, 96, 24);
     rect(ctx, 0, 0, 24, 96);
@@ -139,7 +153,7 @@ function wallpaperCanvas(id) {
   if (!canvases.has(id)) {
     const canvas = document.createElement('canvas');
     canvas.width = canvas.height = TILE;
-    (WALLPAPERS[id] ?? WALLPAPERS['papel-lunares'])(canvas.getContext('2d'), TILE, TILE);
+    (WALLPAPERS[id] ?? WALLPAPERS['papel-tablas'])(canvas.getContext('2d'), TILE, TILE);
     canvases.set(id, canvas);
   }
   return canvases.get(id);
@@ -168,6 +182,7 @@ const EDGES = {
 
 // `layers` van de fuera adentro; `scale` es el tamaño de cada capa.
 const RUGS = {
+  'alfombra-marina': { edge: 'disc', layers: [[1, '#2f4b72'], [0.9, '#c65a37'], [0.84, '#2f4b72'], [0.62, '#3b5c86']] },
   'alfombra-rosa': { edge: 'disc', layers: [[1, '#ff8fb1'], [0.88, '#ffb3c9'], [0.78, '#ff94b5']] },
   'alfombra-menta': { edge: 'disc', layers: [[1, '#7ed6a5'], [0.88, '#aee8c5'], [0.78, '#84d9aa']] },
   'alfombra-flor': { edge: 'flor', layers: [[1, '#ffd56b'], [0.82, '#fff1c4'], [0.66, '#ffc44d']] },
@@ -306,8 +321,8 @@ function rugGeometry(edge) {
 // La alfombra entera, lista para poner en el suelo. Su material es
 // propio (la textura y la malla se comparten).
 export function buildRug(id) {
-  const spec = RUGS[id] ?? RUGS['alfombra-rosa'];
-  const key = RUGS[id] ? id : 'alfombra-rosa';
+  const spec = RUGS[id] ?? RUGS['alfombra-marina'];
+  const key = RUGS[id] ? id : 'alfombra-marina';
   const material = new THREE.MeshPhysicalMaterial({
     map: rugTexture(key, spec),
     roughness: 0.96,
