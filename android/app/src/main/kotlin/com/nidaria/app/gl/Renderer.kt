@@ -206,8 +206,8 @@ class Renderer {
         GLES30.glGenVertexArrays(1, ids, 0)
         val vao = ids[0]
         GLES30.glBindVertexArray(vao)
-        val buffers = IntArray(4)
-        GLES30.glGenBuffers(4, buffers, 0)
+        val buffers = IntArray(8)
+        GLES30.glGenBuffers(8, buffers, 0)
         fun attribute(index: Int, data: FloatArray, size: Int) {
             GLES30.glBindBuffer(GLES30.GL_ARRAY_BUFFER, buffers[index])
             GLES30.glBufferData(GLES30.GL_ARRAY_BUFFER, data.size * 4, FloatBuffer.wrap(data), GLES30.GL_STATIC_DRAW)
@@ -217,8 +217,12 @@ class Renderer {
         attribute(0, geometry.positions, 3)
         attribute(1, geometry.normals, 3)
         geometry.uvs?.let { attribute(2, it, 2) }
+        geometry.colors?.let { attribute(3, it, 3) }
+        geometry.ao?.let { attribute(4, it, 1) }
+        geometry.skinIndex?.let { attribute(5, it, 4) }
+        geometry.skinWeight?.let { attribute(6, it, 4) }
         geometry.indices?.let {
-            GLES30.glBindBuffer(GLES30.GL_ELEMENT_ARRAY_BUFFER, buffers[3])
+            GLES30.glBindBuffer(GLES30.GL_ELEMENT_ARRAY_BUFFER, buffers[7])
             GLES30.glBufferData(GLES30.GL_ELEMENT_ARRAY_BUFFER, it.size * 4, java.nio.IntBuffer.wrap(it), GLES30.GL_STATIC_DRAW)
         }
         GLES30.glBindVertexArray(0)
@@ -229,6 +233,7 @@ class Renderer {
 
     private fun bind(texture: Texture): Int {
         if (texture.glContext == context && texture.glVersion == texture.version && texture.glId != 0) return texture.glId
+        if (texture.pixels == null) texture.source?.let { paint -> texture.pixels = paint() }
         val pixels = texture.pixels ?: return 0
         if (texture.glContext != context || texture.glId == 0) {
             val ids = IntArray(1)
@@ -243,7 +248,7 @@ class Renderer {
         flipped.position(0)
         GLES30.glBindTexture(GLES30.GL_TEXTURE_2D, texture.glId)
         GLES30.glTexImage2D(
-            GLES30.GL_TEXTURE_2D, 0, GLES30.GL_SRGB8_ALPHA8, texture.width, texture.height, 0,
+            GLES30.GL_TEXTURE_2D, 0, if (texture.srgb) GLES30.GL_SRGB8_ALPHA8 else GLES30.GL_RGBA8, texture.width, texture.height, 0,
             GLES30.GL_RGBA, GLES30.GL_UNSIGNED_BYTE, flipped,
         )
         val wrap = if (texture.repeat) GLES30.GL_REPEAT else GLES30.GL_CLAMP_TO_EDGE
@@ -272,7 +277,9 @@ class Renderer {
 
     private fun collect(node: Object3D, camera: PerspectiveCamera) {
         if (!node.visible) return
-        if (node is Mesh && node.material.visible) {
+        // Lo que aún se está esculpiendo no se dibuja.
+        if (node is Mesh && node.material.visible && node.geometry.ready && node.geometry.vertexCount > 0) {
+            if (node is SkinnedMesh) node.updateBoneMatrices()
             if (node.billboard) {
                 // Mismo giro que la cámara, conservando sitio y tamaño.
                 val e = node.matrixWorld.e
@@ -330,6 +337,7 @@ class Renderer {
         GLES30.glUseProgram(program.id)
         GLES30.glUniformMatrix4fv(program.loc("uViewProj"), 1, false, lightViewProj.e, 0)
         for (mesh in casters) {
+            skin(program, mesh)
             // Como Three.js: las mallas de una cara proyectan con la cara de atrás.
             if (mesh.material.doubleSide) {
                 GLES30.glDisable(GLES30.GL_CULL_FACE)
@@ -345,6 +353,16 @@ class Renderer {
         GLES30.glFrontFace(GLES30.GL_CCW)
     }
 
+    // Huesos de una malla con esqueleto; las demás usan su matriz.
+    private fun skin(program: Program, mesh: Mesh) {
+        if (mesh is SkinnedMesh) {
+            GLES30.glUniform1i(program.loc("uSkinning"), 1)
+            GLES30.glUniformMatrix4fv(program.loc("uBones"), mesh.bones.size, false, mesh.boneMatrices, 0)
+        } else {
+            GLES30.glUniform1i(program.loc("uSkinning"), 0)
+        }
+    }
+
     private fun programFor(material: Material): Program = when (material.kind) {
         MaterialKind.Standard -> lit!!
         MaterialKind.Basic -> basic!!
@@ -358,6 +376,9 @@ class Renderer {
         GLES30.glUniform1f(program.loc("uNormalBias"), shadowLight?.shadowNormalBias ?: 0f)
         GLES30.glUniform1f(program.loc("uShadowBias"), shadowLight?.shadowBias ?: 0f)
         GLES30.glUniform1f(program.loc("uShadowTexel"), if (shadowSize > 0) 1f / shadowSize else 0f)
+        GLES30.glUniform1f(program.loc("uShadowRadius"), shadowLight?.shadowRadius ?: 1f)
+        GLES30.glUniform1f(program.loc("uShadowIntensity"), shadowLight?.shadowIntensity ?: 1f)
+        GLES30.glUniform1f(program.loc("uExposure"), scene.exposure)
         GLES30.glUniform1i(program.loc("uShadowMap"), 1)
         GLES30.glUniform1i(program.loc("uMap"), 0)
         if (program === lit) {
@@ -379,6 +400,13 @@ class Renderer {
             }
             GLES30.glUniform3fv(program.loc("uLightDir"), 2, lightDirs, 0)
             GLES30.glUniform3fv(program.loc("uLightColor"), 2, lightColors, 0)
+            val lamp = scene.lamp
+            val li = lamp?.intensity ?: 0f
+            GLES30.glUniform3f(program.loc("uPointPos"), lamp?.position?.x ?: 0f, lamp?.position?.y ?: 0f, lamp?.position?.z ?: 0f)
+            GLES30.glUniform3f(program.loc("uPointColor"), (lamp?.color?.r ?: 0f) * li, (lamp?.color?.g ?: 0f) * li, (lamp?.color?.b ?: 0f) * li)
+            GLES30.glUniform1f(program.loc("uPointDistance"), lamp?.distance ?: 0f)
+            GLES30.glUniform1f(program.loc("uPointDecay"), lamp?.decay ?: 2f)
+            GLES30.glUniform1i(program.loc("uBumpMap"), 3)
             GLES30.glUniform1f(program.loc("uEnvIntensity"), if (envTexture != 0) scene.environmentIntensity else 0f)
             GLES30.glUniform1f(program.loc("uEnvMaxLod"), envMaxLod)
             GLES30.glUniform3fv(program.loc("uSH"), 9, sh, 0)
@@ -393,7 +421,16 @@ class Renderer {
         GLES30.glUniformMatrix4fv(program.loc("uModel"), 1, false, mesh.matrixWorld.e, 0)
         mesh.matrixWorld.normalMatrix(normalMatrix)
         GLES30.glUniformMatrix3fv(program.loc("uNormalMatrix"), 1, false, normalMatrix, 0)
+        skin(program, mesh)
         GLES30.glUniform2f(program.loc("uUvScale"), material.uvScaleX, material.uvScaleY)
+        GLES30.glUniform2f(program.loc("uBumpUvScale"), material.bumpUvScaleX, material.bumpUvScaleY)
+        GLES30.glUniform1i(program.loc("uVertexColors"), if (material.vertexColors && mesh.geometry.colors != null) 1 else 0)
+        GLES30.glUniform1i(program.loc("uBakedAo"), if (material.bakedAo && mesh.geometry.ao != null) 1 else 0)
+        GLES30.glUniform1i(program.loc("uToneMapped"), if (material.toneMapped) 1 else 0)
+        val mapId = material.map?.let { bind(it) } ?: 0
+        GLES30.glActiveTexture(GLES30.GL_TEXTURE0)
+        GLES30.glBindTexture(GLES30.GL_TEXTURE_2D, mapId)
+        GLES30.glUniform1f(program.loc("uUseMap"), if (mapId != 0) 1f else 0f)
         GLES30.glUniform3f(program.loc("uColor"), material.color.r, material.color.g, material.color.b)
         GLES30.glUniform1f(program.loc("uOpacity"), if (material.transparent) material.opacity else 1f)
         val receives = hasShadows && (mesh.receiveShadow || material.kind == MaterialKind.Shadow)
@@ -409,13 +446,20 @@ class Renderer {
                 GLES30.glUniform1f(program.loc("uSheenRoughness"), material.sheenRoughness)
                 GLES30.glUniform1f(program.loc("uClearcoat"), material.clearcoat)
                 GLES30.glUniform1f(program.loc("uClearcoatRoughness"), material.clearcoatRoughness)
-            }
-            MaterialKind.Basic -> {
-                val id = material.map?.let { bind(it) } ?: 0
+                val ei = material.emissiveIntensity
+                GLES30.glUniform3f(program.loc("uEmissive"), material.emissive.r * ei, material.emissive.g * ei, material.emissive.b * ei)
+                GLES30.glUniform1f(program.loc("uWrap"), material.wrap)
+                GLES30.glUniform3f(program.loc("uSss"), material.sss.r, material.sss.g, material.sss.b)
+                val bumpId = material.bumpMap?.let { bind(it) } ?: 0
+                GLES30.glActiveTexture(GLES30.GL_TEXTURE3)
+                GLES30.glBindTexture(GLES30.GL_TEXTURE_2D, bumpId)
                 GLES30.glActiveTexture(GLES30.GL_TEXTURE0)
-                GLES30.glBindTexture(GLES30.GL_TEXTURE_2D, id)
-                GLES30.glUniform1f(program.loc("uUseMap"), if (id != 0) 1f else 0f)
+                // Subir el relieve pasa por la unidad 0: se vuelve a poner el color.
+                GLES30.glBindTexture(GLES30.GL_TEXTURE_2D, mapId)
+                GLES30.glUniform1f(program.loc("uUseBump"), if (bumpId != 0) 1f else 0f)
+                GLES30.glUniform1f(program.loc("uBumpScale"), material.bumpScale)
             }
+            MaterialKind.Basic -> Unit
             MaterialKind.Shadow -> Unit
         }
         if (material.doubleSide) GLES30.glDisable(GLES30.GL_CULL_FACE) else GLES30.glEnable(GLES30.GL_CULL_FACE)
@@ -427,7 +471,12 @@ class Renderer {
             GLES30.glDisable(GLES30.GL_BLEND)
         }
         GLES30.glDepthMask(material.depthWrite)
+        if (material.polygonOffset) {
+            GLES30.glEnable(GLES30.GL_POLYGON_OFFSET_FILL)
+            GLES30.glPolygonOffset(-2f, -2f)
+        }
         drawGeometry(mesh)
+        if (material.polygonOffset) GLES30.glDisable(GLES30.GL_POLYGON_OFFSET_FILL)
     }
 
     private fun drawScene(scene: Scene, camera: PerspectiveCamera, fbo: Int, width: Int, height: Int, clearAlpha: Float) {

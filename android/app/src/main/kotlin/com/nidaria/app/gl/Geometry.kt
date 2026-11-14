@@ -27,6 +27,37 @@ class Geometry(
 ) {
     // Compartida entre muchas mallas: no se libera al soltar una de ellas.
     var shared = false
+
+    // Atributos de las mallas esculpidas: color, oclusión y huesos.
+    var colors: FloatArray? = null
+    var ao: FloatArray? = null
+    var skinIndex: FloatArray? = null
+    var skinWeight: FloatArray? = null
+
+    // Falso mientras se esculpe en otro hilo: no se dibuja ni se mide.
+    @Volatile var ready = true
+
+    // Rellena una geometría que se estaba esculpiendo. Lo último es
+    // `ready`: quien la vea lista ve también todo lo demás.
+    fun fill(
+        positions: FloatArray,
+        normals: FloatArray,
+        indices: IntArray?,
+        colors: FloatArray?,
+        ao: FloatArray?,
+        skinIndex: FloatArray?,
+        skinWeight: FloatArray?,
+    ) {
+        this.positions = positions
+        this.normals = normals
+        this.indices = indices
+        this.colors = colors
+        this.ao = ao
+        this.skinIndex = skinIndex
+        this.skinWeight = skinWeight
+        boundsCache = null
+        ready = true
+    }
     internal var gpu: GpuGeometry? = null
     private var boundsCache: FloatArray? = null
 

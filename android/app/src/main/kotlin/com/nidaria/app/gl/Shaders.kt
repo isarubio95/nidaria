@@ -1,40 +1,73 @@
 // Sombreadores GLSL ES 3.0. El modelo de luz reproduce el material físico
 // de Three.js: difusa de Lambert, especular GGX, brillo de tela (sheen),
-// barniz (clearcoat), luz de hemisferio y luz del entorno.
+// barniz (clearcoat), luz de hemisferio, luz del entorno, una lámpara y el
+// tono neutro. Encima, lo que añade la web a la arcilla (materials.js):
+// color por vértice, oclusión horneada y una luz que envuelve la forma.
 
 package com.nidaria.app.gl
 
 internal object Shaders {
-    const val VERTEX = """#version 300 es
+    private const val ATTRIBUTES = """#version 300 es
 layout(location = 0) in vec3 aPosition;
 layout(location = 1) in vec3 aNormal;
 layout(location = 2) in vec2 aUv;
+layout(location = 3) in vec3 aColor;
+layout(location = 4) in float aAo;
+layout(location = 5) in vec4 aSkinIndex;
+layout(location = 6) in vec4 aSkinWeight;
 uniform mat4 uModel;
 uniform mat4 uViewProj;
+uniform bool uSkinning;
+// Huesos en coordenadas del mundo: el hueso ya movido por su postura de reposo.
+uniform mat4 uBones[8];
+
+mat4 skinMatrix() {
+  return uBones[int(aSkinIndex.x)] * aSkinWeight.x
+    + uBones[int(aSkinIndex.y)] * aSkinWeight.y
+    + uBones[int(aSkinIndex.z)] * aSkinWeight.z
+    + uBones[int(aSkinIndex.w)] * aSkinWeight.w;
+}
+"""
+
+    const val VERTEX = ATTRIBUTES + """
 uniform mat3 uNormalMatrix;
 uniform mat4 uShadowMatrix;
 uniform float uNormalBias;
 uniform vec2 uUvScale;
+uniform vec2 uBumpUvScale;
+uniform bool uVertexColors;
+uniform bool uBakedAo;
 out vec3 vWorldPos;
 out vec3 vNormal;
 out vec2 vUv;
+out vec2 vBumpUv;
 out vec4 vShadowCoord;
+out vec3 vColor;
+out float vAo;
 void main() {
-  vec4 world = uModel * vec4(aPosition, 1.0);
+  vec4 world;
+  if (uSkinning) {
+    mat4 skin = skinMatrix();
+    world = skin * vec4(aPosition, 1.0);
+    vNormal = normalize(mat3(skin) * aNormal);
+  } else {
+    world = uModel * vec4(aPosition, 1.0);
+    vNormal = normalize(uNormalMatrix * aNormal);
+  }
   vWorldPos = world.xyz;
-  vNormal = normalize(uNormalMatrix * aNormal);
   vUv = aUv * uUvScale;
+  vBumpUv = aUv * uBumpUvScale;
+  vColor = uVertexColors ? aColor : vec3(1.0);
+  vAo = uBakedAo ? aAo : 1.0;
   vShadowCoord = uShadowMatrix * vec4(world.xyz + vNormal * uNormalBias, 1.0);
   gl_Position = uViewProj * world;
 }
 """
 
-    const val DEPTH_VERTEX = """#version 300 es
-layout(location = 0) in vec3 aPosition;
-uniform mat4 uModel;
-uniform mat4 uViewProj;
+    const val DEPTH_VERTEX = ATTRIBUTES + """
 void main() {
-  gl_Position = uViewProj * uModel * vec4(aPosition, 1.0);
+  vec4 world = uSkinning ? skinMatrix() * vec4(aPosition, 1.0) : uModel * vec4(aPosition, 1.0);
+  gl_Position = uViewProj * world;
 }
 """
 
@@ -49,7 +82,10 @@ precision highp sampler2DShadow;
 in vec3 vWorldPos;
 in vec3 vNormal;
 in vec2 vUv;
+in vec2 vBumpUv;
 in vec4 vShadowCoord;
+in vec3 vColor;
+in float vAo;
 out vec4 fragColor;
 uniform vec3 uColor;
 uniform float uOpacity;
@@ -57,10 +93,38 @@ uniform sampler2DShadow uShadowMap;
 uniform float uReceiveShadow;
 uniform float uShadowBias;
 uniform float uShadowTexel;
+uniform float uShadowRadius;
+uniform float uShadowIntensity;
+uniform sampler2D uMap;
+uniform float uUseMap;
+uniform bool uToneMapped;
+uniform float uExposure;
 
 vec3 linearToSrgb(vec3 c) {
   c = max(c, vec3(0.0));
   return mix(c * 12.92, 1.055 * pow(c, vec3(0.41666)) - 0.055, step(vec3(0.0031308), c));
+}
+
+// NeutralToneMapping de Three.js (Khronos PBR Neutral).
+vec3 neutral(vec3 color) {
+  const float StartCompression = 0.8 - 0.04;
+  const float Desaturation = 0.15;
+  color *= uExposure;
+  float x = min(color.r, min(color.g, color.b));
+  float offset = x < 0.08 ? x - 6.25 * x * x : 0.04;
+  color -= offset;
+  float peak = max(color.r, max(color.g, color.b));
+  if (peak < StartCompression) return color;
+  float d = 1.0 - StartCompression;
+  float newPeak = 1.0 - d * d / (peak + d - StartCompression);
+  color *= newPeak / peak;
+  float g = 1.0 - 1.0 / (Desaturation * (peak - newPeak) + 1.0);
+  return mix(color, vec3(newPeak), g);
+}
+
+vec4 finish(vec3 color, float alpha) {
+  if (uToneMapped) color = neutral(color);
+  return vec4(linearToSrgb(color), alpha);
 }
 
 float shadowFactor() {
@@ -68,23 +132,22 @@ float shadowFactor() {
   vec3 c = vShadowCoord.xyz / vShadowCoord.w;
   if (c.x < 0.0 || c.x > 1.0 || c.y < 0.0 || c.y > 1.0 || c.z > 1.0) return 1.0;
   c.z += uShadowBias;
+  float spread = uShadowTexel * uShadowRadius;
   float sum = 0.0;
   for (int x = -1; x <= 1; x++) {
     for (int y = -1; y <= 1; y++) {
-      sum += texture(uShadowMap, vec3(c.xy + vec2(float(x), float(y)) * uShadowTexel, c.z));
+      sum += texture(uShadowMap, vec3(c.xy + vec2(float(x), float(y)) * spread, c.z));
     }
   }
-  return sum / 9.0;
+  return mix(1.0, sum / 9.0, uShadowIntensity);
 }
 """
 
     const val BASIC_FRAGMENT = COMMON + """
-uniform sampler2D uMap;
-uniform float uUseMap;
 void main() {
   vec4 c = vec4(uColor, uOpacity);
   if (uUseMap > 0.5) c *= texture(uMap, vUv);
-  fragColor = vec4(linearToSrgb(c.rgb), c.a);
+  fragColor = finish(c.rgb, c.a);
 }
 """
 
@@ -102,10 +165,20 @@ uniform vec3 uSheenColor;
 uniform float uSheenRoughness;
 uniform float uClearcoat;
 uniform float uClearcoatRoughness;
+uniform vec3 uEmissive;
+uniform float uWrap;
+uniform vec3 uSss;
+uniform sampler2D uBumpMap;
+uniform float uUseBump;
+uniform float uBumpScale;
 uniform vec3 uHemiSky;
 uniform vec3 uHemiGround;
 uniform vec3 uLightDir[2];
 uniform vec3 uLightColor[2];
+uniform vec3 uPointPos;
+uniform vec3 uPointColor;
+uniform float uPointDistance;
+uniform float uPointDecay;
 uniform float uEnvIntensity;
 uniform samplerCube uEnvMap;
 uniform float uEnvMaxLod;
@@ -197,16 +270,35 @@ vec3 envSpecular(vec3 V, vec3 N, float roughness) {
   return textureLod(uEnvMap, R, roughness * uEnvMaxLod).rgb;
 }
 
+// Relieve (bumpMap de Three.js: perturbNormalArb).
+vec3 bumped(vec3 N) {
+  vec2 dSTdx = dFdx(vBumpUv);
+  vec2 dSTdy = dFdy(vBumpUv);
+  float Hll = uBumpScale * texture(uBumpMap, vBumpUv).x;
+  float dBx = uBumpScale * texture(uBumpMap, vBumpUv + dSTdx).x - Hll;
+  float dBy = uBumpScale * texture(uBumpMap, vBumpUv + dSTdy).x - Hll;
+  vec3 sx = normalize(dFdx(vWorldPos));
+  vec3 sy = normalize(dFdy(vWorldPos));
+  vec3 R1 = cross(sy, N);
+  vec3 R2 = cross(N, sx);
+  float det = dot(sx, R1) * (gl_FrontFacing ? 1.0 : -1.0);
+  vec3 grad = sign(det) * (dBx * R1 + dBy * R2);
+  return normalize(abs(det) * N - grad);
+}
+
 void main() {
   vec3 N = normalize(vNormal);
   if (!gl_FrontFacing) N = -N;
+  if (uUseBump > 0.5) N = bumped(N);
   vec3 V = normalize(uCameraPos - vWorldPos);
   vec3 dxy = max(abs(dFdx(N)), abs(dFdy(N)));
   float geometryRoughness = max(max(dxy.x, dxy.y), dxy.z);
 
-  vec3 diffuseColor = uColor * (1.0 - uMetalness);
+  vec4 base = vec4(uColor * vColor, uOpacity);
+  if (uUseMap > 0.5) base *= texture(uMap, vUv);
+  vec3 diffuseColor = base.rgb * (1.0 - uMetalness);
   float roughness = min(max(uRoughness, 0.0525) + geometryRoughness, 1.0);
-  vec3 specularColor = mix(vec3(0.04), uColor, uMetalness);
+  vec3 specularColor = mix(vec3(0.04), base.rgb, uMetalness);
   float ccRoughness = min(max(uClearcoatRoughness, 0.0525) + geometryRoughness, 1.0);
   float sheenRoughness = clamp(uSheenRoughness, 0.07, 1.0);
   bool useSheen = max(max(uSheenColor.r, uSheenColor.g), uSheenColor.b) > 0.0;
@@ -217,12 +309,31 @@ void main() {
   vec3 sheenDirect = vec3(0.0);
   vec3 coatDirect = vec3(0.0);
   float shadow = shadowFactor();
-  for (int i = 0; i < 2; i++) {
-    vec3 L = uLightDir[i];
-    vec3 lightColor = uLightColor[i];
-    if (i == 0) lightColor *= shadow;
-    vec3 irradiance = clamp(dot(N, L), 0.0, 1.0) * lightColor;
-    if (useCoat) coatDirect += irradiance * BRDF_GGX(L, V, N, vec3(0.04), 1.0, ccRoughness);
+  for (int i = 0; i < 3; i++) {
+    vec3 L;
+    vec3 lightColor;
+    if (i < 2) {
+      L = uLightDir[i];
+      lightColor = uLightColor[i];
+      if (i == 0) lightColor *= shadow;
+    } else {
+      // La lámpara: luz de punto con caída, como PointLight de Three.js.
+      vec3 toLight = uPointPos - vWorldPos;
+      float distance = length(toLight);
+      L = toLight / max(distance, 1e-4);
+      float falloff = 1.0 / max(pow(distance, uPointDecay), 0.01);
+      if (uPointDistance > 0.0) falloff *= pow2(clamp(1.0 - pow2(pow2(distance / uPointDistance)), 0.0, 1.0));
+      lightColor = uPointColor * falloff;
+    }
+    if (max(max(lightColor.r, lightColor.g), lightColor.b) <= 0.0) continue;
+    float dotNL = clamp(dot(N, L), 0.0, 1.0);
+    vec3 irradiance = dotNL * lightColor;
+    // Arcilla: la penumbra envuelve la forma y tira a cálida.
+    if (uWrap > 0.0) {
+      float wrapNL = clamp((dot(N, L) + uWrap) / (1.0 + uWrap), 0.0, 1.0);
+      irradiance = (dotNL + (wrapNL - dotNL) * uSss) * lightColor;
+    }
+    if (useCoat) coatDirect += dotNL * lightColor * BRDF_GGX(L, V, N, vec3(0.04), 1.0, ccRoughness);
     if (useSheen) sheenDirect += irradiance * BRDF_Sheen(L, V, N, uSheenColor, sheenRoughness);
     directSpecular += irradiance * BRDF_GGX(L, V, N, specularColor, 1.0, roughness);
     directDiffuse += irradiance * diffuseColor * RECIPROCAL_PI;
@@ -254,6 +365,13 @@ void main() {
   vec3 indirectSpecular = radiance * singleScattering + multiScattering * irradiance;
   indirectDiffuse += diffuse * irradiance;
 
+  // Oclusión horneada en la malla: oscurece los pliegues.
+  float ao = clamp(vAo, 0.0, 1.0);
+  indirectDiffuse *= ao;
+  indirectSpecular *= mix(1.0, ao, 0.85);
+  directDiffuse *= mix(1.0, ao, 0.45);
+  sheenIndirect *= ao;
+
   vec3 outgoing = directDiffuse + indirectDiffuse + directSpecular + indirectSpecular;
   if (useSheen) {
     float comp = 1.0 - 0.157 * max(max(uSheenColor.r, uSheenColor.g), uSheenColor.b);
@@ -263,7 +381,8 @@ void main() {
     vec3 Fcc = F_Schlick(vec3(0.04), 1.0, clamp(dot(N, V), 0.0, 1.0));
     outgoing = outgoing * (1.0 - uClearcoat * Fcc) + (coatDirect + coatIndirect) * uClearcoat;
   }
-  fragColor = vec4(linearToSrgb(outgoing), uOpacity);
+  outgoing += uEmissive;
+  fragColor = finish(outgoing, base.a);
 }
 """
 }

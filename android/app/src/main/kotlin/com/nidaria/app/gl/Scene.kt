@@ -99,6 +99,26 @@ class Material(val kind: MaterialKind = MaterialKind.Standard) {
     var uvScaleX = 1f
     var uvScaleY = 1f
 
+    // Lo que añade la arcilla (materials.js de la web): color por vértice,
+    // oclusión horneada y una luz que envuelve la forma (`wrap`) con la
+    // penumbra teñida de `sss`.
+    var vertexColors = false
+    var bakedAo = false
+    var wrap = 0f
+    val sss = Color(0f, 0f, 0f)
+    val emissive = Color(0f, 0f, 0f)
+    var emissiveIntensity = 1f
+    var toneMapped = true
+    // Se dibuja un poco por delante de lo que tiene debajo (las pegatinas).
+    var polygonOffset = false
+    var bumpMap: Texture? = null
+    var bumpScale = 1f
+    var bumpUvScaleX = 1f
+    var bumpUvScaleY = 1f
+
+    // Compartido entre muchas mallas: no se toca ni se suelta con ellas.
+    var shared = false
+
     fun clone(): Material {
         val m = Material(kind)
         m.color.copy(color)
@@ -117,6 +137,18 @@ class Material(val kind: MaterialKind = MaterialKind.Standard) {
         m.map = map
         m.uvScaleX = uvScaleX
         m.uvScaleY = uvScaleY
+        m.vertexColors = vertexColors
+        m.bakedAo = bakedAo
+        m.wrap = wrap
+        m.sss.copy(sss)
+        m.emissive.copy(emissive)
+        m.emissiveIntensity = emissiveIntensity
+        m.toneMapped = toneMapped
+        m.polygonOffset = polygonOffset
+        m.bumpMap = bumpMap
+        m.bumpScale = bumpScale
+        m.bumpUvScaleX = bumpUvScaleX
+        m.bumpUvScaleY = bumpUvScaleY
         return m
     }
 
@@ -146,9 +178,42 @@ open class Mesh(var geometry: Geometry, var material: Material) : Object3D() {
     var billboard = false
 }
 
+// Malla movida por huesos (SkinnedMesh de Three.js, en modo «attached»).
+// `bind` toma la postura de reposo: hay que llamarlo con la malla suelta
+// (sin padre) y los huesos ya colgados de ella.
+class SkinnedMesh(geometry: Geometry, material: Material, val bones: List<Object3D>) : Mesh(geometry, material) {
+    private val inverses = List(bones.size) { Mat4() }
+    private val scratch = Mat4()
+    val boneMatrices = FloatArray(bones.size * 16)
+
+    fun bind() {
+        updateMatrixWorld()
+        for ((i, bone) in bones.withIndex()) inverses[i].copy(bone.matrixWorld).invert()
+    }
+
+    // Matrices de cada hueso en el mundo, tras updateMatrixWorld.
+    internal fun updateBoneMatrices() {
+        for ((i, bone) in bones.withIndex()) {
+            scratch.multiplyMatrices(bone.matrixWorld, inverses[i])
+            System.arraycopy(scratch.e, 0, boneMatrices, i * 16, 16)
+        }
+    }
+}
+
 // Imagen para un material. Los píxeles se generan bajo demanda en el
 // hilo de dibujo; `version` sube cuando hay que volver a subirlos.
-class Texture(val width: Int, val height: Int, val repeat: Boolean = false, val mipmaps: Boolean = false) {
+// `srgb` dice si los píxeles son color (se pasan a lineal al leerlos) o
+// datos, como un relieve. `source` los pinta la primera vez que hacen
+// falta, ya en el hilo de dibujo: así los modelos se pueden construir (y
+// probar) sin pintar nada.
+class Texture(
+    val width: Int,
+    val height: Int,
+    val repeat: Boolean = false,
+    val mipmaps: Boolean = false,
+    val srgb: Boolean = true,
+    var source: (() -> ByteArray)? = null,
+) {
     // RGBA sin premultiplicar, fila superior primero.
     var pixels: ByteArray? = null
     var version = 0
@@ -167,6 +232,12 @@ class HemisphereLight(sky: Color, ground: Color, var intensity: Float) {
     val ground = ground.clone()
 }
 
+// Luz de punto con caída (PointLight de Three.js): la lámpara de la noche.
+class PointLight(color: Color, var intensity: Float, var distance: Float = 0f, var decay: Float = 2f) {
+    val color = color.clone()
+    val position = Vec3()
+}
+
 class DirectionalLight(color: Color, var intensity: Float) {
     val color = color.clone()
     val position = Vec3(0f, 1f, 0f)
@@ -181,13 +252,18 @@ class DirectionalLight(color: Color, var intensity: Float) {
     var shadowBias = 0f
     var shadowNormalBias = 0f
     var shadowMapSize = 1024
+    var shadowRadius = 1f
+    var shadowIntensity = 1f
 }
 
 class Scene : Object3D() {
     var background: Color? = null
     var hemisphere: HemisphereLight? = null
     val lights = ArrayList<DirectionalLight>()
+    var lamp: PointLight? = null
     var environmentIntensity = 1f
+    // Exposición del tono neutro (toneMappingExposure de Three.js).
+    var exposure = 1f
 }
 
 class PerspectiveCamera(var fov: Float, var aspect: Float, var near: Float, var far: Float) : Object3D() {
@@ -256,7 +332,7 @@ class Box3 {
         root.updateMatrixWorld()
         val corner = Vec3()
         root.traverse { node ->
-            if (node is Mesh) {
+            if (node is Mesh && node.geometry.ready && node.geometry.vertexCount > 0) {
                 val b = node.geometry.bounds()
                 for (i in 0 until 8) {
                     corner.set(
