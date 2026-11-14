@@ -39,6 +39,12 @@ export class Sculpt extends Field {
     return this.paintShape(form, { ...rest, color: toLinear(color) });
   }
 
+  // Color de la superficie junto a `point` (un THREE.Color).
+  colorNear(point) {
+    const [r, g, b] = this.colorAt(point.x, point.y, point.z);
+    return new THREE.Color().setRGB(r, g, b);
+  }
+
   // Lleva un punto a la superficie siguiendo el gradiente. Devuelve el
   // punto y la normal.
   project(point, steps = 4) {

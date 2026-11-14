@@ -20,7 +20,7 @@ const store = drawer('thumbs', 12 * 1024 * 1024);
 let kit = null;
 
 // Lo que decide cómo sale una miniatura.
-const SOURCES = ['./sdf-core.js', './sdf.js', './creature.js', './plan.js', './props.js', './decor.js', './materials.js', './thumbs.js', '/shared/rng.js'];
+const SOURCES = ['./sdf-core.js', './sdf.js', './creature.js', './creature-kit.js', './monster.js', './pet.js', './plan.js', './props.js', './decor.js', './materials.js', './thumbs.js', '/shared/rng.js', '/shared/breeds.js'];
 let version = null;
 function sceneVersion() {
   version ??= Promise.all(SOURCES.map(async (path) => {

@@ -1,7 +1,7 @@
 // Árbol genealógico: todas las formas que puede tomar una criatura y la
 // regla que decide, según la crianza, por qué rama evoluciona.
 
-import { FAMILIES } from './dna.js';
+import { FAMILIES, MONSTER_FAMILIES, isPet } from './dna.js';
 
 export const STAGES = ['huevo', 'cria', 'joven', 'adulto'];
 
@@ -25,18 +25,22 @@ export const BRANCH_INFO = {
   arisco: { name: 'Arisca', hint: 'Sale cuando pasa hambre, sueño o aburrimiento a menudo.' },
 };
 
-const BABY_NAMES = { pelusa: 'Pelusín', hoja: 'Brotín', gota: 'Gotín' };
+const BABY_NAMES = { pelusa: 'Pelusín', hoja: 'Brotín', gota: 'Gotín', perro: 'Cachorro', gato: 'Gatito' };
 
 const YOUNG_NAMES = {
   pelusa: { gloton: 'Bolón', jugueton: 'Brincol', tranquilo: 'Arrullo', arisco: 'Zarzo' },
   hoja: { gloton: 'Calabazo', jugueton: 'Trepín', tranquilo: 'Musguel', arisco: 'Cardo' },
   gota: { gloton: 'Globul', jugueton: 'Chapotín', tranquilo: 'Remanso', arisco: 'Erizal' },
+  perro: { gloton: 'Tragón', jugueton: 'Trasto', tranquilo: 'Bonachón', arisco: 'Gruñón' },
+  gato: { gloton: 'Zampón', jugueton: 'Brincos', tranquilo: 'Ronroneo', arisco: 'Bufido' },
 };
 
 const ADULT_EPITHETS = {
   pelusa: { gloton: 'Goloso', jugueton: 'Saltarín', tranquilo: 'Sereno', arisco: 'Bravo' },
   hoja: { gloton: 'Frondoso', jugueton: 'Trepador', tranquilo: 'Florido', arisco: 'Espinoso' },
   gota: { gloton: 'Orondo', jugueton: 'Saltaolas', tranquilo: 'Manso', arisco: 'Bravío' },
+  perro: { gloton: 'Grandote', jugueton: 'Atleta', tranquilo: 'Noble', arisco: 'Fiero' },
+  gato: { gloton: 'Orondo', jugueton: 'Acróbata', tranquilo: 'Elegante', arisco: 'Salvaje' },
 };
 
 // Formas ocultas: adultas fuera de las cuatro ramas, para crianzas raras.
@@ -71,6 +75,8 @@ const SECRET_NAMES = {
   pelusa: { radiante: 'Nimbo Radiante', sibarita: 'Merengue Sibarita', lunar: 'Plumón Lunar' },
   hoja: { radiante: 'Girasol Radiante', sibarita: 'Higo Sibarita', lunar: 'Helecho Lunar' },
   gota: { radiante: 'Rocío Radiante', sibarita: 'Almíbar Sibarita', lunar: 'Marea Lunar' },
+  perro: { radiante: 'Lucero Radiante', sibarita: 'Bollito Sibarita', lunar: 'Aullido Lunar', mestiza: 'Chucho Mestizo' },
+  gato: { radiante: 'Michi Radiante', sibarita: 'Bombón Sibarita', lunar: 'Sombra Lunar', mestiza: 'Gato Callejero' },
 };
 
 // Familia de la criatura y familia de la que viene.
@@ -117,8 +123,14 @@ function buildForms() {
       id, stage: 'adulto', family, parent: babyId, branch: null, path: [], name, secret: kind, origin,
     });
     for (const kind of ['radiante', 'sibarita', 'lunar']) secret(`oculta-${family}-${kind}`, kind, SECRET_NAMES[family][kind]);
-    for (const origin of FAMILIES.filter((f) => f !== family)) {
-      secret(`oculta-${family}-${origin}`, 'mestiza', MIXED_NAMES[family][origin], origin);
+    // Mestizas: en los monstruos, una por familia de origen; en las
+    // mascotas, una sola (cruce de dos razas).
+    if (isPet(family)) {
+      secret(`oculta-${family}-mestiza`, 'mestiza', SECRET_NAMES[family].mestiza);
+    } else {
+      for (const origin of MONSTER_FAMILIES.filter((f) => f !== family)) {
+        secret(`oculta-${family}-${origin}`, 'mestiza', MIXED_NAMES[family][origin], origin);
+      }
     }
   }
   return forms;
@@ -210,6 +222,10 @@ export function secretFor(creature, branch) {
   if (mistakes === 0 && lifeQuality(creature) >= RADIANT_QUALITY) return `oculta-${family}-radiante`;
   if (care.feeds >= GOURMET_FEEDS && (care.favs ?? 0) === care.feeds) return `oculta-${family}-sibarita`;
   if (creature.bornNight && branch === 'tranquilo') return `oculta-${family}-lunar`;
+  if (isPet(family)) {
+    if (genes.origin && genes.origin !== genes.breed && lifeQuality(creature) >= MIXED_QUALITY) return `oculta-${family}-mestiza`;
+    return null;
+  }
   if (genes.origin && genes.origin !== family && lifeQuality(creature) >= MIXED_QUALITY) {
     return `oculta-${family}-${genes.origin}`;
   }
@@ -235,9 +251,12 @@ export function nextStage(stage) {
 }
 
 // Pista para el Criadex: cómo se llega a una forma aún no descubierta.
+const PET_EGG = { perro: 'Nace de un huevo de perro.', gato: 'Nace de un huevo de gato.' };
+
 export function hintFor(formId) {
   const form = getForm(formId);
-  if (form.stage === 'cria') return `Nace de un huevo de la familia ${form.family}.`;
+  if (form.stage === 'cria') return PET_EGG[form.family] ?? `Nace de un huevo de la familia ${form.family}.`;
+  if (form.secret === 'mestiza' && isPet(form.family)) return 'Sale de un huevo heredero que cambió de raza, si se le cuida bien.';
   if (form.secret) return SECRET_INFO[form.secret].hint;
   if (!form.branch) return '';
   return BRANCH_INFO[form.branch].hint;

@@ -362,6 +362,40 @@ export class Field {
     return d;
   }
 
+  // Color de la superficie junto a un punto, mezclado igual que el de
+  // los vértices de la malla. En lineal: [r, g, b].
+  colorAt(x, y, z) {
+    const adds = this.ops.filter((op) => op.op === ADD);
+    if (!adds.length) return [1, 1, 1];
+    const dist = adds.map((op) => max(op.form.d(x, y, z), 0));
+    const dmin = min(...dist);
+    let r = 0;
+    let g = 0;
+    let b = 0;
+    let wsum = 0;
+    adds.forEach((op, i) => {
+      const wc = max(0, 1 - (dist[i] - dmin) / op.colorK);
+      const w = wc * wc;
+      r += op.color[0] * w;
+      g += op.color[1] * w;
+      b += op.color[2] * w;
+      wsum += w;
+    });
+    r /= wsum;
+    g /= wsum;
+    b /= wsum;
+    for (const paint of this.paints) {
+      const pd = paint.form.d(x, y, z);
+      if (pd > paint.soft) continue;
+      const t0 = Math.min(1, Math.max(0, 0.5 - pd / (2 * paint.soft)));
+      const t = t0 * t0 * (3 - 2 * t0) * paint.amount;
+      r += (paint.color[0] - r) * t;
+      g += (paint.color[1] - g) * t;
+      b += (paint.color[2] - b) * t;
+    }
+    return [r, g, b];
+  }
+
   // El encargo: todo lo que hace falta para sacar la malla, en datos
   // planos. Las opciones son las de `mesh`.
   toJob({ cell = 0.02, bones = 0, ao = 1, aoReach = 0.18 } = {}) {
