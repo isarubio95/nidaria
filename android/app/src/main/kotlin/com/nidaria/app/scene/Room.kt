@@ -7,6 +7,9 @@ package com.nidaria.app.scene
 
 import com.nidaria.app.audio.Sfx
 import com.nidaria.app.gl.Animator
+import com.nidaria.app.gl.Box3
+import com.nidaria.app.gl.PointLight
+import com.nidaria.app.sculpt.Sculptor
 import com.nidaria.app.gl.Channel
 import com.nidaria.app.gl.Color
 import com.nidaria.app.gl.DirectionalLight
@@ -58,36 +61,21 @@ private const val FOV = 30f
 private const val FLOOR_Y = 0.03f
 private const val EGG_SCALE = 1.08f
 
-private class Palette(val wall: Color, val floor: Color, val trim: Color, val key: Color, val back: Color)
+// De día manda el sol que entra por la ventana; de noche, la luna fría
+// por la ventana y una lámpara cálida dentro.
+private class Light(val wall: Color, val floor: Color, val trim: Color, val key: Color, val sky: Color, val ground: Color, val back: Color)
 
-private val DAY = Palette(
-    Color.hex("#ffffff"), Color.hex("#ffffff"), Color.hex("#fffdf8"), Color.hex("#fff4e2"), Color.hex("#bfe3ff"),
+private val DAY = Light(
+    Color.hex("#ffffff"), Color.hex("#ffffff"), Color.hex("#ffffff"), Color.hex("#fff0dc"), Color.hex("#e8f3ff"), Color.hex("#f2d7b8"), Color.hex("#bfe3ff"),
 )
-private val NIGHT = Palette(
-    Color.hex("#5c6ca8"), Color.hex("#6d6b99"), Color.hex("#8d93bd"), Color.hex("#aebfff"), Color.hex("#47619f"),
+private val NIGHT = Light(
+    Color.hex("#c6cdf0"), Color.hex("#d2c8e2"), Color.hex("#d8d8f0"), Color.hex("#a9bcff"), Color.hex("#8090d0"), Color.hex("#7a6a8c"), Color.hex("#47619f"),
 )
 
 // Dónde va cada mueble: el rincón a la derecha de la criatura y el sitio
 // de la ventana a la izquierda. En el móvil, lo que pasa de medio metro en
 // el rincón queda detrás de los botones de la derecha.
 private val SPOT_AT = mapOf("rincon" to Vec3(1.0f, 0f, -1.8f), "ventana" to Vec3(-0.8f, 0f, -1.85f))
-
-// Una capa de la alfombra con su color de día y el de noche.
-private class RugTint(val material: Material, val day: Color, val night: Color)
-
-private fun archShape(width: Float, straight: Float): Shape {
-    val r = width / 2f
-    return Shape().moveTo(-r, 0f).lineTo(-r, straight).absarc(0f, straight, r, PI_F, 0f, true).lineTo(r, 0f).closePath()
-}
-
-// Marco de la ventana: un arco con el hueco del cristal. Como el hueco
-// llega hasta abajo, el contorno es una sola U invertida.
-internal fun frameShape(outer: Float, inner: Float, straight: Float): Shape {
-    val ro = outer / 2f
-    val ri = inner / 2f
-    return Shape().moveTo(-ro, 0f).lineTo(-ro, straight).absarc(0f, straight, ro, PI_F, 0f, true).lineTo(ro, 0f)
-        .lineTo(ri, 0f).lineTo(ri, straight).absarc(0f, straight, ri, 0f, PI_F, false).lineTo(-ri, 0f).closePath()
-}
 
 class Room(private val painter: Painter, private val reduce: Boolean) {
     interface Listener {
@@ -110,33 +98,46 @@ class Room(private val painter: Painter, private val reduce: Boolean) {
     var listener: Listener? = null
 
     // ── Luces ──
-    private val hemi = HemisphereLight(Color.hex("#ffffff"), Color.hex("#ffe6cc"), 1.05f)
-    private val key = DirectionalLight(DAY.key, 2.1f)
-    private val rim = DirectionalLight(Color.hex("#cfe6ff"), 0.7f)
+    // El sol entra por la ventana (arriba a la izquierda) y proyecta sombras
+    // suaves; el cielo y el suelo rellenan; un contraluz frío recorta a la
+    // criatura contra la pared. De noche se enciende la lámpara.
+    private val hemi = HemisphereLight(DAY.sky, DAY.ground, 0.5f)
+    private val key = DirectionalLight(DAY.key, 3.0f)
+    private val rim = DirectionalLight(Color.hex("#d6e8ff"), 0.85f)
+    private val lamp = PointLight(Color.hex("#ffc48a"), 0f, 9f, 1.3f)
 
     // ── Habitación ──
-    // El papel pintado cambia con la decoración (ver setDecor).
-    private val wallMat = Material.basic { map = wallpaperTexture(BASE_DECOR.getValue("pared")!!); uvScaleX = 60f / TILE_METERS; uvScaleY = 24f / TILE_METERS }
-    private val floorMat = Material.basic { map = painter.floor(); uvScaleX = 60f / 1.4f; uvScaleY = 40f / 1.4f }
-    private val trimMat = Material.basic(DAY.trim)
+    // El cielo de la ventana se pinta aparte (ver drawWindow).
+    private val skyMap = painter.newSky()
+    private val house = buildHouse(skyMap)
+    private val wallMat = house.wallMat
+    private val floorMat = house.floorMat
+    private val trimMat = house.trimMat
+    private val patchMat = house.patchMat
+    private val beamMat = house.beamMat
     // La alfombra va dentro de `rug`, que el encuadre escala.
     private val rug = Group()
-    private var rugTints: List<RugTint> = emptyList()
 
     // Sitios para los muebles que pone el jugador, y lo que hay puesto.
     private val spots = SPOT_AT.mapValues { (_, at) -> Group().also { it.position.copy(at) } }
     private val placed = HashMap<String, String?>()
-    private val shadowMat = Material(MaterialKind.Shadow).also {
-        it.color.setHex("#5b3a29")
-        it.opacity = 0.22f
-        it.transparent = true
+
+    // Lo que se está esculpiendo: se enseña (o empieza) cuando está listo.
+    private val waiting = ArrayList<Pair<Object3D, () -> Unit>>()
+
+    // Esconde `obj` hasta que esté esculpido y entonces llama a `show`.
+    private fun reveal(obj: Object3D, show: () -> Unit = { obj.visible = true }) {
+        if (Sculptor.ready(obj)) {
+            show()
+            return
+        }
+        obj.visible = false
+        waiting.add(obj to show)
     }
-    private val skyMap = painter.newSky()
-    private val patchMat = Material.basic(Color.hex("#fffdf2")) {
-        transparent = true
-        opacity = 0.5f
-        doubleSide = true
-        depthWrite = false
+
+    // Llama a `then` cuando `obj` esté esculpido (al momento si ya lo está).
+    private fun whenReady(obj: Object3D, then: () -> Unit) {
+        if (Sculptor.ready(obj)) then() else waiting.add(obj to then)
     }
 
     // ── Soporte de la criatura ──
@@ -203,105 +204,32 @@ class Room(private val painter: Painter, private val reduce: Boolean) {
     private var now = 0f
 
     init {
+        // En aparatos con pocos núcleos la sombra va a menos resolución.
+        val modest = Runtime.getRuntime().availableProcessors() <= 4
         scene.background = DAY.back.clone()
-        scene.environmentIntensity = 0.5f
+        scene.environmentIntensity = 0.36f
+        scene.exposure = 1.02f
         scene.hemisphere = hemi
         key.position.set(-2.6f, 5.2f, 4.2f)
         key.target.set(0f, 0.5f, 0f)
         key.castShadow = true
-        key.shadowMapSize = 1024
-        key.shadowLeft = -2.4f
-        key.shadowRight = 2.4f
-        key.shadowTop = 2.6f
-        key.shadowBottom = -1.6f
+        key.shadowMapSize = if (modest) 1024 else 2048
+        key.shadowLeft = -3.2f
+        key.shadowRight = 3.2f
+        key.shadowTop = 3.2f
+        key.shadowBottom = -2f
         key.shadowNear = 1f
-        key.shadowFar = 14f
-        key.shadowBias = -0.0006f
-        key.shadowNormalBias = 0.02f
+        key.shadowFar = 16f
+        key.shadowBias = -0.0004f
+        key.shadowNormalBias = 0.025f
+        key.shadowRadius = 3.5f
         rim.position.set(3.2f, 2.6f, -2.2f)
+        lamp.position.set(0.9f, 1.9f, 1.4f)
         scene.lights.add(key)
         scene.lights.add(rim)
+        scene.lamp = lamp
 
-        val wall = Mesh(planeGeometry(60f, 24f), wallMat)
-        wall.position.set(0f, 12f, -2.4f)
-        val floor = Mesh(planeGeometry(60f, 40f), floorMat)
-        floor.rotation.x = -PI_F / 2f
-        floor.position.z = 17.6f
-        val baseboard = Mesh(boxGeometry(60f, 0.16f, 0.06f), trimMat)
-        baseboard.position.set(0f, 0.08f, -2.37f)
-
-
-        val shadowPlane = Mesh(planeGeometry(12f, 10f), shadowMat)
-        shadowPlane.rotation.x = -PI_F / 2f
-        shadowPlane.position.y = FLOOR_Y + 0.004f
-        shadowPlane.receiveShadow = true
-
-        // Ventana de arco
-        val win = Group()
-        win.position.set(-0.68f, 0.98f, -2.39f)
-        val paneGeo = shapeGeometry(archShape(0.86f, 0.62f), 20)
-        paneGeo.uvs?.let { uv ->
-            for (i in 0 until paneGeo.vertexCount) {
-                uv[i * 2] = (paneGeo.positions[i * 3] + 0.43f) / 0.86f
-                uv[i * 2 + 1] = paneGeo.positions[i * 3 + 1] / 1.05f
-            }
-        }
-        val pane = Mesh(paneGeo, Material.basic { map = skyMap })
-        pane.position.z = 0.012f
-        val frameMat = Material.standard(Color.hex("#fffdf8"), 0.75f)
-        val casing = Mesh(extrudeGeometry(frameShape(1.02f, 0.86f, 0.62f), 0.07f, curveSegments = 20), frameMat)
-        val barV = Mesh(boxGeometry(0.035f, 1.04f, 0.035f), frameMat)
-        barV.position.set(0f, 0.52f, 0.04f)
-        val barH = Mesh(boxGeometry(0.86f, 0.035f, 0.035f), frameMat)
-        barH.position.set(0f, 0.62f, 0.04f)
-        val sill = Mesh(boxGeometry(1.2f, 0.07f, 0.18f), frameMat)
-        sill.position.set(0f, -0.035f, 0.07f)
-        win.add(pane, casing, barV, barH, sill)
-
-        // Luz de la ventana sobre el suelo
-        val patchGeo = shapeGeometry(archShape(0.8f, 0.5f), 16).rotateX(PI_F / 2f)
-        run {
-            val pos = patchGeo.positions
-            var i = 0
-            while (i < pos.size) {
-                pos[i] += pos[i + 2] * 0.55f
-                i += 3
-            }
-        }
-        val patch = Mesh(patchGeo, patchMat)
-        patch.position.set(-0.62f, 0.006f, -2.1f)
-
-        // Muebles fijos: solo asoman en pantallas anchas.
-        fun lit(color: String, roughness: Float = 0.7f) = Material.standard(Color.hex(color), roughness)
-        val shelf = Group()
-        shelf.add(Mesh(boxGeometry(1.0f, 0.05f, 0.24f), lit("#e2b279")))
-        val books = listOf(
-            Triple("#ff8fb1", 0.26f, -0.34f) to 0f, Triple("#9db7ff", 0.3f, -0.24f) to 0f,
-            Triple("#ffd166", 0.22f, -0.15f) to 0f, Triple("#7ed6a5", 0.26f, -0.02f) to 0.32f,
-        )
-        for ((spec, tilt) in books) {
-            val (color, tall, x) = spec
-            val book = Mesh(boxGeometry(0.07f, tall, 0.17f), lit(color))
-            book.position.set(x, 0.025f + tall / 2f, 0f)
-            book.rotation.z = -tilt
-            shelf.add(book)
-        }
-        val globe = Mesh(sphereGeometry(0.1f, 20, 14), lit("#ff7a7a", 0.5f))
-        globe.position.set(0.3f, 0.125f, 0f)
-        shelf.add(globe)
-        shelf.position.set(1.9f, 1.5f, -2.27f)
-
-        val pouf = Group()
-        val cushion = Mesh(sphereGeometry(1f, 28, 18), lit("#7ed6a5", 0.9f))
-        cushion.scale.set(0.42f, 0.24f, 0.42f)
-        cushion.position.y = 0.24f
-        cushion.castShadow = true
-        val button = Mesh(sphereGeometry(0.05f, 12, 8), lit("#4fae7c"))
-        button.position.y = 0.47f
-        pouf.add(cushion, button)
-        pouf.position.set(-1.75f, 0f, -1.25f)
-
-        scene.add(wall, floor, baseboard, patch, rug, shadowPlane, win, spots.getValue("rincon"), spots.getValue("ventana"), shelf, pouf)
+        scene.add(house.group, rug, spots.getValue("rincon"), spots.getValue("ventana"))
 
         mount.position.y = FLOOR_Y
         scene.add(mount, fx)
@@ -328,9 +256,7 @@ class Room(private val painter: Painter, private val reduce: Boolean) {
         if (placed["alfombra"] != alfombra) {
             placed["alfombra"] = alfombra
             for (child in rug.children.toList()) rug.remove(child)
-            val built = buildRug(alfombra)
-            rug.add(built.obj)
-            rugTints = built.layers.map { RugTint(it.material, it.day, Color(it.day.r * RUG_NIGHT.r, it.day.g * RUG_NIGHT.g, it.day.b * RUG_NIGHT.b)) }
+            rug.add(buildRug(alfombra).obj)
         }
         for ((spot, holder) in spots) {
             val id = want(spot)
@@ -340,7 +266,28 @@ class Room(private val painter: Painter, private val reduce: Boolean) {
                 holder.remove(child)
                 freeGeometries(child)
             }
-            id?.let { buildItem(it) }?.let { holder.add(it) }
+            val piece = id?.let { buildItem(it) } ?: continue
+            piece.traverse { node ->
+                if (node is Mesh) {
+                    node.castShadow = true
+                    node.receiveShadow = true
+                }
+            }
+            holder.add(piece)
+            // Sombra de contacto: el mueble se apoya en el suelo. Se mide
+            // cuando ya está esculpido (si se ha cambiado antes, no se pone).
+            reveal(piece) {
+                if (piece.parent === holder) {
+                    piece.visible = true
+                    val box = Box3().setFromObject(piece)
+                    val size = box.size()
+                    val local = box.center().sub(holder.position)
+                    val shade = contactShadow(max(0.3f, size.x * 1.35f), max(0.3f, size.z * 1.6f), 0.85f)
+                    shade.position.x = local.x
+                    shade.position.z = local.z
+                    holder.add(shade)
+                }
+            }
         }
         applyDim()
     }
@@ -376,6 +323,7 @@ class Room(private val painter: Painter, private val reduce: Boolean) {
         for (itemId in listOf(equipped.cabeza, equipped.cara, equipped.cuello)) {
             if (itemId == null) continue
             val wear = buildWear(itemId, target.anchors) ?: continue
+            reveal(wear.obj)
             if (wear.parent == "head") {
                 target.rig.headPivot.add(wear.obj)
             } else if (target.plan.blob) {
@@ -389,18 +337,36 @@ class Room(private val painter: Painter, private val reduce: Boolean) {
     }
 
     private fun putActor(formId: String, genes: Genes, equipped: Equipped?, mood: String?) {
-        val made = Actor(buildCreature(formId, genes), anim)
+        val made = Actor(buildCreature(formId, genes), anim, reduce)
         actor = made
+        // La criatura existe en el acto (cambia de humor, mira, reacciona),
+        // pero no se ve hasta que su malla está esculpida.
+        reveal(made.obj) {
+            if (actor === made) {
+                made.obj.visible = true
+                blob.visible = true
+            }
+        }
         dress(made, equipped)
         mount.add(made.obj)
         made.setMood(mood ?: "bien")
-        val w = made.plan.bodyW * made.plan.scale
+        val w = (made.plan.bodyW * made.plan.scale).toFloat()
         hits = listOf(Hit(0f, made.height * 0.5f, w * 0.62f + 0.12f, made.height * 0.56f, 0.5f))
-        blob.visible = true
         blob.scale.set(w * 1.5f, w * 1.1f, 1f)
         blobBase = w
-        val wide = max(made.plan.bodyW, made.plan.headRx * 2f) * made.plan.scale
+        val wide = (max(made.plan.bodyW, made.plan.headRx * 2) * made.plan.scale).toFloat()
         setSubject(clampF(made.height + 0.44f, 1.12f, 1.9f), clampF(wide + 0.52f, 1.0f, 1.7f))
+        if (!made.obj.visible) blob.visible = false
+    }
+
+    // Empieza a esculpir la criatura que va a salir (y su ropa) para que
+    // esté lista cuando acabe la animación de nacer o evolucionar.
+    private fun prefetch(view: Creature) {
+        if (view.stage == "huevo") return
+        val built = buildCreature(view.formId, view.genes)
+        for (itemId in listOf(view.equipped.cabeza, view.equipped.cara, view.equipped.cuello)) {
+            if (itemId != null) buildWear(itemId, built.anchors)
+        }
     }
 
     private fun putEgg(genes: Genes) {
@@ -607,6 +573,11 @@ class Room(private val painter: Painter, private val reduce: Boolean) {
             if (reaction == "asco") a.shake()
             return done()
         }
+        whenReady(item) { dropFood(item, react, reaction, done) }
+    }
+
+    private fun dropFood(item: Object3D, react: () -> Unit, reaction: String?, done: () -> Unit) {
+        if (actor == null) return done()
         val holder = Group()
         holder.add(item)
         holder.scale.setScalar(0.36f)
@@ -651,6 +622,11 @@ class Room(private val painter: Painter, private val reduce: Boolean) {
         val item = buildItem(itemId)
         if (a != null) Sfx.play("juguete")
         if (a == null || item == null || reduce) return done()
+        whenReady(item) { throwToy(item, done) }
+    }
+
+    private fun throwToy(item: Object3D, done: () -> Unit) {
+        val a = actor ?: return done()
         val holder = Group()
         holder.add(item)
         holder.scale.setScalar(0.001f)
@@ -711,7 +687,7 @@ class Room(private val painter: Painter, private val reduce: Boolean) {
         currentKey = ""
         showCreature(view)
         val a = actor ?: return
-        val scale = a.plan.scale
+        val scale = a.plan.scale.toFloat()
         a.rig.root.scale.setScalar(scale * 0.35f)
         anim.to(a.rig.root.scale.toAll(scale), 0.9f, Eases.elasticOut(1f, 0.5f))
     }
@@ -725,8 +701,9 @@ class Room(private val painter: Painter, private val reduce: Boolean) {
             return done()
         }
         mode = "busy"
+        prefetch(view)
         for (delay in floatArrayOf(0f, 0.35f, 0.7f)) Sfx.play("crac", delay = delay)
-        val shellColor = (egg.children[0] as Mesh).material.color.clone()
+        val shellColor = (egg.tag as? Color)?.clone() ?: Color.hex("#ffffff")
         anim.timeline(onComplete = done)
             .to(egg.rotation.to(z = 0.16f), 0.07f, Eases.sineInOut, repeat = 13, yoyo = true)
             .to(egg.scale.to(EGG_SCALE * 1.1f, EGG_SCALE * 0.9f, EGG_SCALE * 1.1f), 0.12f, Eases.power2In)
@@ -761,6 +738,7 @@ class Room(private val painter: Painter, private val reduce: Boolean) {
             return done()
         }
         Sfx.play("evoluciona")
+        prefetch(view)
         old.stop()
         old.busy = true
         old.setMouth("open")
@@ -808,7 +786,7 @@ class Room(private val painter: Painter, private val reduce: Boolean) {
             .to(gone.rig.root.scale.toAll(0.001f), 1.1f, Eases.power2In, Pos.at(0f))
             .to(::blobFade.to(0f, blobMat), 1.1f, Eases.power2In, Pos.at(0f))
             .to(lightMat::opacity.to(0.95f, lightMat), 0.8f, at = Pos.at(0.2f))
-            .to(light.position.to(-0.68f, 1.7f, -2.2f), 1.8f, Eases.power1InOut, Pos.at(1.0f))
+            .to(light.position.to(WINDOW.x, WINDOW.y + 0.7f, WALL_Z + 0.2f), 1.8f, Eases.power1InOut, Pos.at(1.0f))
             .to(light.scale.toAll(0.08f), 1.8f, Eases.power1In, Pos.at(1.0f))
             .to(lightMat::opacity.to(0f, lightMat), 0.4f, at = Pos.at(2.5f))
     }
@@ -819,19 +797,22 @@ class Room(private val painter: Painter, private val reduce: Boolean) {
         val k = dimK
         wallMat.color.lerpColors(DAY.wall, NIGHT.wall, k)
         floorMat.color.lerpColors(DAY.floor, NIGHT.floor, k)
-        for (tint in rugTints) tint.material.color.lerpColors(tint.day, tint.night, k)
         trimMat.color.lerpColors(DAY.trim, NIGHT.trim, k)
         scene.background?.lerpColors(DAY.back, NIGHT.back, k)
         key.color.lerpColors(DAY.key, NIGHT.key, k)
-        key.intensity = 2.1f - 1.55f * k
-        hemi.intensity = 1.05f - 0.6f * k
-        rim.intensity = 0.7f + 0.2f * k
-        scene.environmentIntensity = 0.5f - 0.36f * k
-        shadowMat.opacity = 0.22f - 0.1f * k
-        val sun = if (skyPhase == "day") 0.5f else if (skyPhase == "night") 0.14f else 0.3f
-        // Con el cielo tapado entra menos luz por la ventana.
-        val cover = if (weather in Painter.GREY_SKIES) 0.4f else 1f
-        patchMat.opacity = sun * cover * (1f - k * 0.5f)
+        hemi.sky.lerpColors(DAY.sky, NIGHT.sky, k)
+        hemi.ground.lerpColors(DAY.ground, NIGHT.ground, k)
+        // Con el cielo tapado entra menos sol por la ventana.
+        val cover = if (weather in Painter.GREY_SKIES) 0.55f else 1f
+        val sun = if (skyPhase == "day") 1f else if (skyPhase == "night") 0.3f else 0.7f
+        key.intensity = (3.0f * (0.55f + 0.45f * cover)) * (1f - k) + 0.75f * k
+        hemi.intensity = 0.5f - 0.16f * k
+        rim.intensity = 0.85f + 0.25f * k
+        lamp.intensity = 6.5f * k
+        scene.environmentIntensity = 0.36f - 0.24f * k
+        key.shadowIntensity = 1f - 0.35f * k
+        patchMat.opacity = 0.22f * sun * cover * (1f - k * 0.6f)
+        beamMat.opacity = 0.12f * sun * cover * (1f - k * 0.7f)
     }
 
     fun setNight(on: Boolean) {
@@ -854,7 +835,8 @@ class Room(private val painter: Painter, private val reduce: Boolean) {
 
     private fun refreshSky() {
         skyPhase = painter.sky(skyMap, weather = weather, t = now, still = reduce)
-        patchMat.color.setHex(if (skyPhase == "night") "#cfdcff" else if (skyPhase == "day") "#fffdf2" else "#ffe9cf")
+        patchMat.color.setHex(if (skyPhase == "night") "#b9c8ff" else if (skyPhase == "day") "#fff2d2" else "#ffd9b0")
+        beamMat.color.copy(patchMat.color)
         applyDim()
     }
 
@@ -1019,7 +1001,7 @@ class Room(private val painter: Painter, private val reduce: Boolean) {
             "egg" -> if (warmable) warm()
             "creature", "demo" -> {
                 val a = actor
-                if (a != null && a.mood != "dormida" && !a.busy) {
+                if (a != null && a.mood != "dormida" && (!a.busy || a.fidgeting)) {
                     a.hop(1, 0.16f)
                     Sfx.play("toque")
                 }
@@ -1049,6 +1031,13 @@ class Room(private val painter: Painter, private val reduce: Boolean) {
         last = t
         now = t
         if (paused) return
+        if (waiting.isNotEmpty()) {
+            val done = waiting.filter { (obj, _) -> Sculptor.ready(obj) }
+            if (done.isNotEmpty()) {
+                waiting.removeAll(done)
+                for ((_, then) in done) then()
+            }
+        }
         if (t - skyAt >= 60f) {
             skyAt = t
             refreshSky()

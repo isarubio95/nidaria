@@ -43,7 +43,7 @@ object Sculptor {
     // Lo que pide la habitación pasa antes que las miniaturas.
     private var lowPriority = false
 
-    // En las pruebas: aquí se apunta cada encargo.
+    // En las pruebas: aquí se apunta cada encargo (y no se esculpe).
     @Volatile var capture: MutableList<Job>? = null
 
     private class Task(val high: Boolean, val run: () -> Unit) : Runnable, Comparable<Task> {
@@ -81,7 +81,11 @@ object Sculptor {
     }
 
     fun geometryFor(job: Job): Geometry {
-        capture?.add(job)
+        // Capturando (en las pruebas) solo hacen falta los encargos.
+        capture?.let {
+            it.add(job)
+            return Geometry(FloatArray(0), FloatArray(0))
+        }
         val key = job.key
         synchronized(lock) { memory[key]?.let { return geometryOf(it) } }
         val executor = pool

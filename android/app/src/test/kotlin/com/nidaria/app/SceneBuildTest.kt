@@ -19,6 +19,8 @@ import com.nidaria.app.scene.buildItem
 import com.nidaria.app.scene.buildWear
 import com.nidaria.app.scene.isWear
 import com.nidaria.app.scene.planFor
+import com.nidaria.app.sculpt.Job
+import com.nidaria.app.sculpt.Sculptor
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
@@ -56,11 +58,12 @@ class SceneBuildTest {
     @Test
     fun everyFormBuilds() {
         var built = 0
+        // Esculpir cuesta: cada forma con unas pocas semillas, a poca resolución.
         for (form in FORM_LIST) {
             if (form.stage == "huevo") continue
-            for (seed in seeds) {
+            for (seed in seeds.take(3)) {
                 val genes = createGenes(seed, form.family)
-                val creature = buildCreature(form.id, genes)
+                val creature = buildCreature(form.id, genes, "tiny")
                 val meshes = check(creature.obj, "${form.id} con semilla $seed")
                 assertTrue("${form.id}: pocas piezas", meshes >= 10)
                 assertTrue("${form.id}: altura", creature.height > 0.4f && creature.height < 2.2f)
@@ -69,21 +72,28 @@ class SceneBuildTest {
                 built++
             }
         }
-        assertEquals((FORM_LIST.size - 1) * seeds.size, built)
+        assertEquals((FORM_LIST.size - 1) * 3, built)
         assertEquals(78, FORM_LIST.size - 1)
     }
 
+    // La pieza de adulta puede ir fundida con el cuerpo (melena) o aparte
+    // (alas, corona, cuernos): en los dos casos hay más formas que esculpir.
     @Test
     fun adultsHaveTheirExtraPiece() {
         val genes = createGenes(101, "pelusa")
-        val plain = buildCreature("joven-pelusa-tranquilo", genes)
+        fun shapes(formId: String): Int {
+            val jobs = ArrayList<Job>()
+            Sculptor.capture = jobs
+            try {
+                buildCreature(formId, genes, "tiny")
+            } finally {
+                Sculptor.capture = null
+            }
+            return jobs.sumOf { it.ops.size }
+        }
+        val young = shapes("joven-pelusa-tranquilo")
         for (branch in listOf("gloton", "jugueton", "tranquilo", "arisco")) {
-            val adult = buildCreature("adulto-pelusa-tranquilo-$branch", genes)
-            var young = 0
-            var grown = 0
-            plain.obj.traverse { if (it is Mesh) young++ }
-            adult.obj.traverse { if (it is Mesh) grown++ }
-            assertTrue("La adulta $branch debe llevar más piezas que la joven", grown > young)
+            assertTrue("La adulta $branch debe llevar más piezas que la joven", shapes("adulto-pelusa-tranquilo-$branch") > young)
         }
         assertEquals(2, buildCreature("adulto-gota-jugueton-jugueton", createGenes(303, "gota")).rig.wings.size)
     }
@@ -92,9 +102,10 @@ class SceneBuildTest {
     fun secretsHaveTheirLook() {
         for (family in listOf("pelusa", "hoja", "gota")) {
             val genes = createGenes(202, family)
-            assertNotNull(buildCreature("oculta-$family-radiante", genes).rig.halo)
-            assertEquals(3, buildCreature("oculta-$family-sibarita", genes).rig.top.children.size)
-            assertEquals(1, buildCreature("oculta-$family-lunar", genes).rig.top.children.size)
+            assertNotNull(buildCreature("oculta-$family-radiante", genes, "tiny").rig.halo)
+            // Nata y guinda; la luna es una sola pieza.
+            assertEquals(2, buildCreature("oculta-$family-sibarita", genes, "tiny").rig.top.children.size)
+            assertTrue(buildCreature("oculta-$family-lunar", genes, "tiny").rig.top is Mesh)
             for (origin in listOf("pelusa", "hoja", "gota").filter { it != family }) {
                 assertEquals(planFor("cria-$origin", genes).earType, planFor("oculta-$family-$origin", genes).earType)
             }

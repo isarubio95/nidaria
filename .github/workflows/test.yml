@@ -31,13 +31,14 @@ jobs:
           node-version-file: .nvmrc
           cache: npm
       - run: npm ci
-      # Los vectores de referencia salen de las reglas en JS: si alguien
-      # cambia shared/ o el escultor sin regenerarlos, Kotlin compararía
-      # contra datos viejos.
+      # Los vectores de referencia salen de las reglas y los modelos en JS:
+      # si alguien cambia shared/ o la escena sin regenerarlos, Kotlin
+      # compararía contra datos viejos.
       - name: Vectores de referencia al día
         working-directory: android
         run: |
           node tools/golden.mjs
+          node tools/sculpt-golden.mjs
           git diff --exit-code -- app/src/test/resources/
       - uses: actions/setup-java@v4
         with:

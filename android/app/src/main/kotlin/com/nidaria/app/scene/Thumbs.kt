@@ -22,6 +22,7 @@ import com.nidaria.app.rules.EggLook
 import com.nidaria.app.rules.Genes
 import com.nidaria.app.rules.createGenes
 import com.nidaria.app.rules.eggLook
+import com.nidaria.app.sculpt.Sculptor
 import java.nio.ByteBuffer
 import kotlin.math.max
 
@@ -38,7 +39,7 @@ sealed class ThumbSpec {
     }
 
     data class Form(val formId: String, val genes: Genes, val silhouette: Boolean = false) : ThumbSpec() {
-        override val key get() = "form:$formId:${genes.seed}:${genes.hue}:$silhouette"
+        override val key get() = "form:$formId:${genes.hashCode()}:$silhouette"
     }
 
     companion object {
@@ -64,17 +65,31 @@ object Thumbs {
 }
 
 // Estudio de miniaturas: una escena con la misma luz que la habitación.
-// Vive en el hilo de dibujo.
+// Vive en el hilo de dibujo. Cada miniatura se encarga (el modelo se
+// esculpe sin prisa, después de lo de la habitación) y se dibuja cuando
+// su malla está lista.
 internal class ThumbStudio {
+    private class Shot(val spec: ThumbSpec, val obj: Object3D, val viewX: Float, val viewY: Float, val silhouette: Boolean, val dispose: () -> Unit)
+
     private val scene = Scene()
     private val camera = PerspectiveCamera(24f, 1f, 0.1f, 50f)
+    private val shots = ArrayList<Shot>()
+
+    // Cuántas hay encargadas y aún sin dibujar.
+    val busy: Int get() = shots.size
 
     init {
-        scene.environmentIntensity = 0.5f
-        scene.hemisphere = HemisphereLight(Color.hex("#ffffff"), Color.hex("#ffe6cc"), 1.05f)
-        val key = DirectionalLight(Color.hex("#fff4e2"), 2.1f)
+        scene.environmentIntensity = 0.45f
+        scene.exposure = 1.05f
+        // La misma luz que la habitación: sol cálido arriba a la izquierda,
+        // relleno de cielo y un contraluz frío que recorta el borde.
+        scene.hemisphere = HemisphereLight(Color.hex("#e8f3ff"), Color.hex("#f2d7b8"), 0.7f)
+        val key = DirectionalLight(Color.hex("#fff0dc"), 2.9f)
         key.position.set(-2.4f, 4.5f, 4f)
+        val rim = DirectionalLight(Color.hex("#d6e8ff"), 1.1f)
+        rim.position.set(3f, 2.4f, -2.6f)
         scene.lights.add(key)
+        scene.lights.add(rim)
         camera.updateProjectionMatrix()
     }
 
@@ -82,43 +97,47 @@ internal class ThumbStudio {
         obj.traverse { if (it is Mesh && !it.geometry.shared) it.geometry.dispose() }
     }
 
-    fun render(renderer: Renderer, spec: ThumbSpec): Bitmap? {
-        val obj: Object3D
-        val viewX: Float
-        val viewY: Float
-        val silhouette: Boolean
-        when (spec) {
-            is ThumbSpec.Item -> {
-                obj = buildItem(spec.itemId) ?: return null
-                viewX = 0.45f
-                viewY = 0.42f
-                silhouette = false
+    // Encarga una miniatura; false si no hay modelo que dibujar.
+    fun start(spec: ThumbSpec): Boolean {
+        val shot = Sculptor.lowPriority {
+            when (spec) {
+                is ThumbSpec.Item -> buildItem(spec.itemId)?.let { obj -> Shot(spec, obj, 0.45f, 0.42f, false) { free(obj) } }
+                is ThumbSpec.Egg -> buildEgg(spec.look).let { obj -> Shot(spec, obj, 0.2f, 0.18f, spec.silhouette) { free(obj) } }
+                is ThumbSpec.Form -> buildCreature(spec.formId, spec.genes, if (spec.silhouette) "tiny" else "low").let { built ->
+                    Shot(spec, built.obj, 0.28f, 0.16f, spec.silhouette) { built.dispose() }
+                }
             }
-            is ThumbSpec.Egg -> {
-                obj = buildEgg(spec.look)
-                viewX = 0.2f
-                viewY = 0.18f
-                silhouette = spec.silhouette
-            }
-            is ThumbSpec.Form -> {
-                obj = buildCreature(spec.formId, spec.genes).obj
-                viewX = 0.28f
-                viewY = 0.16f
-                silhouette = spec.silhouette
-            }
-        }
+        } ?: return false
+        shots.add(shot)
+        return true
+    }
+
+    // Dibuja hasta `limit` miniaturas de las que ya están esculpidas.
+    fun finish(renderer: Renderer, limit: Int): List<Pair<ThumbSpec, Bitmap?>> {
+        val ready = shots.filter { Sculptor.ready(it.obj) }.take(limit)
+        shots.removeAll(ready)
+        return ready.map { it.spec to render(renderer, it) }
+    }
+
+    private fun render(renderer: Renderer, shot: Shot): Bitmap? {
+        val obj = shot.obj
         scene.add(obj)
         val box = Box3().setFromObject(obj)
         val center = box.center()
         val size = box.size()
         val radius = max(max(size.x, size.y), size.z * 0.8f) / 2f
+        if (!radius.isFinite() || radius <= 0f) {
+            scene.remove(obj)
+            shot.dispose()
+            return null
+        }
         val distance = (radius / tanDeg(12f)) * 1.12f
-        camera.position.copy(center).add(Vec3(viewX, viewY, 1f).normalize().multiplyScalar(distance))
+        camera.position.copy(center).add(Vec3(shot.viewX, shot.viewY, 1f).normalize().multiplyScalar(distance))
         camera.lookAt(center.x, center.y, center.z)
         val pixels = renderer.renderToPixels(scene, camera, Thumbs.SIZE)
         scene.remove(obj)
-        free(obj)
-        if (silhouette) {
+        shot.dispose()
+        if (shot.silhouette) {
             // Misma silueta, de un solo color (#b89f8c), con su transparencia.
             var i = 0
             while (i < pixels.size) {

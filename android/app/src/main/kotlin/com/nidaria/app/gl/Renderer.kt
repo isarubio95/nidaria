@@ -466,7 +466,8 @@ class Renderer {
         GLES30.glFrontFace(if (mirrored(mesh.matrixWorld)) GLES30.GL_CW else GLES30.GL_CCW)
         if (material.transparent) {
             GLES30.glEnable(GLES30.GL_BLEND)
-            GLES30.glBlendFuncSeparate(GLES30.GL_SRC_ALPHA, GLES30.GL_ONE_MINUS_SRC_ALPHA, GLES30.GL_ONE, GLES30.GL_ONE_MINUS_SRC_ALPHA)
+            if (material.additive) GLES30.glBlendFunc(GLES30.GL_SRC_ALPHA, GLES30.GL_ONE)
+            else GLES30.glBlendFuncSeparate(GLES30.GL_SRC_ALPHA, GLES30.GL_ONE_MINUS_SRC_ALPHA, GLES30.GL_ONE, GLES30.GL_ONE_MINUS_SRC_ALPHA)
         } else {
             GLES30.glDisable(GLES30.GL_BLEND)
         }

@@ -22,6 +22,7 @@ import com.nidaria.app.gl.Renderer
 import com.nidaria.app.data.Decor
 import com.nidaria.app.rules.Creature
 import com.nidaria.app.rules.EggLook
+import com.nidaria.app.sculpt.Sculptor
 import java.nio.ByteBuffer
 import javax.microedition.khronos.egl.EGLConfig
 import javax.microedition.khronos.opengles.GL10
@@ -67,6 +68,8 @@ class RoomView(context: Context) : GLSurfaceView(context), GLSurfaceView.Rendere
         // (la actividad se puede recrear) hay que poder pedirlas otra vez.
         Thumbs.pending.clear()
         renderer.setEnvironment(context.assets.open("env.bin").use { it.readBytes() })
+        // Esculpir va en hilos aparte, con las mallas guardadas en la caché.
+        Sculptor.start(context.cacheDir)
         setEGLContextClientVersion(3)
         setEGLConfigChooser(8, 8, 8, 8, 16, 0)
         holder.setFormat(PixelFormat.RGBA_8888)
@@ -113,15 +116,19 @@ class RoomView(context: Context) : GLSurfaceView(context), GLSurfaceView.Rendere
         try {
             val t = (SystemClock.elapsedRealtimeNanos() - startNanos) / 1e9f
             room.tick(t)
-            repeat(THUMBS_PER_FRAME) {
-                val spec = synchronized(jobs) { jobs.removeFirstOrNull() } ?: return@repeat
-                val bitmap = studio.render(renderer, spec)
+            // Miniaturas: se encargan unas pocas a la vez y se dibujan
+            // cuando su malla está esculpida.
+            while (studio.busy < THUMBS_IN_FLIGHT) {
+                val spec = synchronized(jobs) { jobs.removeFirstOrNull() } ?: break
+                if (!studio.start(spec)) main.post { Thumbs.pending.remove(spec.key) }
+            }
+            for ((spec, bitmap) in studio.finish(renderer, THUMBS_PER_FRAME)) {
                 main.post {
                     Thumbs.pending.remove(spec.key)
                     if (bitmap != null) Thumbs.images[spec.key] = bitmap.asImageBitmap()
                 }
             }
-            if (synchronized(jobs) { jobs.isNotEmpty() }) requestRender()
+            if (studio.busy > 0 || synchronized(jobs) { jobs.isNotEmpty() }) requestRender()
             while (true) {
                 val job = synchronized(photos) { photos.removeFirstOrNull() } ?: break
                 val bitmap = photo(job.width, job.height)
@@ -235,6 +242,7 @@ class RoomView(context: Context) : GLSurfaceView(context), GLSurfaceView.Rendere
 
     companion object {
         private const val THUMBS_PER_FRAME = 2
+        private const val THUMBS_IN_FLIGHT = 4
         private const val MAX_PIXEL_RATIO = 2f
     }
 }

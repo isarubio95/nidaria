@@ -111,6 +111,8 @@ class Material(val kind: MaterialKind = MaterialKind.Standard) {
     var toneMapped = true
     // Se dibuja un poco por delante de lo que tiene debajo (las pegatinas).
     var polygonOffset = false
+    // Suma su luz a lo que hay detrás (AdditiveBlending de Three.js).
+    var additive = false
     var bumpMap: Texture? = null
     var bumpScale = 1f
     var bumpUvScaleX = 1f
@@ -145,6 +147,7 @@ class Material(val kind: MaterialKind = MaterialKind.Standard) {
         m.emissiveIntensity = emissiveIntensity
         m.toneMapped = toneMapped
         m.polygonOffset = polygonOffset
+        m.additive = additive
         m.bumpMap = bumpMap
         m.bumpScale = bumpScale
         m.bumpUvScaleX = bumpUvScaleX

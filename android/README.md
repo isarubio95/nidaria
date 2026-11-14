@@ -140,8 +140,9 @@ La tarjeta para compartir es la misma que la de la web: una foto de la habitaci�
 Todo el código está en `app/src/main/kotlin/com/nidaria/app/`.
 
 - `rules/`: las reglas del juego, portadas de `shared/`. El servidor sigue siendo la autoridad; la app las usa para mover las barras entre visitas y para dibujar cada criatura a partir de su ADN.
-- `gl/`: el motor 3D. Matemática y grafo de escena con los convenios de Three.js, geometrías generadas por código, animaciones con la semántica de GSAP y el renderizador (sombras, materiales físicos, luz de entorno).
-- `scene/`: la habitación, el generador de criaturas, los modelos de los artículos y las miniaturas. Es el equivalente de `public/js/scene/`. Los papeles pintados se pintan en `Decor.kt` con un lienzo propio en Kotlin, sin `android.graphics`, para que las pruebas puedan construir sus muestras.
+- `gl/`: el motor 3D. Matemática y grafo de escena con los convenios de Three.js, geometrías generadas por código, animaciones con la semántica de GSAP y el renderizador (sombras, materiales físicos, luz de entorno, lámpara, tono neutro, huesos y el acabado de arcilla de la web: color por vértice, oclusión horneada y luz envolvente).
+- `sculpt/`: el escultor de formas blandas, copia de `public/js/scene/sdf-core.js`. `Three.kt` repite en Double las cuentas de Three.js que usan los modelos, `Sculptor.kt` esculpe en hilos aparte y guarda las mallas en memoria y en la caché de la app (`mallas-v1/`).
+- `scene/`: la habitación (`Room.kt` y la casa fija en `House.kt`), las criaturas, los modelos de los artículos y las miniaturas. Es el equivalente de `public/js/scene/`. Los modelos se construyen sin `android.graphics`, para que las pruebas puedan hacerlo: los papeles pintados se pintan con un lienzo propio en Kotlin y el resto de texturas (la cara, la tarima, las cortinas…) se pintan la primera vez que se suben a la tarjeta gráfica.
 - `data/`: el cliente de la API, el estado de la partida y el clima real.
 - `audio/`: los efectos de sonido. `Sounds.kt` es la copia de `public/js/audio/sounds.js` y `Sfx.kt` los hace sonar.
 - `share/`: la tarjeta para compartir (la dibuja, la comparte y la guarda).
@@ -162,6 +163,15 @@ node tools/golden.mjs          # con Node 22 o posterior
 ./gradlew testDebugUnitTest    # falla hasta que rules/ haga lo mismo
 ```
 
+**Modelos 3D.** `tools/sculpt-golden.mjs` construye en la web todas las formas de criatura, los artículos, la ropa puesta en varias criaturas, los huevos y la casa, y guarda lo que encargan al escultor (cada forma con sus medidas y colores) en `app/src/test/resources/sculpt.json`, junto con la huella de varias mallas. `SculptParityTest` exige que Kotlin haga los mismos encargos y que su escultor saque las mismas mallas, byte a byte. Tras tocar un modelo en `public/js/scene/`:
+
+```bash
+node tools/sculpt-golden.mjs   # tarda unos segundos
+./gradlew testDebugUnitTest    # falla hasta que scene/ haga lo mismo
+```
+
+Los dos ficheros de referencia se comprueban en la integración continua: si no están al día con la web, falla.
+
 **Luz de entorno.** Si cambia el entorno de la escena web, se vuelve a hornear con el servidor web en marcha:
 
 ```bash
@@ -170,7 +180,7 @@ node tools/cdp.mjs http://localhost:3000/ tools/bake-env.page.mjs
 
 Necesita Google Chrome instalado.
 
-Las pruebas cubren además el motor (matrices, cámara, geometrías, animaciones) y construyen las 63 formas de criatura, todos los artículos y toda la ropa para comprobar que ninguna se rompe.
+Las pruebas cubren además el motor (matrices, cámara, geometrías, animaciones) y construyen las 78 formas de criatura, todos los artículos y toda la ropa para comprobar que ninguna se rompe.
 
 ## Diferencias con la web
 
