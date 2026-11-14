@@ -68,9 +68,10 @@ function petPlan(form, genes, breed) {
   // La crianza: la rama de joven pesa menos en la adulta que la suya.
   const branch = (id, w) => {
     if (id === 'gloton') {
-      m.chunk += 0.24 * w;
-      m.chest += 0.1 * w;
-      m.scale *= 1 + 0.05 * w;
+      m.chunk += 0.42 * w;
+      m.chest += 0.18 * w;
+      m.width += 0.2 * w;
+      m.scale *= 1 + 0.06 * w;
     } else if (id === 'jugueton') {
       m.leg += 0.16 * w;
       m.chunk -= 0.1 * w;
@@ -87,7 +88,7 @@ function petPlan(form, genes, breed) {
   };
   if (b1) branch(b1, form.stage === 'joven' ? 1 : 0.55);
   if (b2) branch(b2, 1);
-  if (b2 === 'jugueton') m.pose = 'paw';
+  if (b2 === 'jugueton') m.tail.size += 0.25;
   if (b2 === 'tranquilo') m.fluff += 0.25;
   if (b2 === 'arisco') m.scar = true;
 
@@ -900,7 +901,6 @@ export function buildPet(formId, genes, { detail = 'high' } = {}) {
 
   // Pose: el atleta saluda con la pata.
   const arms = [ARM_L, ARM_R].map((i, k) => ({ pivot: bones[i], side: k ? 1 : -1, rest: 0, restX: 0, leg: true }));
-  if (m.pose === 'paw') arms[1].restX = -0.95;
 
   // ── Anclajes para la ropa ──
   const hostLocal = { center: headC.clone().sub(headBase), rx: head.rx, ry: head.ry, rz: head.rz };

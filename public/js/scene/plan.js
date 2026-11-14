@@ -12,7 +12,7 @@ export const FAMILY_BASE = {
   gota: { ears: 'fin', top: 'fin', tail: 'fish', finish: 'gloss', snout: 0.12 },
 };
 
-const STAGE_SCALE = { cria: 0.8, joven: 0.92, adulto: 1.06 };
+const STAGE_SCALE = { cria: 0.8, joven: 0.9, adulto: 1.12 };
 
 export function planFor(formId, genes) {
   const form = getForm(formId);
@@ -29,11 +29,11 @@ export function planFor(formId, genes) {
     scale: STAGE_SCALE[form.stage] ?? 1,
     blob: form.stage === 'cria',
     body: adult
-      ? { w: 0.25 + build.round * 0.05, h: 0.44, d: 0.23 + build.round * 0.03 }
+      ? { w: 0.26 + build.round * 0.05, h: 0.52, d: 0.24 + build.round * 0.03 }
       : { w: 0.22 + build.round * 0.04, h: 0.33, d: 0.21 + build.round * 0.03 },
-    legs: adult ? 0.2 : 0.14,
+    legs: adult ? 0.25 : 0.14,
     head: adult
-      ? { rx: 0.33 + build.head * 0.03, ry: 0.3 + build.head * 0.025, rz: 0.3 + build.head * 0.03 }
+      ? { rx: 0.31 + build.head * 0.03, ry: 0.28 + build.head * 0.025, rz: 0.28 + build.head * 0.03 }
       : { rx: 0.35 + build.head * 0.03, ry: 0.32 + build.head * 0.025, rz: 0.31 + build.head * 0.03 },
     snout: base.snout,
     ears: { type: base.ears, size: 0.85 + build.ears * 0.35, droop: 0 },

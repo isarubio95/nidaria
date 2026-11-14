@@ -19,6 +19,7 @@ import com.nidaria.app.scene.buildItem
 import com.nidaria.app.scene.buildWear
 import com.nidaria.app.scene.isWear
 import com.nidaria.app.scene.planFor
+import com.nidaria.app.rules.isPet
 import com.nidaria.app.sculpt.Job
 import com.nidaria.app.sculpt.Sculptor
 import org.junit.Assert.assertEquals
@@ -68,7 +69,8 @@ class SceneBuildTest {
                 assertTrue("${form.id}: pocas piezas", meshes >= 10)
                 assertTrue("${form.id}: altura", creature.height > 0.4f && creature.height < 2.2f)
                 assertEquals(2, creature.rig.eyes.size)
-                assertEquals(planFor(form.id, genes).arms, creature.rig.arms.isNotEmpty())
+                // Perros y gatos siempre llevan las patas de delante con su hueso.
+                assertEquals(isPet(form.family) || planFor(form.id, genes).arms, creature.rig.arms.isNotEmpty())
                 built++
             }
         }

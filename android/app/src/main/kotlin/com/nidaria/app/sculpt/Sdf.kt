@@ -465,6 +465,40 @@ open class Field(@JvmField val ground: Double? = null, @JvmField val groundK: Do
         return this
     }
 
+    // Color de la superficie junto a un punto, mezclado igual que el de los
+    // vértices (colorAt en sdf-core.js). En lineal: [r, g, b].
+    fun colorAt(x: Double, y: Double, z: Double): DoubleArray {
+        val adds = ops.filter { it.op == ADD }
+        if (adds.isEmpty()) return doubleArrayOf(1.0, 1.0, 1.0)
+        val dist = DoubleArray(adds.size) { max(adds[it].form.d(x, y, z), 0.0) }
+        val dmin = dist.min()
+        var r = 0.0
+        var g = 0.0
+        var b = 0.0
+        var wsum = 0.0
+        for ((i, op) in adds.withIndex()) {
+            val wc = max(0.0, 1 - (dist[i] - dmin) / op.colorK)
+            val w = wc * wc
+            r += op.color[0] * w
+            g += op.color[1] * w
+            b += op.color[2] * w
+            wsum += w
+        }
+        r /= wsum
+        g /= wsum
+        b /= wsum
+        for (paint in paints) {
+            val pd = paint.form.d(x, y, z)
+            if (pd > paint.soft) continue
+            val t0 = min(1.0, max(0.0, 0.5 - pd / (2 * paint.soft)))
+            val t = t0 * t0 * (3 - 2 * t0) * paint.amount
+            r += (paint.color[0] - r) * t
+            g += (paint.color[1] - g) * t
+            b += (paint.color[2] - b) * t
+        }
+        return doubleArrayOf(r, g, b)
+    }
+
     fun sdf(x: Double, y: Double, z: Double): Double {
         var d = 1e9
         for (i in ops.indices) {

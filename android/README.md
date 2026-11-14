@@ -176,8 +176,6 @@ node tools/sculpt-golden.mjs   # tarda unos segundos
 ./gradlew testDebugUnitTest    # falla hasta que scene/ haga lo mismo
 ```
 
-**Pendiente: las criaturas nuevas.** La web rehízo los monstruos (`scene/monster.js`) y añadió perros y gatos (`scene/pet.js`, con los ojos nuevos de `scene/creature-kit.js`). Eso aún no está portado a `scene/Creature.kt`: en la app los monstruos salen con su aspecto anterior y perros y gatos, de momento, como una bola peluda con los colores de su capa. Mientras tanto `tools/sculpt-golden.mjs` no guarda criaturas (`PORTED = false`) y `SculptParityTest` solo compara artículos, huevos y casa. Al portarlas, se pone `PORTED = true` y se regenera.
-
 Los dos ficheros de referencia se comprueban en la integración continua: si no están al día con la web, falla.
 
 **Luz de entorno.** Si cambia el entorno de la escena web, se vuelve a hornear con el servidor web en marcha:

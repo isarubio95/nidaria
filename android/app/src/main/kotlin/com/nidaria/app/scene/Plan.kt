@@ -1,7 +1,8 @@
-// De la forma (posición en el árbol) y el ADN sale un plano corporal:
-// la familia pone la base, la rama de joven cambia el cuerpo y la rama
-// de adulta añade una pieza grande. Las formas ocultas no siguen ramas:
-// cada una tiene su aspecto propio. El ADN afina proporciones y color.
+// Plano corporal de un monstruo, como plan.js en la web. La familia pone
+// la base (zorro de fuego, dinosaurio de hoja o anfibio de agua), la etapa
+// las proporciones (cría redonda, joven y adulto de pie), la rama de joven
+// cambia el cuerpo y la de adulto añade una pieza grande. Las formas
+// ocultas tienen su aspecto propio. El ADN afina proporciones y color.
 
 package com.nidaria.app.scene
 
@@ -18,9 +19,11 @@ class Plan(
     var bodyW: Double,
     var bodyH: Double,
     var bodyD: Double,
+    var legs: Double,
     val headRx: Double,
     val headRy: Double,
     val headRz: Double,
+    val snout: Double,
     var earType: String,
     var earSize: Double,
     var earDroop: Double,
@@ -35,38 +38,34 @@ class Plan(
     var fang: Boolean,
     var brows: Boolean,
     var cheeks: Double,
-    var belly: Boolean,
+    var spikes: Double,
+    val belly: Boolean,
     val pattern: String,
     val patternAmt: Double,
-    var feet: Double,
     val arms: Boolean,
     var extra: String?,
     var toneSat: Double,
     var toneLight: Double,
 )
 
-private class FamilyBase(val ears: String, val top: String, val tail: String, val finish: String)
+class FamilyBase(val ears: String, val top: String, val tail: String, val finish: String, val snout: Double)
 
-private val FAMILY_BASE = mapOf(
-    "pelusa" to FamilyBase("round", "tuft", "pom", "plush"),
-    "hoja" to FamilyBase("leaf", "sprout", "leaf", "matte"),
-    "gota" to FamilyBase("fin", "drop", "drop", "gloss"),
-    // Perros y gatos aún no están esculpidos en la app: de momento salen
-    // como una bola peluda con orejas de punta y los colores de su capa.
-    "perro" to FamilyBase("pointy", "tuft", "pom", "plush"),
-    "gato" to FamilyBase("pointy", "tuft", "pom", "plush"),
+val FAMILY_BASE = mapOf(
+    "pelusa" to FamilyBase("fox", "flame", "flame", "matte", 0.55),
+    "hoja" to FamilyBase("leaf", "leaf", "leaf", "matte", 0.45),
+    "gota" to FamilyBase("fin", "fin", "fish", "gloss", 0.12),
 )
 
-private val STAGE_SCALE = mapOf("cria" to 0.74, "joven" to 0.86, "adulto" to 1.0)
+private val STAGE_SCALE = mapOf("cria" to 0.8, "joven" to 0.9, "adulto" to 1.12)
 
 fun planFor(formId: String, genes: Genes): Plan {
     val form = getForm(formId)
     val family = form.family ?: genes.family
-    val base = FAMILY_BASE.getValue(family)
-    val round = genes.build.round
-    val head = genes.build.head
+    val base = FAMILY_BASE[family] ?: FAMILY_BASE.getValue("pelusa")
+    val build = genes.build
     val b1 = form.path.getOrNull(0)
     val b2 = form.path.getOrNull(1)
+    val adult = form.stage == "adulto"
 
     val plan = Plan(
         stage = form.stage,
@@ -74,30 +73,32 @@ fun planFor(formId: String, genes: Genes): Plan {
         finish = base.finish,
         scale = STAGE_SCALE[form.stage] ?: 1.0,
         blob = form.stage == "cria",
-        bodyW = 0.84 + round * 0.14,
-        bodyH = 0.64,
-        bodyD = 0.76 + round * 0.1,
-        headRx = 0.5 + head * 0.06,
-        headRy = 0.45 + head * 0.04,
-        headRz = 0.47 + head * 0.05,
+        bodyW = if (adult) 0.26 + build.round * 0.05 else 0.22 + build.round * 0.04,
+        bodyH = if (adult) 0.52 else 0.33,
+        bodyD = if (adult) 0.24 + build.round * 0.03 else 0.21 + build.round * 0.03,
+        legs = if (adult) 0.25 else 0.14,
+        headRx = if (adult) 0.31 + build.head * 0.03 else 0.35 + build.head * 0.03,
+        headRy = if (adult) 0.28 + build.head * 0.025 else 0.32 + build.head * 0.025,
+        headRz = if (adult) 0.28 + build.head * 0.03 else 0.31 + build.head * 0.03,
+        snout = base.snout,
         earType = base.ears,
-        earSize = 0.85 + genes.build.ears * 0.45,
+        earSize = 0.85 + build.ears * 0.35,
         earDroop = 0.0,
-        topType = base.top,
+        topType = if (form.stage == "cria" && family == "hoja") "sprout" else base.top,
         topSize = 1.0,
         tailType = base.tail,
-        tailSize = 0.75 + genes.build.tail * 0.6,
-        eyeSize = 0.92 + genes.build.eyes * 0.3,
-        eyeGap = 0.33 + genes.build.eyeGap * 0.13,
+        tailSize = 0.8 + build.tail * 0.45,
+        eyeSize = 0.95 + build.eyes * 0.2,
+        eyeGap = 0.36 + build.eyeGap * 0.1,
         eyeStyle = genes.eyeStyle,
         eyeLids = 0.0,
-        fang = false,
+        fang = adult,
         brows = false,
         cheeks = 1.0,
-        belly = genes.pattern == "barriga",
+        spikes = 0.0,
+        belly = true,
         pattern = genes.pattern,
         patternAmt = genes.patternAmt,
-        feet = 1.0,
         arms = form.stage != "cria",
         extra = null,
         toneSat = 0.0,
@@ -105,66 +106,64 @@ fun planFor(formId: String, genes: Genes): Plan {
     )
 
     if (plan.blob) {
-        plan.bodyW = 0.98 + round * 0.1
-        plan.bodyH = 0.86
-        plan.bodyD = 0.9 + round * 0.06
+        plan.bodyW = 0.92 + build.round * 0.1
+        plan.bodyH = 0.82
+        plan.bodyD = 0.84 + build.round * 0.06
         plan.earSize *= 0.9
-        plan.eyeSize *= 1.08
+        plan.eyeSize *= 1.12
+        plan.tailSize *= 0.8
     }
 
     when (b1) {
         "gloton" -> {
-            plan.bodyW *= 1.2
-            plan.bodyD *= 1.14
-            plan.bodyH *= 0.96
-            plan.belly = true
-            plan.cheeks = 1.5
-            plan.tailSize *= 0.8
+            plan.bodyW *= 1.25
+            plan.bodyD *= 1.18
+            plan.legs *= 0.85
+            plan.cheeks = 1.4
+            plan.tailSize *= 0.85
         }
         "jugueton" -> {
             plan.bodyW *= 0.9
-            plan.bodyH *= 1.1
-            plan.earSize *= 1.3
-            plan.tailSize *= 1.45
-            plan.feet = 1.3
+            plan.legs *= 1.3
+            plan.earSize *= 1.25
+            plan.tailSize *= 1.4
         }
         "tranquilo" -> {
-            plan.earSize *= 1.18
-            plan.earDroop = 1.0
-            plan.topSize = 1.35
-            plan.eyeLids = 0.42
+            plan.earSize *= 1.12
+            plan.earDroop = 0.8
+            plan.topSize = 1.3
+            plan.eyeLids = 0.38
         }
         "arisco" -> {
-            if (family == "pelusa") plan.earType = "pointy"
             plan.earSize *= 1.1
-            plan.topType = "spikes"
-            plan.tailType = "spike"
+            plan.spikes = 1.0
             plan.brows = true
             plan.fang = true
-            plan.cheeks = 0.5
-            plan.toneSat = 8.0
-            plan.toneLight = -9.0
+            plan.cheeks = 0.4
+            plan.toneSat = 6.0
+            plan.toneLight = -7.0
         }
     }
 
     when (b2) {
         "gloton" -> {
             plan.extra = "mane"
-            plan.scale *= 1.08
+            plan.scale *= 1.06
         }
         "jugueton" -> {
             plan.extra = "wings"
-            plan.tailSize *= 1.2
+            plan.tailSize *= 1.15
         }
         "tranquilo" -> {
             plan.extra = "crown"
-            plan.eyeLids = max(plan.eyeLids, 0.3)
+            plan.eyeLids = max(plan.eyeLids, 0.28)
         }
         "arisco" -> {
             plan.extra = "horns"
             plan.brows = true
-            plan.toneSat += 4.0
-            plan.toneLight -= 4.0
+            plan.spikes = max(plan.spikes, 0.7)
+            plan.toneSat += 4
+            plan.toneLight -= 4
         }
     }
 
@@ -175,40 +174,38 @@ fun planFor(formId: String, genes: Genes): Plan {
 private fun secretLook(plan: Plan, secret: String, origin: String?) {
     when (secret) {
         "radiante" -> {
-            // Aureola dorada, colores más claros y ojos con doble brillo.
+            // Aureola dorada, colores vivos y ojos con doble brillo.
             plan.extra = "halo"
-            plan.toneSat = 4.0
+            plan.toneSat = 6.0
             plan.toneLight = 6.0
             plan.eyeStyle = 2
             plan.earSize *= 1.12
-            plan.topSize = 1.2
-            plan.tailSize *= 1.25
-            plan.cheeks = 1.2
+            plan.topSize = 1.25
+            plan.tailSize *= 1.3
             plan.scale *= 1.04
         }
         "sibarita" -> {
             // Redonda como un postre, con nata y guinda en la cabeza.
-            plan.bodyW *= 1.3
-            plan.bodyD *= 1.2
-            plan.bodyH *= 0.94
-            plan.belly = true
+            plan.bodyW *= 1.35
+            plan.bodyD *= 1.25
+            plan.legs *= 0.8
             plan.cheeks = 1.8
-            plan.eyeLids = 0.28
+            plan.eyeLids = 0.3
             plan.topType = "cherry"
             plan.topSize = 1.1
             plan.tailSize *= 0.75
             plan.scale *= 1.06
         }
         "lunar" -> {
-            // Una luna creciente en la cabeza, colores apagados y ojos de sueño.
+            // Una luna creciente en la cabeza, colores de noche y ojos de sueño.
             plan.topType = "moon"
             plan.topSize = 1.35
-            plan.eyeLids = 0.45
+            plan.eyeLids = 0.42
             plan.earSize *= 1.15
-            plan.earDroop = 0.7
+            plan.earDroop = 0.6
             plan.tailSize *= 1.3
-            plan.toneSat = -8.0
-            plan.toneLight = -5.0
+            plan.toneSat = -6.0
+            plan.toneLight = -8.0
         }
         "mestiza" -> {
             // Orejas y cola de la familia de la que viene.

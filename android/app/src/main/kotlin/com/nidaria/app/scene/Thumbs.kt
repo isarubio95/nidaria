@@ -52,12 +52,15 @@ private val CANON = mapOf(
     "pelusa" to createGenes(101, "pelusa"),
     "hoja" to createGenes(202, "hoja"),
     "gota" to createGenes(303, "gota"),
-    "perro" to createGenes(404, "perro"),
-    "gato" to createGenes(505, "gato"),
+    "perro" to createGenes(404, "perro").copy(breed = "golden", coat = 0, eyes = 0),
+    "gato" to createGenes(505, "gato").copy(breed = "europeo", coat = 1, eyes = 0),
 )
 
 // Genes de muestra de cada familia, para las formas que aún no se han criado.
-fun canonGenes(family: String): Genes = CANON.getValue(family)
+fun canonGenes(family: String): Genes = CANON[family] ?: CANON.getValue("pelusa")
+
+// Genes de muestra con una raza y capa concretas.
+fun breedGenes(family: String, breed: String, coat: Int = 0): Genes = canonGenes(family).copy(breed = breed, coat = coat, eyes = 0)
 
 // Caché de miniaturas. Se lee y se escribe desde el hilo principal.
 object Thumbs {
@@ -140,13 +143,13 @@ internal class ThumbStudio {
         scene.remove(obj)
         shot.dispose()
         if (shot.silhouette) {
-            // Misma silueta, de un solo color (#b89f8c), con su transparencia.
+            // Misma silueta, de un solo color (#979eb0), con su transparencia.
             var i = 0
             while (i < pixels.size) {
                 val a = pixels[i + 3].toInt() and 255
-                pixels[i] = (0xb8 * a / 255).toByte()
-                pixels[i + 1] = (0x9f * a / 255).toByte()
-                pixels[i + 2] = (0x8c * a / 255).toByte()
+                pixels[i] = (0x97 * a / 255).toByte()
+                pixels[i + 1] = (0x9e * a / 255).toByte()
+                pixels[i + 2] = (0xb0 * a / 255).toByte()
                 i += 4
             }
         }

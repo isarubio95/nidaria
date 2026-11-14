@@ -67,10 +67,10 @@ function fingerprint(mesh) {
 }
 
 // ── Criaturas: todas las formas, con ADN variado ──
-// Las criaturas nuevas de la web (monster.js con los monstruos rehechos y
-// pet.js con perros y gatos) aún no están portadas a Kotlin. Hasta que lo
-// estén no se comparan; al portarlas, PORTED = true.
-const PORTED = false;
+// Monstruos (monster.js) y perros y gatos (pet.js), portados a Kotlin en
+// scene/Monster.kt y scene/Pet.kt. Con PORTED = false se dejan de comparar
+// (para cuando la web cambie un modelo antes de portarlo).
+const PORTED = true;
 const creatures = !PORTED ? [] : FORM_LIST.filter((form) => form.stage !== 'huevo').map((form, i) => {
   const seed = 1000 + i * 7919;
   const family = form.family ?? ['pelusa', 'hoja', 'gota'][i % 3];

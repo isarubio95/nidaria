@@ -3,6 +3,10 @@
 
 package com.nidaria.app.ui
 
+import com.nidaria.app.scene.breedGenes
+import com.nidaria.app.rules.breedsOf
+import com.nidaria.app.rules.SPECIES_INFO
+import com.nidaria.app.rules.isPet
 import androidx.compose.foundation.background
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.foundation.layout.Arrangement
@@ -347,16 +351,73 @@ fun CriadexSheet(game: Game) {
         val (secret, regular) = FORM_LIST.partition { it.secret != null }
         "Has descubierto ${regular.count { it.id in known }} de ${regular.size} formas y ${secret.count { it.id in known }} de ${secret.size} ocultas. " +
             "La crianza decide por qué rama sigue cada criatura."
+    } else if (tab == "razas") {
+        "Perros y gatos de todas las razas. Cada huevo trae una."
     } else {
         "Las criaturas que cuidaste y ya se fueron."
     }
     SheetFrame(
         game, "Criadex",
         sub = sub,
-        tabs = { Tabs(listOf("formas" to "Formas", "recuerdos" to "Recuerdos"), tab, { tab = it }) },
+        tabs = { Tabs(listOf("formas" to "Formas", "razas" to "Razas", "recuerdos" to "Recuerdos"), tab, { tab = it }) },
         scroll = scroll,
     ) {
-        if (tab == "formas") FormsTab(game, state) else MemoriesTab(game)
+        when (tab) {
+            "formas" -> FormsTab(game, state)
+            "razas" -> BreedsTab(game, state)
+            else -> MemoriesTab(game)
+        }
+    }
+}
+
+// Las razas descubiertas: cuentan al nacer una criatura de esa raza.
+@Composable
+private fun BreedsTab(game: Game, state: GameState) {
+    val known = state.criadex
+    val creature = state.creature
+    for ((index, species) in listOf("perro", "gato").withIndex()) {
+        val list = breedsOf(species)
+        val found = list.count { "raza:${it.id}" in known }
+        Column(Modifier.fillMaxWidth().padding(top = if (index == 0) 0.dp else 32.dp)) {
+            T(SPECIES_INFO.getValue(species).plural, Nd.lg)
+            T("Has descubierto $found de ${list.size} razas. La raza la decide el huevo.", Nd.smSoft, Modifier.padding(bottom = 12.dp))
+            for (row in list.chunked(4)) {
+                Row(Modifier.padding(bottom = 6.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    for (breed in row) {
+                        val isKnown = "raza:${breed.id}" in known
+                        val mine = creature?.genes?.breed == breed.id
+                        val genes = if (mine) creature!!.genes else breedGenes(species, breed.id, 0)
+                        val spec = ThumbSpec.creature("adulto-$species-jugueton-tranquilo", genes, !isKnown)
+                        Column(
+                            Modifier
+                                .weight(1f)
+                                .pressable({
+                                    game.showDialog(
+                                        DialogSpec(
+                                            title = if (isKnown) breed.name else "Raza sin descubrir",
+                                            text = if (isKnown) {
+                                                val times = known["raza:${breed.id}"]?.times ?: 1
+                                                "La has criado ${if (times == 1) "una vez" else "$times veces"}. Capas: ${breed.coats.joinToString(", ") { it.name.lowercase() }}."
+                                            } else {
+                                                "Sale de un huevo de ${SPECIES_INFO.getValue(species).name.lowercase()}, si hay suerte."
+                                            },
+                                            art = spec,
+                                            actions = listOf(DialogAction(if (isKnown) "Cerrar" else "Entendido", true, Tone.Pink)),
+                                        ),
+                                    )
+                                }, label = if (isKnown) breed.name else "Raza sin descubrir")
+                                .padding(start = 2.dp, end = 2.dp, top = 4.dp, bottom = 6.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(2.dp),
+                        ) {
+                            Thumb(spec, Modifier.widthIn(max = 72.dp).fillMaxWidth().aspectRatio(1f), alpha = if (isKnown) 1f else 0.5f)
+                            T(if (isKnown) breed.name else "¿?", Nd.xs, color = if (isKnown) Nd.ink else Nd.inkSoft, align = TextAlign.Center)
+                        }
+                    }
+                    repeat(4 - row.size) { Box(Modifier.weight(1f)) }
+                }
+            }
+        }
     }
 }
 
@@ -374,13 +435,13 @@ private fun FormsTab(game: Game, state: GameState) {
 
     fun show(form: Form, isKnown: Boolean) {
         if (!isKnown) {
-            val family = form.family?.let { FAMILY_INFO.getValue(it).name }
+            val of = form.family?.let { f -> if (isPet(f)) "de ${SPECIES_INFO.getValue(f).name.lowercase()}" else "de la familia ${FAMILY_INFO.getValue(f).name}" }
             game.showDialog(
                 DialogSpec(
                     title = if (form.secret != null) "Forma oculta" else "Forma sin descubrir",
                     text = when {
-                        form.secret != null -> "Una forma oculta de la familia $family. ${hintFor(form.id)}"
-                        family != null -> "${STAGE_INFO.getValue(form.stage).name} de la familia $family. ${hintFor(form.id)}"
+                        form.secret != null -> "Una forma oculta $of. ${hintFor(form.id)}"
+                        of != null -> "${STAGE_INFO.getValue(form.stage).name} $of. ${hintFor(form.id)}"
                         else -> "Elige un huevo para descubrirla."
                     },
                     art = thumbFor(form, true),
@@ -450,7 +511,12 @@ private fun FormsTab(game: Game, state: GameState) {
     for (family in FAMILIES) {
         val info = FAMILY_INFO.getValue(family)
         val baby = getForm("cria-$family")
-        Family("Familia ${info.name}", info.blurb, false) {
+        val pet = isPet(family)
+        Family(
+            if (pet) SPECIES_INFO.getValue(family).plural else "Monstruos · Familia ${info.name}",
+            if (pet) "Las formas por las que pasa según cómo lo críes, sea de la raza que sea." else info.blurb,
+            false,
+        ) {
             Box(Modifier.fillMaxWidth().padding(bottom = 8.dp), contentAlignment = Alignment.Center) { Tile(baby, Modifier.width(96.dp)) }
             Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 for (young in childrenOf(baby.id)) {

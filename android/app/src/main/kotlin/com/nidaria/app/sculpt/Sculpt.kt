@@ -59,6 +59,28 @@ class Sculpt(ground: Double? = null, groundK: Double = 0.03) : Field(ground, gro
         return Surface(p, n)
     }
 
+    // Punto de la superficie que se ve desde `from` mirando hacia `dir`
+    // (sphere tracing), como cast en sdf.js.
+    fun cast(from: V3, dir: V3, far: Double = 3.0): Surface {
+        val p = from.clone()
+        var t = 0.0
+        var i = 0
+        while (i < 96 && t < far) {
+            val dd = sdf(p.x, p.y, p.z)
+            if (kotlin.math.abs(dd) < 0.0005) break
+            t += dd * 0.8
+            p.copy(from).addScaledVector(dir, t)
+            i++
+        }
+        return project(p, 2)
+    }
+
+    // Color de la superficie junto a `point`.
+    fun colorNear(point: V3): Col {
+        val c = colorAt(point.x, point.y, point.z)
+        return Col(c[0], c[1], c[2])
+    }
+
     // Convierte la escultura en geometría. Puede llegar vacía (`ready`
     // falso) y rellenarse sola al terminar de esculpirse.
     fun build(cell: Double = 0.02, bones: Int = 0, ao: Double = 1.0, aoReach: Double = 0.18): Geometry =

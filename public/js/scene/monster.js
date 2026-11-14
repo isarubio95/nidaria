@@ -29,8 +29,9 @@ const IRIS = {
 // con barriga clara, marcas oscuras y un acento que contrasta.
 function palette(genes, plan) {
   // El verde vivo enseguida parece plástico: la familia hoja va más apagada.
-  const s = clamp(genes.sat + (plan.family === 'hoja' ? 0 : 10) + plan.tone.sat, 44, 84);
-  const l = clamp(genes.light - 30 + plan.tone.light, 28, 46);
+  // El zorro tiene que verse naranja fuego, no color arena.
+  const s = clamp(genes.sat + (plan.family === 'hoja' ? 0 : 10) + plan.tone.sat, plan.family === 'pelusa' ? 64 : 44, 86);
+  const l = clamp(genes.light - (plan.family === 'pelusa' ? 33 : 30) + plan.tone.light, 28, 46);
   const body = hsl(genes.hue, s, l);
   const warm = plan.family === 'pelusa';
   return {
@@ -518,32 +519,32 @@ export function buildMonster(formId, genes, { detail = 'high' } = {}) {
   if (plan.extra === 'wings') {
     for (const side of [-1, 1]) {
       const pivot = new THREE.Group();
-      pivot.position.set(side * w * 0.5, plan.blob ? h * 0.72 : legH + h * 0.8, plan.blob ? -d * 0.3 : -d * 0.7);
+      pivot.position.set(side * w * 0.62, plan.blob ? h * 0.72 : legH + h * 0.86, plan.blob ? -d * 0.3 : -d * 0.62);
       const wing = partMesh(`wing-${fam}`, () => {
         const P = new Sculpt();
         if (fam === 'pelusa') {
           for (let i = 0; i < 4; i++) {
             const a = 0.15 - i * 0.32;
-            const len = 0.36 - i * 0.05;
+            const len = 0.5 - i * 0.07;
             const dir = V(sin(-a + 0.6) * 0.3, cos(a), 0).normalize();
             P.add(shape.cone([0, 0, 0], dir.clone().multiplyScalar(len).toArray(), 0.06, 0.012), { color: i === 0 ? pal.flame : i % 2 ? pal.body : pal.light, k: 0.025 });
           }
         } else if (fam === 'hoja') {
-          P.add(shape.leaf([0, 0, 0], [0, 0, -0.2], 0.52, 0.28, 0.035, 0.12), { color: pal.leaf, k: 0 });
+          P.add(shape.leaf([0, 0, 0], [0, 0, -0.2], 0.68, 0.36, 0.035, 0.12), { color: pal.leaf, k: 0 });
           P.paint(shape.capsule([0, 0.02, 0], [0.03, 0.44, 0.03], 0.008), { color: pal.dark, soft: 0.006 });
         } else {
           for (let i = 0; i < 3; i++) {
             const a = 0.25 - i * 0.42;
-            P.add(shape.leaf([0, 0, 0], [0, 0, a], 0.44 - i * 0.06, 0.21, 0.03, 0.1), { color: pal.accent, k: 0.04 });
+            P.add(shape.leaf([0, 0, 0], [0, 0, a], 0.58 - i * 0.08, 0.26, 0.03, 0.1), { color: pal.accent, k: 0.04 });
           }
         }
         return P.build({ cell: 0.009, aoReach: 0.06 });
       }, partMat(fam === 'pelusa' ? 'plush' : finish));
       wing.scale.x = side;
       pivot.add(wing);
-      pivot.rotation.z = side * -0.9;
+      pivot.rotation.set(0, side * -0.55, side * -1.05);
       bones[BODY].add(pivot);
-      wings.push({ pivot, side, rest: side * -0.9 });
+      wings.push({ pivot, side, rest: side * -1.05 });
     }
   }
 
@@ -565,9 +566,9 @@ export function buildMonster(formId, genes, { detail = 'high' } = {}) {
           }
           P.add(shape.sphere(c.clone().addScaledVector(normal, 0.01 * unit).toArray(), 0.024 * unit), { color: '#ffd166', k: 0.006 });
         } else if (fam === 'pelusa') {
-          P.add(shape.cone(c.toArray(), c.clone().addScaledVector(normal, 0.03 * unit).add(V(0, 0.16 * unit, 0)).toArray(), 0.045 * unit, 0.006), { color: i % 2 ? pal.flame : pal.accent, k: 0.01 });
+          P.add(shape.cone(c.toArray(), c.clone().addScaledVector(normal, 0.05 * unit).add(V(0, 0.26 * unit, 0)).toArray(), 0.06 * unit, 0.006), { color: i % 2 ? pal.flame : pal.accent, k: 0.01 });
         } else {
-          P.add(shape.sphere(c.toArray(), 0.05 * unit), { color: pal.ivory, k: 0 });
+          P.add(shape.sphere(c.toArray(), 0.07 * unit), { color: pal.ivory, k: 0 });
         }
       }
       return P.build({ cell: 0.008 * unit, aoReach: 0.05 });

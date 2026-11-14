@@ -3,6 +3,7 @@
 
 package com.nidaria.app.ui
 
+import com.nidaria.app.rules.breedInfo
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.animateFloatAsState
@@ -174,7 +175,9 @@ fun HomeScreen(game: Game, insets: Insets) {
             if (left > 0) "Huevo · nace en ${duration(left)}" else "Huevo · a punto de nacer"
         } else {
             val day = floor(((now - live.bornAt) * scale) / DAY_MS).toInt() + 1
-            "${STAGE_INFO.getValue(live.stage).name} · día $day · ${MOOD_TEXT[mood] ?: ""}"
+            // En perros y gatos, la raza va delante de la etapa.
+            val breed = live.genes.breedInfo()?.name?.let { "$it · " } ?: ""
+            "$breed${STAGE_INFO.getValue(live.stage).name} · día $day · ${MOOD_TEXT[mood] ?: ""}"
         }
         Column(
             Modifier

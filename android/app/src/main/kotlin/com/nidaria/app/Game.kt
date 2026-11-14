@@ -5,6 +5,7 @@
 
 package com.nidaria.app
 
+import com.nidaria.app.rules.breedInfo
 import android.Manifest
 import android.content.ClipData
 import android.content.ClipDescription
@@ -497,7 +498,8 @@ class Game(context: Context, val room: RoomView, private val scope: CoroutineSco
             return dialog(
                 DialogSpec(
                     title = "¡${creature.name} ha nacido!",
-                    text = "Es ${form.name}, de la familia ${FAMILY_INFO.getValue(form.family!!).name}. Según cómo la cuides, crecerá por una rama u otra.",
+                    text = creature.genes.breedInfo()?.let { "¡Es de raza ${it.name}! Según cómo la cuides, crecerá de una forma u otra." }
+                        ?: "Es ${form.name}, de la familia ${FAMILY_INFO.getValue(form.family!!).name}. Según cómo la cuides, crecerá por una rama u otra.",
                     art = art,
                     actions = listOf(DialogAction("Conocerla", true, Tone.Pink), PHOTO),
                 ),

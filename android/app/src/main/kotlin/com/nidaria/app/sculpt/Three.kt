@@ -73,6 +73,20 @@ class V3(@JvmField var x: Double = 0.0, @JvmField var y: Double = 0.0, @JvmField
 
     fun toArray(): DoubleArray = doubleArrayOf(x, y, z)
 
+    fun setY(value: Double): V3 {
+        y = value
+        return this
+    }
+
+    fun negate(): V3 = set(-x, -y, -z)
+
+    fun distanceToSquared(v: V3): Double {
+        val dx = x - v.x
+        val dy = y - v.y
+        val dz = z - v.z
+        return dx * dx + dy * dy + dz * dz
+    }
+
     override fun toString(): String = "($x, $y, $z)"
 }
 
@@ -224,6 +238,18 @@ class Col(@JvmField var r: Double = 1.0, @JvmField var g: Double = 1.0, @JvmFiel
 
     fun toArray(): DoubleArray = doubleArrayOf(r, g, b)
 
+    // Luz de Color.getHSL (en el espacio de trabajo, lineal).
+    fun lightness(): Double = (minOf(r, g, b) + maxOf(r, g, b)) / 2.0
+
+    // Color.getHexString: pasa a sRGB y redondea, sin '#'.
+    fun hexString(): String {
+        fun channel(c: Double): Int {
+            val s = if (c < 0.0031308) c * 12.92 else 1.055 * powD(c, 0.41666) - 0.055
+            return Math.round(clampD(s * 255, 0.0, 255.0)).toInt()
+        }
+        return "%02x%02x%02x".format(channel(r), channel(g), channel(b))
+    }
+
     // Para los materiales del motor, que trabajan en Float.
     fun toGl(): com.nidaria.app.gl.Color = com.nidaria.app.gl.Color(r.toFloat(), g.toFloat(), b.toFloat())
 
@@ -265,3 +291,47 @@ internal fun d(vararg values: Double): DoubleArray = values
 internal val AXIS_X = V3(1.0, 0.0, 0.0)
 internal val AXIS_Y = V3(0.0, 1.0, 0.0)
 internal val AXIS_Z = V3(0.0, 0.0, 1.0)
+
+// CatmullRomCurve3 de Three.js (centrípeta, abierta) y su getPoints(n):
+// n + 1 puntos repartidos por el parámetro, no por la longitud.
+internal fun catmullRom(points: List<V3>, divisions: Int): List<V3> {
+    val l = points.size
+    fun poly(x0: Double, x1: Double, x2: Double, x3: Double, dt0: Double, dt1: Double, dt2: Double): DoubleArray {
+        var t1 = (x1 - x0) / dt0 - (x2 - x0) / (dt0 + dt1) + (x2 - x1) / dt1
+        var t2 = (x2 - x1) / dt1 - (x3 - x1) / (dt1 + dt2) + (x3 - x2) / dt2
+        t1 *= dt1
+        t2 *= dt1
+        return doubleArrayOf(x1, t1, -3 * x1 + 3 * x2 - 2 * t1 - t2, 2 * x1 - 2 * x2 + t1 + t2)
+    }
+    fun calc(c: DoubleArray, t: Double): Double {
+        val t2 = t * t
+        val t3 = t2 * t
+        return c[0] + c[1] * t + c[2] * t2 + c[3] * t3
+    }
+    val out = ArrayList<V3>(divisions + 1)
+    for (dIndex in 0..divisions) {
+        val t = dIndex.toDouble() / divisions
+        val p = (l - 1) * t
+        var intPoint = kotlin.math.floor(p).toInt()
+        var weight = p - intPoint
+        if (weight == 0.0 && intPoint == l - 1) {
+            intPoint = l - 2
+            weight = 1.0
+        }
+        val p0 = if (intPoint > 0) points[intPoint - 1] else V3().copy(points[0]).sub(points[1]).add(points[0])
+        val p1 = points[intPoint]
+        val p2 = points[intPoint + 1]
+        val p3 = if (intPoint + 2 < l) points[intPoint + 2] else V3().copy(points[l - 1]).sub(points[l - 2]).add(points[l - 1])
+        var dt0 = powD(p0.distanceToSquared(p1), 0.25)
+        var dt1 = powD(p1.distanceToSquared(p2), 0.25)
+        var dt2 = powD(p2.distanceToSquared(p3), 0.25)
+        if (dt1 < 1e-4) dt1 = 1.0
+        if (dt0 < 1e-4) dt0 = dt1
+        if (dt2 < 1e-4) dt2 = dt1
+        val px = poly(p0.x, p1.x, p2.x, p3.x, dt0, dt1, dt2)
+        val py = poly(p0.y, p1.y, p2.y, p3.y, dt0, dt1, dt2)
+        val pz = poly(p0.z, p1.z, p2.z, p3.z, dt0, dt1, dt2)
+        out.add(V3(calc(px, weight), calc(py, weight), calc(pz, weight)))
+    }
+    return out
+}

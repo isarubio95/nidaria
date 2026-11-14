@@ -3,6 +3,8 @@
 
 package com.nidaria.app.ui
 
+import com.nidaria.app.scene.canonGenes
+import com.nidaria.app.scene.breedGenes
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -226,11 +228,12 @@ fun EggsScreen(game: Game, insets: Insets) {
             if (egg.heir && previous != null) "Es el heredero de ${previous.name}: lleva parte de sus rasgos. ${info.blurb}" else info.blurb,
             Nd.lead,
         )
+        // Cada especie con un adulto de muestra; el huevo elegido sale en la habitación.
         Grid(offer.size, columns = 3) { index ->
             val look = offer[index]
             ItemTile(
-                SPECIES_INFO.getValue(look.species).plural, ThumbSpec.Egg(look.copy(index = 0, heir = false)),
-                onClick = { game.selectEgg(index) }, selected = index == selected, thumbSize = 92.dp, padBottom = 8.dp,
+                SPECIES_INFO.getValue(look.species).plural, speciesSample(look.species),
+                onClick = { game.selectEgg(index) }, selected = index == selected, thumbSize = 100.dp, padBottom = 8.dp,
             ) { if (look.heir) Tag("Heredero") }
         }
         Field(
@@ -273,4 +276,11 @@ fun BrokenScreen(game: Game, insets: Insets) {
         T("No se puede dibujar la escena", Nd.xl)
         T(game.message, Nd.lead)
     }
+}
+
+// El adulto que sale en cada tarjeta de especie (como SAMPLE en eggs.js).
+private fun speciesSample(species: String): ThumbSpec = when (species) {
+    "perro" -> ThumbSpec.creature("adulto-perro-jugueton-tranquilo", breedGenes("perro", "husky", 0))
+    "gato" -> ThumbSpec.creature("adulto-gato-jugueton-tranquilo", breedGenes("gato", "siames", 0))
+    else -> ThumbSpec.creature("adulto-pelusa-jugueton-jugueton", canonGenes("pelusa"))
 }

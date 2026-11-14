@@ -37,14 +37,14 @@ object Card {
     const val PHOTO_WIDTH = WIDTH - 2 * 48
     const val PHOTO_HEIGHT = 860
 
-    private val CREAM = Color.parseColor("#fff8ec")
-    private val PAPER = Color.parseColor("#fffdf8")
-    private val INK = Color.parseColor("#5b3a29")
-    private val INK_SOFT = Color.parseColor("#84644f")
-    private val INK_FAINT = Color.parseColor("#b89f8c")
-    private val LINE = Color.parseColor("#eadfce")
-    private val MINT_WASH = Color.parseColor("#dff5e8")
-    private val SUN_WASH = Color.parseColor("#fff1cc")
+    private val CREAM = Color.parseColor("#f1eee8")
+    private val PAPER = Color.parseColor("#fcfbf8")
+    private val INK = Color.parseColor("#1f2638")
+    private val INK_SOFT = Color.parseColor("#4d5670")
+    private val INK_FAINT = Color.parseColor("#979eb0")
+    private val LINE = Color.parseColor("#dfdbd2")
+    private val MINT_WASH = Color.parseColor("#d6f3e8")
+    private val SUN_WASH = Color.parseColor("#fff0c6")
 
     // Reduce el cuerpo de letra hasta que el texto quepa en `max` píxeles.
     private fun fit(paint: Paint, text: String, size: Float, max: Float) {
