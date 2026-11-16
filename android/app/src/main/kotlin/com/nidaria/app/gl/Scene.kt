@@ -80,7 +80,16 @@ fun group(vararg children: Object3D): Group {
 }
 
 // Flame y FlameGlow: la llama de dibujo animado y su halo (scene/Fire.kt).
-enum class MaterialKind { Standard, Basic, Shadow, Flame, FlameGlow }
+enum class MaterialKind { Standard, Basic, Shadow, Flame, FlameGlow, Baked }
+
+// Tintes de las tres luces horneadas (sol, cielo, lámpara), en lineal y ya
+// multiplicados por su fuerza. Los comparten todas las superficies de la
+// habitación (ver BakedHouse.kt).
+class BakedLight {
+    val sun = Color(0f, 0f, 0f)
+    val sky = Color(0f, 0f, 0f)
+    val lamp = Color(0f, 0f, 0f)
+}
 
 class Material(val kind: MaterialKind = MaterialKind.Standard) {
     val color = Color()
@@ -128,6 +137,15 @@ class Material(val kind: MaterialKind = MaterialKind.Standard) {
     // Las llamas (Fire.kt): sus colores, en sRGB, y lo que arden.
     var flame: FlameLook? = null
 
+    // Superficie horneada (BakedHouse.kt): su mapa de luz (un canal por
+    // fuente), el máximo de cada canal, las luces que lo tiñen y de dónde
+    // salen las coordenadas del color (0: las del modelo; 1: x, y del mundo;
+    // 2: x, z; 3: z, y), en metros por uvScale.
+    var lightMap: Texture? = null
+    val lightMax = floatArrayOf(1f, 1f, 1f)
+    var bakedLight: BakedLight? = null
+    var planar = 0
+
     // Compartido entre muchas mallas: no se toca ni se suelta con ellas.
     var shared = false
 
@@ -165,6 +183,10 @@ class Material(val kind: MaterialKind = MaterialKind.Standard) {
         m.emissiveMap = emissiveMap
         tint.copyInto(m.tint)
         m.flame = flame
+        m.lightMap = lightMap
+        lightMax.copyInto(m.lightMax)
+        m.bakedLight = bakedLight
+        m.planar = planar
         return m
     }
 

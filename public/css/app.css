@@ -284,6 +284,13 @@ img:not([src]) { visibility: hidden; }
 
 /* ── Muelle inferior: necesidades y acciones ───────────────── */
 
+/* El nivel de cada necesidad se anima entre valores. */
+@property --v {
+  syntax: '<number>';
+  inherits: true;
+  initial-value: 100;
+}
+
 .dock {
   position: absolute;
   left: 50%;
@@ -361,6 +368,49 @@ img:not([src]) { visibility: hidden; }
   transition: transform var(--duration-quick) var(--ease-smooth-out), box-shadow var(--duration-quick) var(--ease-smooth-out);
 }
 .act-disc .icon { width: 28px; height: 28px; }
+/* Anillo de la necesidad: el arco de color es lo que queda (de 0 a 100). */
+.act-ring {
+  position: relative;
+  display: grid;
+  place-items: center;
+  padding: 9px;
+  border-radius: 50%;
+  background: conic-gradient(var(--ring-color, var(--act-edge)) calc(var(--v) * 1%), var(--track) 0);
+  box-shadow: 0 0 0 2px var(--paper), var(--shadow-sm);
+  transition: --v var(--duration-slow) var(--ease-smooth-out);
+}
+.act-ring::before {
+  /* Hueco blanco entre el anillo y el botón. */
+  content: '';
+  position: absolute;
+  inset: 6px;
+  border-radius: 50%;
+  background: var(--paper);
+}
+.act-ring .act-disc { position: relative; }
+.act-alert {
+  position: absolute;
+  top: -2px;
+  right: -2px;
+  display: none;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--danger);
+  color: #fff;
+  font-size: 14px;
+  font-weight: 900;
+  line-height: 1;
+  box-shadow: 0 0 0 2px var(--paper);
+}
+.act[data-level="low"] { --ring-color: var(--sun-edge); }
+.act[data-level="critical"] { --ring-color: var(--danger); }
+.act[data-level="critical"] .act-alert { display: grid; animation: act-alert 1.6s var(--ease-smooth-out) infinite; }
+@keyframes act-alert {
+  0%, 60%, 100% { transform: scale(1); }
+  30% { transform: scale(1.18); }
+}
 .act-label {
   padding: 3px 8px 4px;
   border-radius: var(--r-pill);
@@ -383,7 +433,7 @@ img:not([src]) { visibility: hidden; }
   .need { grid-template-columns: 20px 1fr; }
   .need-name { display: none; }
   .need[data-need="health"] { grid-column: 1 / -1; }
-  .act-disc { width: 52px; height: 52px; }
+  .act-disc { width: 50px; height: 50px; }
   .plate { top: calc(var(--safe-top) + 68px); }
 }
 
@@ -1149,5 +1199,6 @@ img:not([src]) { visibility: hidden; }
   .t-subtle-number .t-subtle-new { animation: none !important; }
   .t-subtle-number .t-subtle-old { display: none; }
   .t-input { animation: none !important; transform: none !important; }
-  .bar-fill, .bubble, .scrim, .btn, .act-disc, .item, .dex, .memory, .switch, .switch-knob { transition-duration: 1ms !important; }
+  .bar-fill, .bubble, .scrim, .btn, .act-disc, .act-ring, .item, .dex, .memory, .switch, .switch-knob { transition-duration: 1ms !important; }
+  .act-alert { animation: none !important; }
 }

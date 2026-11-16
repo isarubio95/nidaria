@@ -109,12 +109,8 @@ class Room(private val painter: Painter, private val reduce: Boolean) {
     // ── Habitación ──
     // El cielo de la ventana se pinta aparte (ver drawWindow).
     private val skyMap = painter.newSky()
-    private val house = buildHouse(skyMap)
-    private val wallMat = house.wallMat
-    private val floorMat = house.floorMat
-    private val trimMat = house.trimMat
-    private val patchMat = house.patchMat
-    private val beamMat = house.beamMat
+    // La habitación horneada en Blender (ver BakedHouse.kt).
+    private val house = buildBakedHouse(skyMap)
     // La alfombra va dentro de `rug`, que el encuadre escala.
     private val rug = Group()
 
@@ -253,7 +249,7 @@ class Room(private val painter: Painter, private val reduce: Boolean) {
         val pared = want("pared")!!
         if (placed["pared"] != pared) {
             placed["pared"] = pared
-            wallMat.map = wallpaperTexture(pared)
+            house.setWallpaper(wallpaperTexture(pared))
         }
         val alfombra = want("alfombra")!!
         if (placed["alfombra"] != alfombra) {
@@ -269,7 +265,7 @@ class Room(private val painter: Painter, private val reduce: Boolean) {
                 holder.remove(child)
                 freeGeometries(child)
             }
-            val piece = id?.let { buildItem(it) } ?: continue
+            val piece = id?.let { buildItemModel(it) ?: buildItem(it) } ?: continue
             piece.traverse { node ->
                 if (node is Mesh) {
                     node.castShadow = true
@@ -804,24 +800,19 @@ class Room(private val painter: Painter, private val reduce: Boolean) {
 
     private fun applyDim() {
         val k = dimK
-        wallMat.color.lerpColors(DAY.wall, NIGHT.wall, k)
-        floorMat.color.lerpColors(DAY.floor, NIGHT.floor, k)
-        trimMat.color.lerpColors(DAY.trim, NIGHT.trim, k)
         scene.background?.lerpColors(DAY.back, NIGHT.back, k)
         key.color.lerpColors(DAY.key, NIGHT.key, k)
         hemi.sky.lerpColors(DAY.sky, NIGHT.sky, k)
         hemi.ground.lerpColors(DAY.ground, NIGHT.ground, k)
         // Con el cielo tapado entra menos sol por la ventana.
         val cover = if (weather in Painter.GREY_SKIES) 0.55f else 1f
-        val sun = if (skyPhase == "day") 1f else if (skyPhase == "night") 0.3f else 0.7f
         key.intensity = (3.0f * (0.55f + 0.45f * cover)) * (1f - k) + 0.75f * k
         hemi.intensity = 0.5f - 0.16f * k
         rim.intensity = 0.85f + 0.25f * k
         lamp.intensity = 6.5f * k
         scene.environmentIntensity = 0.36f - 0.24f * k
         key.shadowIntensity = 1f - 0.35f * k
-        patchMat.opacity = 0.22f * sun * cover * (1f - k * 0.6f)
-        beamMat.opacity = 0.12f * sun * cover * (1f - k * 0.7f)
+        house.setLighting(k, skyPhase, cover)
     }
 
     fun setNight(on: Boolean) {
@@ -844,8 +835,6 @@ class Room(private val painter: Painter, private val reduce: Boolean) {
 
     private fun refreshSky() {
         skyPhase = painter.sky(skyMap, weather = weather, t = now, still = reduce)
-        patchMat.color.setHex(if (skyPhase == "night") "#b9c8ff" else if (skyPhase == "day") "#fff2d2" else "#ffd9b0")
-        beamMat.color.copy(patchMat.color)
         applyDim()
     }
 

@@ -49,6 +49,13 @@ class RoomView(context: Context) : GLSurfaceView(context), GLSurfaceView.Rendere
     // Con las animaciones del sistema apagadas, la escena tampoco se mueve.
     val reduceMotion: Boolean = Settings.Global.getFloat(context.contentResolver, Settings.Global.ANIMATOR_DURATION_SCALE, 1f) == 0f
 
+    // Los modelos (.glb) y la habitación horneada van en los recursos de la
+    // app: se tienen que poder leer antes de montar la habitación.
+    init {
+        val assets = context.applicationContext.assets
+        Glb.open = { name -> assets.open(name).use { it.readBytes() } }
+    }
+
     private val room = Room(Painter(ResourcesCompat.getFont(context, R.font.zen_maru_gothic_black)), reduceMotion)
 
     // Avisos de la escena, ya en el hilo principal.
@@ -71,9 +78,6 @@ class RoomView(context: Context) : GLSurfaceView(context), GLSurfaceView.Rendere
         // (la actividad se puede recrear) hay que poder pedirlas otra vez.
         Thumbs.pending.clear()
         renderer.setEnvironment(context.assets.open("env.bin").use { it.readBytes() })
-        // Los modelos de criatura (.glb) van en los recursos de la app.
-        val assets = context.applicationContext.assets
-        Glb.open = { name -> assets.open(name).use { it.readBytes() } }
         // Esculpir va en hilos aparte, con las mallas guardadas en la caché.
         Sculptor.start(context.cacheDir)
         setEGLContextClientVersion(3)

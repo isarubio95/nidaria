@@ -54,7 +54,7 @@ object WINDOW {
 private const val W = 60f
 private const val H = 24f
 
-private fun archShape(width: Float, straight: Float, cx: Float = 0f, cy: Float = 0f): Shape {
+internal fun archShape(width: Float, straight: Float, cx: Float = 0f, cy: Float = 0f): Shape {
     val r = width / 2f
     return Shape().moveTo(cx - r, cy).lineTo(cx - r, cy + straight).absarc(cx, cy + straight, r, PI_F, 0f, true).lineTo(cx + r, cy).closePath()
 }
@@ -239,7 +239,7 @@ private fun woodFloor(): Texture {
     }
 }
 
-private fun beadboard(): Texture = painted(128, 256, repeat = true, mipmaps = true) { canvas, paint ->
+internal fun beadboard(): Texture = painted(128, 256, repeat = true, mipmaps = true) { canvas, paint ->
     val w = 128f
     val h = 256f
     canvas.drawColor(css("#fbf2e4"))
@@ -280,7 +280,7 @@ private fun sunPatchTexture(): Texture = painted(256, 320) { canvas, paint ->
 }
 
 // Haz de luz: más denso arriba, en la ventana, y se apaga hacia el suelo.
-private fun beamTexture(): Texture = painted(64, 256) { canvas, paint ->
+internal fun beamTexture(): Texture = painted(64, 256) { canvas, paint ->
     val w = 64f
     val h = 256f
     paint.shader = LinearGradient(0f, 0f, 0f, h, rgba(255, 255, 255, 0.9f), rgba(255, 255, 255, 0f), Shader.TileMode.CLAMP)
@@ -290,7 +290,7 @@ private fun beamTexture(): Texture = painted(64, 256) { canvas, paint ->
     canvas.drawRect(0f, 0f, w, h, paint)
 }
 
-private fun glassGlint(): Texture = painted(128, 160) { canvas, paint ->
+internal fun glassGlint(): Texture = painted(128, 160) { canvas, paint ->
     val w = 128f
     val h = 160f
     paint.maskFilter = BlurMaskFilter(3f, BlurMaskFilter.Blur.NORMAL)
@@ -338,7 +338,7 @@ private fun curtainTexture(): Texture = painted(128, 512, mipmaps = true) { canv
     }
 }
 
-private fun paintingTexture(): Texture = painted(256, 200, mipmaps = true) { canvas, paint ->
+internal fun paintingTexture(): Texture = painted(256, 200, mipmaps = true) { canvas, paint ->
     val w = 256f
     val h = 200f
     paint.shader = LinearGradient(0f, 0f, 0f, h, css("#bfe3ff"), css("#fff1d6"), Shader.TileMode.CLAMP)

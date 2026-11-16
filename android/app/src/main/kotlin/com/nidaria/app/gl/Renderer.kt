@@ -25,6 +25,7 @@ class Renderer {
     private var depthProgram: Program? = null
     private var flameProgram: Program? = null
     private var flameGlowProgram: Program? = null
+    private var bakedProgram: Program? = null
     // Reloj de las llamas: segundos desde que arrancó el proceso.
     private val started = System.nanoTime()
 
@@ -71,6 +72,7 @@ class Renderer {
         depthProgram = Program(link(Shaders.DEPTH_VERTEX, Shaders.DEPTH_FRAGMENT))
         flameProgram = Program(link(Shaders.FLAME_VERTEX, Shaders.FLAME_FRAGMENT))
         flameGlowProgram = Program(link(Shaders.FLAME_VERTEX, Shaders.FLAME_GLOW_FRAGMENT))
+        bakedProgram = Program(link(Shaders.BAKED_VERTEX, Shaders.BAKED_FRAGMENT))
         shadowFbo = 0
         shadowTexture = 0
         shadowSize = 0
@@ -212,8 +214,8 @@ class Renderer {
         GLES30.glGenVertexArrays(1, ids, 0)
         val vao = ids[0]
         GLES30.glBindVertexArray(vao)
-        val buffers = IntArray(8)
-        GLES30.glGenBuffers(8, buffers, 0)
+        val buffers = IntArray(9)
+        GLES30.glGenBuffers(9, buffers, 0)
         fun attribute(index: Int, data: FloatArray, size: Int) {
             GLES30.glBindBuffer(GLES30.GL_ARRAY_BUFFER, buffers[index])
             GLES30.glBufferData(GLES30.GL_ARRAY_BUFFER, data.size * 4, FloatBuffer.wrap(data), GLES30.GL_STATIC_DRAW)
@@ -227,8 +229,9 @@ class Renderer {
         geometry.ao?.let { attribute(4, it, 1) }
         geometry.skinIndex?.let { attribute(5, it, 4) }
         geometry.skinWeight?.let { attribute(6, it, 4) }
+        geometry.uvs2?.let { attribute(7, it, 2) }
         geometry.indices?.let {
-            GLES30.glBindBuffer(GLES30.GL_ELEMENT_ARRAY_BUFFER, buffers[7])
+            GLES30.glBindBuffer(GLES30.GL_ELEMENT_ARRAY_BUFFER, buffers[8])
             GLES30.glBufferData(GLES30.GL_ELEMENT_ARRAY_BUFFER, it.size * 4, java.nio.IntBuffer.wrap(it), GLES30.GL_STATIC_DRAW)
         }
         GLES30.glBindVertexArray(0)
@@ -375,6 +378,7 @@ class Renderer {
         MaterialKind.Shadow -> shadowProgram!!
         MaterialKind.Flame -> flameProgram!!
         MaterialKind.FlameGlow -> flameGlowProgram!!
+        MaterialKind.Baked -> bakedProgram!!
     }
 
     private fun setupFrame(program: Program, scene: Scene, camera: PerspectiveCamera, shadowLight: DirectionalLight?) {
@@ -482,6 +486,20 @@ class Renderer {
             }
             MaterialKind.Basic -> Unit
             MaterialKind.Shadow -> Unit
+            MaterialKind.Baked -> {
+                val lightId = material.lightMap?.let { bind(it) } ?: 0
+                GLES30.glActiveTexture(GLES30.GL_TEXTURE5)
+                GLES30.glBindTexture(GLES30.GL_TEXTURE_2D, lightId)
+                GLES30.glActiveTexture(GLES30.GL_TEXTURE0)
+                GLES30.glBindTexture(GLES30.GL_TEXTURE_2D, mapId)
+                GLES30.glUniform1i(program.loc("uLightMap"), 5)
+                GLES30.glUniform1i(program.loc("uPlanar"), material.planar)
+                GLES30.glUniform3f(program.loc("uLightMax"), material.lightMax[0], material.lightMax[1], material.lightMax[2])
+                val light = material.bakedLight
+                GLES30.glUniform3f(program.loc("uSunLight"), light?.sun?.r ?: 0f, light?.sun?.g ?: 0f, light?.sun?.b ?: 0f)
+                GLES30.glUniform3f(program.loc("uSkyLight"), light?.sky?.r ?: 1f, light?.sky?.g ?: 1f, light?.sky?.b ?: 1f)
+                GLES30.glUniform3f(program.loc("uLampLight"), light?.lamp?.r ?: 0f, light?.lamp?.g ?: 0f, light?.lamp?.b ?: 0f)
+            }
             MaterialKind.Flame, MaterialKind.FlameGlow -> {
                 val look = material.flame
                 if (look != null) {
@@ -548,7 +566,7 @@ class Renderer {
         GLES30.glActiveTexture(GLES30.GL_TEXTURE2)
         GLES30.glBindTexture(GLES30.GL_TEXTURE_CUBE_MAP, envTexture)
         GLES30.glActiveTexture(GLES30.GL_TEXTURE0)
-        for (program in arrayOf(lit!!, basic!!, shadowProgram!!, flameProgram!!, flameGlowProgram!!)) setupFrame(program, scene, camera, shadowLight)
+        for (program in arrayOf(lit!!, basic!!, shadowProgram!!, flameProgram!!, flameGlowProgram!!, bakedProgram!!)) setupFrame(program, scene, camera, shadowLight)
 
         for (mesh in opaque) drawMesh(mesh, shadowLight != null)
         for (mesh in transparent) drawMesh(mesh, shadowLight != null)

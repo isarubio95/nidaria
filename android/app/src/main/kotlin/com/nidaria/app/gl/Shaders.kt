@@ -15,6 +15,7 @@ layout(location = 3) in vec3 aColor;
 layout(location = 4) in float aAo;
 layout(location = 5) in vec4 aSkinIndex;
 layout(location = 6) in vec4 aSkinWeight;
+layout(location = 7) in vec2 aUv2;
 uniform mat4 uModel;
 uniform mat4 uViewProj;
 uniform bool uSkinning;
@@ -140,6 +141,55 @@ float shadowFactor() {
     }
   }
   return mix(1.0, sum / 9.0, uShadowIntensity);
+}
+"""
+
+    // Superficie horneada (BakedHouse.kt; baked-house.js en la web): el
+    // color sale de la textura con coordenadas del modelo o del mundo (para
+    // que el papel pintado empalme) y la luz, del mapa horneado.
+    const val BAKED_VERTEX = ATTRIBUTES + """
+uniform mat3 uNormalMatrix;
+uniform vec2 uUvScale;
+uniform int uPlanar;
+out vec3 vWorldPos;
+out vec3 vNormal;
+out vec2 vUv;
+out vec2 vBumpUv;
+out vec4 vShadowCoord;
+out vec3 vColor;
+out float vAo;
+out vec2 vLightUv;
+void main() {
+  vec4 world = uModel * vec4(aPosition, 1.0);
+  vWorldPos = world.xyz;
+  vNormal = normalize(uNormalMatrix * aNormal);
+  vec2 base = aUv;
+  if (uPlanar == 1) base = world.xy;
+  else if (uPlanar == 2) base = world.xz;
+  else if (uPlanar == 3) base = world.zy;
+  vUv = base * uUvScale;
+  vBumpUv = vUv;
+  vShadowCoord = vec4(0.0);
+  vColor = vec3(1.0);
+  vAo = 1.0;
+  vLightUv = aUv2;
+  gl_Position = uViewProj * world;
+}
+"""
+
+    const val BAKED_FRAGMENT = COMMON + """
+in vec2 vLightUv;
+uniform sampler2D uLightMap;
+uniform vec3 uLightMax;
+uniform vec3 uSunLight;
+uniform vec3 uSkyLight;
+uniform vec3 uLampLight;
+void main() {
+  vec3 albedo = uColor;
+  if (uUseMap > 0.5) albedo *= texture(uMap, vUv).rgb;
+  vec3 received = pow(texture(uLightMap, vLightUv).rgb, vec3(2.2)) * uLightMax;
+  vec3 light = uSunLight * received.r + uSkyLight * received.g + uLampLight * received.b;
+  fragColor = finish(albedo * light, 1.0);
 }
 """
 

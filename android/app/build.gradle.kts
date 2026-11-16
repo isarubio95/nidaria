@@ -87,6 +87,8 @@ android {
     // Los modelos de criatura (.glb) son los mismos de la web: se empaquetan
     // tal cual desde public/models (ver scene/Glb.kt).
     sourceSets.getByName("main").assets.srcDir("../../public/models")
+    // La habitación horneada (scene/BakedHouse.kt), también la de la web.
+    sourceSets.getByName("main").assets.srcDir("../../public/rooms")
 }
 
 // El AAB solo sirve para subirlo a Google Play: no se genera si va a

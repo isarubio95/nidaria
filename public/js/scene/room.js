@@ -14,6 +14,7 @@ import { buildEgg, buildItem, buildWear } from './props.js';
 import { wallpaperTexture, buildRug, BASE_DECOR, TILE_METERS } from './decor.js';
 import { WINDOW, WALL_Z } from './house.js';
 import { createHouse } from './baked-house.js';
+import { buildItemModel } from './item-models.js';
 import { contactShadow, LOCAL } from './materials.js';
 import { whenSculpted } from './sculpt-pool.js';
 import { sfx } from '../audio/sfx.js';
@@ -316,7 +317,7 @@ export function createRoom(canvas) {
         spots[spot].remove(child);
         freeObject(child);
       }
-      const piece = placed[spot] ? buildItem(placed[spot]) : null;
+      const piece = placed[spot] ? (buildItemModel(placed[spot]) ?? buildItem(placed[spot])) : null;
       if (piece) {
         piece.traverse((node) => {
           if (node.isMesh) {

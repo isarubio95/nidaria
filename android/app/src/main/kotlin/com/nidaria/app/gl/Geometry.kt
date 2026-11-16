@@ -33,6 +33,8 @@ class Geometry(
     var ao: FloatArray? = null
     var skinIndex: FloatArray? = null
     var skinWeight: FloatArray? = null
+    // Segunda capa de UV: la del mapa de luz de la habitación horneada.
+    var uvs2: FloatArray? = null
 
     // Falso mientras se esculpe en otro hilo: no se dibuja ni se mide.
     @Volatile var ready = true

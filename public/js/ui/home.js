@@ -25,7 +25,6 @@ import { openDaily, claimable } from './daily.js';
 import { openFriends } from './friends.js';
 import { sfx } from '../audio/sfx.js';
 
-const NEED_ICONS = { hunger: 'food', energy: 'moon', hygiene: 'drop', fun: 'ball', health: 'heart' };
 const MOOD_TEXT = {
   feliz: 'feliz', bien: 'contenta', regular: 'regular', mal: 'lo pasa mal', fatal: 'muy mal',
   enferma: 'enferma', dormida: 'dormida', huevo: 'incubando', muerta: '',
@@ -82,15 +81,10 @@ export function mountHome(app, room) {
   const bubble = speechBubble(room, plate);
 
   // ── Muelle ──
+  // Cada cuidado lleva alrededor el anillo de la necesidad que atiende:
+  // comer llena el hambre, dormir la energía… Así no hace falta un panel
+  // de barras aparte y la habitación se ve entera.
   const meters = {};
-  const needRows = ['hunger', 'energy', 'hygiene', 'fun', 'health'].map((need) => {
-    const fill = h('div', { class: 'bar-fill' });
-    const bar = h('div', { class: 'bar', role: 'meter', 'aria-valuemin': '0', 'aria-valuemax': '100', 'aria-label': NEED_INFO[need].name }, fill);
-    const row = h('div', { class: 'need', dataset: { need } }, icon(NEED_ICONS[need]), h('span', { class: 'need-name' }, NEED_INFO[need].name), bar);
-    meters[need] = { row, bar, fill, shown: -1 };
-    return row;
-  });
-  const needs = h('section', { class: 'needs', 'aria-label': 'Necesidades' }, needRows);
 
   const eggFill = h('div', { class: 'bar-fill' });
   const eggBar = h('div', { class: 'bar', role: 'meter', 'aria-valuemin': '0', 'aria-valuemax': '100', 'aria-label': 'Incubación' }, eggFill);
@@ -101,21 +95,25 @@ export function mountHome(app, room) {
     eggNote,
   );
 
-  const act = (id, iconName, label, onclick) => {
+  const act = (id, need, iconName, label, onclick) => {
     const disc = h('span', { class: 'act-disc' }, icon(iconName));
+    const ring = h('span', {
+      class: 'act-ring', role: 'meter', 'aria-valuemin': '0', 'aria-valuemax': '100', 'aria-label': NEED_INFO[need].name,
+    }, disc, h('span', { class: 'act-alert', 'aria-hidden': 'true' }, '!'));
     const text = h('span', { class: 'act-label' }, label);
-    const button = h('button', { class: 'act', type: 'button', dataset: { act: id }, onclick }, disc, text);
+    const button = h('button', { class: 'act', type: 'button', dataset: { act: id, need }, onclick }, ring, text);
+    meters[need] = { row: button, bar: ring, shown: -1 };
     return { button, disc, text };
   };
   const acts = {
-    feed: act('feed', 'food', 'Comer', () => openFood(room, say)),
-    sleep: act('sleep', 'moon', 'Dormir', toggleSleep),
-    bathe: act('bathe', 'drop', 'Baño', bathe),
-    play: act('play', 'ball', 'Jugar', () => openPlay(room, say)),
-    heal: act('heal', 'heal', 'Curar', () => openHeal(room, say)),
+    feed: act('feed', 'hunger', 'food', 'Comer', () => openFood(room, say)),
+    sleep: act('sleep', 'energy', 'moon', 'Dormir', toggleSleep),
+    bathe: act('bathe', 'hygiene', 'drop', 'Baño', bathe),
+    play: act('play', 'fun', 'ball', 'Jugar', () => openPlay(room, say)),
+    heal: act('heal', 'health', 'heal', 'Curar', () => openHeal(room, say)),
   };
   const actsNav = h('nav', { class: 'acts', 'aria-label': 'Cuidados' }, Object.values(acts).map((item) => item.button));
-  const dock = h('footer', { class: 'dock' }, needs, incubator, actsNav);
+  const dock = h('footer', { class: 'dock' }, incubator, actsNav);
 
   const top = h('header', { class: 'hud-top' },
     h('div', { class: 'hud-left' }, coinsPill, piggy),
@@ -222,7 +220,6 @@ export function mountHome(app, room) {
       const breed = breedOf(live.genes)?.name;
       plateSub.textContent = `${breed ? `${breed} · ` : ''}${STAGE_INFO[live.stage].name} · día ${day} · ${MOOD_TEXT[mood]}`;
     }
-    needs.hidden = egg;
     actsNav.hidden = egg;
     incubator.hidden = !egg;
     side.hidden = egg;
@@ -231,7 +228,7 @@ export function mountHome(app, room) {
       const value = Math.round(live[need]);
       if (value === meter.shown) continue;
       meter.shown = value;
-      meter.fill.style.setProperty('--v', String(value));
+      meter.bar.style.setProperty('--v', String(value));
       meter.bar.setAttribute('aria-valuenow', String(value));
       const level = value < CRITICAL ? 'critical' : value < LOW ? 'low' : 'ok';
       meter.row.dataset.level = level;

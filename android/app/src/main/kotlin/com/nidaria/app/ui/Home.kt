@@ -41,6 +41,7 @@ import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.layout
@@ -57,6 +58,7 @@ import androidx.compose.ui.unit.em
 import com.nidaria.app.Game
 import com.nidaria.app.Sheet
 import com.nidaria.app.rules.CRITICAL
+import com.nidaria.app.rules.LOW
 import com.nidaria.app.rules.Creature
 import com.nidaria.app.rules.NEED_NAMES
 import com.nidaria.app.rules.STAGE_INFO
@@ -69,16 +71,6 @@ import kotlin.math.min
 import kotlin.math.pow
 import kotlin.math.roundToInt
 import kotlinx.coroutines.delay
-
-private class NeedLook(val id: String, val icon: Ic, val color: Color, val edge: Color)
-
-private val NEED_LOOKS = listOf(
-    NeedLook("hunger", Ic.Food, Nd.hunger, Nd.hungerEdge),
-    NeedLook("energy", Ic.Moon, Nd.energy, Nd.energyEdge),
-    NeedLook("hygiene", Ic.Drop, Nd.hygiene, Nd.hygieneEdge),
-    NeedLook("fun", Ic.Ball, Nd.funny, Nd.funnyEdge),
-    NeedLook("health", Ic.Heart, Nd.health, Nd.healthEdge),
-)
 
 private val MOOD_TEXT = mapOf(
     "feliz" to "feliz", "bien" to "contenta", "regular" to "regular", "mal" to "lo pasa mal", "fatal" to "muy mal",
@@ -213,7 +205,8 @@ fun HomeScreen(game: Game, insets: Insets) {
             if (egg) {
                 Incubator(live, now, scale, Modifier.enter(enterClock, 0f, 18.dp, 0.5f))
             } else {
-                Needs(live, compact, Modifier.enter(enterClock, 0f, 18.dp, 0.5f))
+                // Cada cuidado lleva el anillo de la necesidad que atiende
+                // (como en la web): sin panel de barras, la habitación se ve.
                 Acts(game, live, compact, enterClock)
             }
         }
@@ -344,43 +337,6 @@ fun Bubble(game: Game, plateBottom: Float) {
 }
 
 @Composable
-private fun NeedRow(look: NeedLook, value: Int, compact: Boolean, modifier: Modifier = Modifier) {
-    val name = NEED_NAMES.getValue(look.id)
-    val critical = value < CRITICAL
-    Row(
-        modifier.semantics(mergeDescendants = true) {
-            contentDescription = if (critical) "$name: $value de 100, crítico" else "$name: $value de 100"
-        },
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Box(Modifier.width(if (compact) 20.dp else 22.dp)) { Icon(look.icon, 20.dp, look.edge) }
-        if (!compact) T(name, Nd.sm.copy(lineHeight = 1.em), Modifier.width(76.dp), color = if (critical) Nd.danger else Nd.ink, maxLines = 1)
-        Bar(value, look.color, look.edge, Modifier.weight(1f), critical)
-    }
-}
-
-@Composable
-private fun Needs(live: Creature, compact: Boolean, modifier: Modifier) {
-    val card = modifier.fillMaxWidth().softShadow(Elevation.Md, Nd.rLg).surface(Nd.paper, Nd.rLg)
-    if (compact) {
-        // En pantallas bajas: dos columnas sin nombres y la salud a lo ancho.
-        Column(card.padding(horizontal = 12.dp, vertical = 10.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
-            for (pair in NEED_LOOKS.take(4).chunked(2)) {
-                Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                    for (look in pair) NeedRow(look, live.need(look.id).roundToInt(), true, Modifier.weight(1f))
-                }
-            }
-            NeedRow(NEED_LOOKS[4], live.health.roundToInt(), true)
-        }
-    } else {
-        Column(card.padding(horizontal = 16.dp, vertical = 12.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
-            for (look in NEED_LOOKS) NeedRow(look, live.need(look.id).roundToInt(), false)
-        }
-    }
-}
-
-@Composable
 private fun Incubator(live: Creature, now: Double, scale: Double, modifier: Modifier) {
     val left = max(0.0, (nextStageAt(live, scale) ?: now) - now)
     val done = 1.0 - left / (stageDuration("huevo", scale) ?: 1.0)
@@ -403,21 +359,29 @@ private fun Acts(game: Game, live: Creature, compact: Boolean, enterClock: State
     val asleep = live.asleep
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
         val slot = Modifier.weight(1f)
-        Act(Ic.Food, "Comer", Nd.hunger, Nd.hungerEdge, !asleep, compact, slot.enter(enterClock, 0.04f, 18.dp, 0.5f)) { game.openSheet(Sheet.Food) }
+        fun level(id: String) = live.need(id).roundToInt()
+        Act(Ic.Food, "Comer", "hunger", level("hunger"), Nd.hunger, Nd.hungerEdge, !asleep, compact, slot.enter(enterClock, 0.04f, 18.dp, 0.5f)) { game.openSheet(Sheet.Food) }
         Act(
-            if (asleep) Ic.Sun else Ic.Moon, if (asleep) "Despertar" else "Dormir", Nd.energy, Nd.energyEdge, true, compact,
+            if (asleep) Ic.Sun else Ic.Moon, if (asleep) "Despertar" else "Dormir", "energy", level("energy"), Nd.energy, Nd.energyEdge, true, compact,
             slot.enter(enterClock, 0.08f, 18.dp, 0.5f),
         ) { game.toggleSleep() }
-        Act(Ic.Drop, "Baño", Nd.hygiene, Nd.hygieneEdge, !asleep, compact, slot.enter(enterClock, 0.12f, 18.dp, 0.5f)) { game.bathe() }
-        Act(Ic.Ball, "Jugar", Nd.funny, Nd.funnyEdge, !asleep, compact, slot.enter(enterClock, 0.16f, 18.dp, 0.5f)) { game.openSheet(Sheet.Play()) }
-        Act(Ic.Heal, "Curar", Nd.health, Nd.healthEdge, true, compact, slot.enter(enterClock, 0.2f, 18.dp, 0.5f)) { game.openSheet(Sheet.Heal) }
+        Act(Ic.Drop, "Baño", "hygiene", level("hygiene"), Nd.hygiene, Nd.hygieneEdge, !asleep, compact, slot.enter(enterClock, 0.12f, 18.dp, 0.5f)) { game.bathe() }
+        Act(Ic.Ball, "Jugar", "fun", level("fun"), Nd.funny, Nd.funnyEdge, !asleep, compact, slot.enter(enterClock, 0.16f, 18.dp, 0.5f)) { game.openSheet(Sheet.Play()) }
+        Act(Ic.Heal, "Curar", "health", level("health"), Nd.health, Nd.healthEdge, true, compact, slot.enter(enterClock, 0.2f, 18.dp, 0.5f)) { game.openSheet(Sheet.Heal) }
     }
 }
 
 @Composable
-private fun Act(icon: Ic, label: String, color: Color, edge: Color, enabled: Boolean, compact: Boolean, modifier: Modifier, onClick: () -> Unit) {
+private fun Act(
+    icon: Ic, label: String, need: String, value: Int, color: Color, edge: Color, enabled: Boolean, compact: Boolean,
+    modifier: Modifier, onClick: () -> Unit,
+) {
     val source = remember { MutableInteractionSource() }
     val press = rememberPress(source)
+    val name = NEED_NAMES.getValue(need)
+    val critical = value < CRITICAL
+    val ringColor = if (critical) Nd.danger else if (value < LOW) Nd.sunEdge else edge
+    val shownValue by animateFloatAsState(value.toFloat(), tween(400, easing = Nd.ease), label = "anillo")
     Column(
         modifier
             .graphicsLayer { alpha = if (enabled) 1f else 0.55f }
@@ -426,9 +390,25 @@ private fun Act(icon: Ic, label: String, color: Color, edge: Color, enabled: Boo
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(5.dp),
     ) {
+        // Anillo de la necesidad: el arco de color es lo que queda.
         Box(
             Modifier
-                .size(if (compact) 52.dp else 60.dp)
+                .semantics { contentDescription = if (critical) "$name: $value de 100, crítico" else "$name: $value de 100" }
+                .size(if (compact) 68.dp else 78.dp)
+                .softShadow(Elevation.Sm, Nd.rPill)
+                .drawBehind {
+                    val ring = 6.dp.toPx()
+                    val inset = 2.dp.toPx() + ring / 2f
+                    drawCircle(Nd.paper)
+                    val arcSize = Size(size.width - inset * 2f, size.height - inset * 2f)
+                    drawArc(Nd.track, 0f, 360f, false, Offset(inset, inset), arcSize, style = Stroke(ring))
+                    drawArc(ringColor, -90f, 3.6f * shownValue, false, Offset(inset, inset), arcSize, style = Stroke(ring))
+                },
+            contentAlignment = Alignment.Center,
+        ) {
+        Box(
+            Modifier
+                .size(if (compact) 50.dp else 60.dp)
                 .graphicsLayer {
                     val s = 1f - 0.04f * press.value
                     scaleX = s
@@ -440,6 +420,16 @@ private fun Act(icon: Ic, label: String, color: Color, edge: Color, enabled: Boo
                 .padding(bottom = 4.dp),
             contentAlignment = Alignment.Center,
         ) { Icon(icon, 28.dp) }
+        if (critical) {
+            Box(
+                Modifier
+                    .align(Alignment.TopEnd)
+                    .size(22.dp)
+                    .surface(Nd.danger, Nd.rPill),
+                contentAlignment = Alignment.Center,
+            ) { T("!", Nd.xsBlack.copy(lineHeight = 1.em), color = Color.White) }
+        }
+        }
         // La etiqueta puede ser más ancha que su columna («Despertar»).
         Box(
             Modifier

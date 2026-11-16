@@ -107,7 +107,7 @@ internal class ThumbStudio {
     fun start(spec: ThumbSpec): Boolean {
         val shot = Sculptor.lowPriority {
             when (spec) {
-                is ThumbSpec.Item -> buildItem(spec.itemId)?.let { obj -> Shot(spec, obj, 0.45f, 0.42f, false) { free(obj) } }
+                is ThumbSpec.Item -> (buildItemModel(spec.itemId) ?: buildItem(spec.itemId))?.let { obj -> Shot(spec, obj, 0.45f, 0.42f, false) { free(obj) } }
                 is ThumbSpec.Egg -> buildEgg(spec.look).let { obj -> Shot(spec, obj, 0.2f, 0.18f, spec.silhouette) { free(obj) } }
                 is ThumbSpec.Form -> buildCreature(spec.formId, spec.genes, if (spec.silhouette) "tiny" else "low").let { built ->
                     Shot(spec, built.obj, 0.28f, 0.16f, spec.silhouette) { built.dispose() }

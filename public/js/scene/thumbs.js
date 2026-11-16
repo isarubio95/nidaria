@@ -10,6 +10,7 @@ import { createGenes } from '/shared/dna.js';
 import { buildCreature } from './creature.js';
 import { modelFor } from './models.js';
 import { buildItem, buildEgg } from './props.js';
+import { buildItemModel } from './item-models.js';
 import { sculptingAs, whenSculpted } from './sculpt-pool.js';
 import { fingerprint } from './sdf-core.js';
 import { drawer } from './idb.js';
@@ -21,7 +22,7 @@ const store = drawer('thumbs', 12 * 1024 * 1024);
 let kit = null;
 
 // Lo que decide cómo sale una miniatura.
-const SOURCES = ['./sdf-core.js', './sdf.js', './creature.js', './creature-kit.js', './monster.js', './pet.js', './plan.js', './props.js', './decor.js', './materials.js', './thumbs.js', './glb-creature.js', './fire.js', './models.js', './model-data.js', '/shared/rng.js', '/shared/breeds.js'];
+const SOURCES = ['./sdf-core.js', './sdf.js', './creature.js', './creature-kit.js', './monster.js', './pet.js', './plan.js', './props.js', './decor.js', './materials.js', './thumbs.js', './glb-creature.js', './fire.js', './models.js', './model-data.js', './item-models.js', '/shared/rng.js', '/shared/breeds.js'];
 let version = null;
 function sceneVersion() {
   version ??= Promise.all(SOURCES.map(async (path) => {
@@ -148,7 +149,7 @@ async function snap(build, view, { silhouette = false, persist = true } = {}) {
 }
 
 export function itemThumb(itemId) {
-  return cached(`item:${itemId}`, () => snap(() => buildItem(itemId), [0.45, 0.42]));
+  return cached(`item:${itemId}`, () => snap(() => buildItemModel(itemId) ?? buildItem(itemId), [0.45, 0.42]));
 }
 
 export function eggThumb(egg) {
