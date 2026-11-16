@@ -115,9 +115,10 @@ const worn = !PORTED ? [] : [0, 5, 40].map((index) => {
 });
 
 // ── Huevos y casa ──
-const eggs = [11, 222, 3333, 44444].map((seed) => {
-  const genes = createGenes(seed);
-  return { seed, jobs: jobsOf(() => buildEgg(genes)).jobs };
+// Un huevo de cada familia (cada una lleva su dibujo) y uno al azar.
+const eggs = [[11, null], [222, 'pelusa'], [3333, 'hoja'], [44444, 'gota'], [555, 'perro'], [6666, 'gato']].map(([seed, family]) => {
+  const genes = createGenes(seed, family ?? undefined);
+  return { seed, family, jobs: jobsOf(() => buildEgg(genes)).jobs };
 });
 const house = jobsOf(() => buildHouse({ anisotropy: 1, sky: null })).jobs;
 

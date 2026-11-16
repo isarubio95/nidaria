@@ -1,0 +1,18 @@
+- generic [ref=e1]:
+  - generic:
+    - main:
+      - generic [ref=e4]:
+        - heading "Nidaria" [level=1] [ref=e5]
+        - paragraph [ref=e6]: Cría una criatura única. Lo que hagas decide en qué se convierte.
+        - tablist "Tipo de entrada" [ref=e7]:
+          - tab "Ya tengo cuenta" [ref=e8] [cursor=pointer]
+          - tab "Crear cuenta" [active] [selected] [ref=e9] [cursor=pointer]
+        - generic [ref=e10]:
+          - generic [ref=e11]: Nombre
+          - textbox "Nombre" [ref=e13]
+        - generic [ref=e14]:
+          - generic [ref=e15]: Contraseña
+          - textbox "Contraseña" [ref=e17]
+          - paragraph [ref=e20]: Al menos 8 caracteres. Al crear la cuenta te daremos un código para recuperarla si la olvidas.
+        - button "Crear cuenta" [ref=e21] [cursor=pointer]
+    - status

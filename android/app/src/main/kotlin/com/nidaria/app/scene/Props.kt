@@ -41,12 +41,14 @@ import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.sqrt
 
+// Colores con fuerza, como en props.js: `pink` es ya un rojo ladrillo,
+// `mint` un verde bosque y `violet` un azul marino.
 private object C {
-    const val red = "#f2605c"; const val apple = "#ee5252"; const val orange = "#ff9f43"; const val carrot = "#ff8c3a"
-    const val yellow = "#ffd166"; const val green = "#6cc47f"; const val leaf = "#4fae7c"
-    const val blue = "#7fb2f0"; const val navy = "#4d6fb8"; const val pink = "#ff8fb1"; const val cream = "#fff3dc"; const val white = "#fffdf8"
+    const val red = "#e2483d"; const val apple = "#e0443f"; const val orange = "#ff9f43"; const val carrot = "#ff8c3a"
+    const val yellow = "#f2b632"; const val green = "#4fae6a"; const val leaf = "#3f9a6a"
+    const val blue = "#3f78c8"; const val navy = "#2f4b80"; const val pink = "#d94a3f"; const val cream = "#fff3dc"; const val white = "#fffdf8"
     const val tan = "#e2b279"; const val crust = "#dc9a55"; const val brown = "#a8744c"; const val cocoa = "#6b4632"; const val grey = "#b8c4cc"
-    const val gold = "#f2c14e"; const val mint = "#7ed6a5"; const val violet = "#a98ee0"; const val terracotta = "#e8875f"
+    const val gold = "#f2c14e"; const val mint = "#2f9a74"; const val violet = "#2f4b80"; const val terracotta = "#e8875f"
 }
 
 private fun xyz(x: Double, y: Double, z: Double) = doubleArrayOf(x, y, z)
@@ -268,7 +270,7 @@ private val BUILDERS: Map<String, () -> Object3D> = mapOf(
             s.add(Sh.cylinder(axis, 0.8, 0.27, 0.03), "#ffe6b8", k = 0.0)
             s.sub(Sh.box(xyz(axis[0] + cosD(a) * 1.0, 0.3, axis[2] - sinD(a) * 1.0), xyz(1.0, 1.0, 1.5), 0.0, rot(0.0, a, 0.0)), k = 0.01)
             s.sub(Sh.box(xyz(axis[0] - cosD(a) * 1.0, 0.3, axis[2] - sinD(a) * 1.0), xyz(1.0, 1.0, 1.5), 0.0, rot(0.0, PI - a, 0.0)), k = 0.01)
-            s.paint(Sh.cylinder(xyz(0.0, 0.24, -0.45), 0.9, 0.03, 0.0), "#ff7f9f", soft = 0.008)
+            s.paint(Sh.cylinder(xyz(0.0, 0.24, -0.45), 0.9, 0.03, 0.0), "#c73a3a", soft = 0.008)
             s.paint(Sh.cylinder(xyz(0.0, 0.4, -0.45), 0.9, 0.022, 0.0), "#fff6ea", soft = 0.008)
             s.paint(Sh.cylinder(xyz(0.0, 0.6, -0.45), 0.9, 0.06, 0.0), "#fffaf2", soft = 0.01)
             for (i in 0 until 4) s.add(Sh.sphere(xyz(-0.18 + i * 0.12, 0.56, 0.18 - abs(i - 1.5) * 0.06), 0.06), "#fffaf2", k = 0.04)
@@ -311,7 +313,7 @@ private val BUILDERS: Map<String, () -> Object3D> = mapOf(
                 val a = (i / 14.0) * PI * 2
                 s.sub(Sh.capsule(xyz(sinD(a) * 0.215, 0.7, cosD(a) * 0.215), xyz(sinD(a) * 0.215, 0.82, cosD(a) * 0.215), 0.012), k = 0.008)
             }
-            s.paint(Sh.cylinder(xyz(0.0, 0.32, 0.0), 0.32, 0.17, 0.0), "#ffe3ec", soft = 0.006)
+            s.paint(Sh.cylinder(xyz(0.0, 0.32, 0.0), 0.32, 0.17, 0.0), "#f4eee6", soft = 0.006)
             s.paint(Sh.capsule(xyz(-0.09, 0.32, 0.3), xyz(0.09, 0.32, 0.3), 0.03), "#f2605c", soft = 0.004)
             s.paint(Sh.capsule(xyz(0.0, 0.23, 0.3), xyz(0.0, 0.41, 0.3), 0.03), "#f2605c", soft = 0.004)
         }
@@ -434,7 +436,7 @@ private val BUILDERS: Map<String, () -> Object3D> = mapOf(
 
 private val kiteTexture by lazy {
     painted(256, 256, mipmaps = true) { canvas, paint ->
-        val colors = arrayOf("#7fb2f0", "#ff8fb1", "#ffd166", "#7ed6a5")
+        val colors = arrayOf("#2f63c9", "#e2483d", "#f2b632", "#2f9a74")
         val w = 256f
         val h = 256f
         val cx = w / 2f
@@ -512,7 +514,7 @@ private val DECOR: Map<String, () -> Object3D> = mapOf(
                 }
                 for (i in 0 until 5) {
                     val a = (i / 5.0) * PI * 2
-                    s.add(Sh.ellipsoid(xyz(sinD(a) * 0.045, 0.98, cosD(a) * 0.045), xyz(0.04, 0.025, 0.04), rot(0.0, 0.0, 0.0)), "#ff8fb1", k = 0.015)
+                    s.add(Sh.ellipsoid(xyz(sinD(a) * 0.045, 0.98, cosD(a) * 0.045), xyz(0.04, 0.025, 0.04), rot(0.0, 0.0, 0.0)), "#e2483d", k = 0.015)
                 }
                 s.add(Sh.sphere(xyz(0.0, 0.99, 0.0), 0.025), C.yellow, k = 0.01)
             },
@@ -561,8 +563,8 @@ private val DECOR: Map<String, () -> Object3D> = mapOf(
         val shade = sculpted("lampara-pantalla", shadeMat, cell = 0.009, ao = 0.4, ground = null) { s ->
             s.add(Sh.cone(xyz(0.0, 1.1, 0.0), xyz(0.0, 1.42, 0.0), 0.27, 0.15), "#ffe9b8", k = 0.0)
             s.sub(Sh.cone(xyz(0.0, 1.06, 0.0), xyz(0.0, 1.46, 0.0), 0.25, 0.13), k = 0.005)
-            s.paint(Sh.torus(xyz(0.0, 1.12, 0.0), 0.265, 0.016), "#ff9fb8", soft = 0.004)
-            s.paint(Sh.torus(xyz(0.0, 1.4, 0.0), 0.155, 0.014), "#ff9fb8", soft = 0.004)
+            s.paint(Sh.torus(xyz(0.0, 1.12, 0.0), 0.265, 0.016), "#c65a37", soft = 0.004)
+            s.paint(Sh.torus(xyz(0.0, 1.4, 0.0), 0.155, 0.014), "#c65a37", soft = 0.004)
         }
         val bulb = Mesh(BALL28, Material.basic(Color.hex("#fff3d0")))
         bulb.scale.set(0.07f, 0.08f, 0.07f)
@@ -771,11 +773,12 @@ private val WEAR: Map<String, (Anchors) -> Wear> = mapOf(
             for (side in intArrayOf(-1, 1)) {
                 k.add(Sh.ellipsoid(xyz(side * 0.12 * s, 0.09 * s, 0.0), xyz(0.12 * s, 0.085 * s, 0.05 * s), rot(0.0, 0.0, side * 0.25)), C.pink, k = 0.0)
                 k.sub(Sh.ellipsoid(xyz(side * 0.13 * s, 0.09 * s, 0.05 * s), xyz(0.06 * s, 0.035 * s, 0.03 * s), rot(0.0, 0.0, side * 0.25)), k = 0.02)
-                k.add(Sh.cone(xyz(side * 0.02 * s, 0.07 * s, 0.0), xyz(side * 0.09 * s, -0.04 * s, 0.01 * s), 0.035 * s, 0.03 * s), "#ff7aa3", k = 0.02)
+                k.add(Sh.cone(xyz(side * 0.02 * s, 0.07 * s, 0.0), xyz(side * 0.09 * s, -0.04 * s, 0.01 * s), 0.035 * s, 0.03 * s), "#b83a31", k = 0.02)
             }
-            k.add(Sh.sphere(xyz(0.0, 0.09 * s, 0.01 * s), 0.055 * s), "#ff6f9c", k = 0.02)
+            k.add(Sh.sphere(xyz(0.0, 0.09 * s, 0.01 * s), 0.055 * s), "#c4402f", k = 0.02)
         }
-        Wear("head", onHead(a, 0.55, 1.0, group(bow)))
+        // Delante y arriba, para que no lo tapen las orejas de gatos y perros.
+        Wear("head", onHead(a, 0.3, 1.02, group(bow)))
     },
     "gorro" to { a ->
         val s = r2(a.hat.r / 0.5)
@@ -835,7 +838,8 @@ private val WEAR: Map<String, (Anchors) -> Wear> = mapOf(
         Wear("head", onHead(a, -0.6, 0.98, group(flower)))
     },
     "corona" to { a ->
-        val s = r2(a.hat.r / 0.5)
+        // Nunca diminuta: en las cabezas pequeñas (perros y gatos) asoma igual.
+        val s = r2(max(a.hat.r / 0.5, 0.8))
         val crown = sculpted("corona:$s", "metal", cell = 0.006 * s, ground = null, aoReach = 0.04) { k ->
             k.add(Sh.cylinder(xyz(0.0, 0.07 * s, 0.0), 0.24 * s, 0.07 * s, 0.02 * s), "#f6c453", k = 0.0)
             k.sub(Sh.cylinder(xyz(0.0, 0.1 * s, 0.0), 0.21 * s, 0.12 * s, 0.01 * s), k = 0.01)
@@ -901,15 +905,15 @@ private val WEAR: Map<String, (Anchors) -> Wear> = mapOf(
             val y = a.neck.y
             val rx = a.neck.rx
             val rz = a.neck.rz
-            ellipseRing(k, 0.0, y, 0.0, rx, rz, 0.09, C.mint, 0.05)
-            ellipseRing(k, 0.0, y + 0.09, 0.0, rx * 0.94, rz * 0.94, 0.05, C.mint, 0.05)
+            ellipseRing(k, 0.0, y, 0.0, rx, rz, 0.09, C.red, 0.05)
+            ellipseRing(k, 0.0, y + 0.09, 0.0, rx * 0.94, rz * 0.94, 0.05, C.red, 0.05)
             val x = rx * 0.45
-            k.add(Sh.box(xyz(x, y - 0.18, rz + 0.07), xyz(0.075, 0.16, 0.025), 0.022, rot(0.1, 0.0, 0.12)), C.mint, k = 0.05)
+            k.add(Sh.box(xyz(x, y - 0.18, rz + 0.07), xyz(0.075, 0.16, 0.025), 0.022, rot(0.1, 0.0, 0.12)), C.red, k = 0.05)
             for (dy in doubleArrayOf(-0.12, -0.24)) k.paint(Sh.box(xyz(x, y + dy, rz + 0.07), xyz(0.2, 0.025, 0.1), 0.0, rot(0.0, 0.0, 0.12)), C.white, soft = 0.005)
             for (i in 0 until 4) k.add(Sh.capsule(xyz(x - 0.05 + i * 0.033 + 0.04, y - 0.33, rz + 0.07), xyz(x - 0.05 + i * 0.033 + 0.045, y - 0.38, rz + 0.07), 0.01), C.white, k = 0.01)
             for (i in 0 until 16) {
                 val ang = (i / 16.0) * PI * 2
-                k.paint(Sh.capsule(xyz(sinD(ang) * rx * 1.15, y - 0.12, cosD(ang) * rz * 1.15), xyz(sinD(ang) * rx * 1.15, y + 0.14, cosD(ang) * rz * 1.15), 0.012), "#6cc794", soft = 0.008)
+                k.paint(Sh.capsule(xyz(sinD(ang) * rx * 1.15, y - 0.12, cosD(ang) * rz * 1.15), xyz(sinD(ang) * rx * 1.15, y + 0.14, cosD(ang) * rz * 1.15), 0.012), "#c23c33", soft = 0.008)
             }
         })
     },
@@ -983,30 +987,70 @@ fun buildItem(itemId: String): Object3D? = BUILDERS[itemId]?.invoke() ?: buildDe
 
 fun isWear(itemId: String): Boolean = itemId in WEAR
 
-// Huevo: color de su ADN y motas del color secundario, pintadas sobre la
-// cáscara. `tag` es el color de los trozos al romperse.
+// Huevo: color de su ADN y un dibujo propio de su especie o familia
+// (llamas, hojas, olas y burbujas, huellas o rayas), como en props.js. Los
+// de perro y gato llevan el color de la capa que esconden.
 fun buildEgg(egg: EggLook): Group {
-    val shell = Col.hsl(egg.hue / 360.0, min(0.9, (egg.sat + 2) / 100.0), min(0.88, (egg.light + 6) / 100.0))
-    val spot = Col.hsl(egg.hue2 / 360.0, min(0.9, (egg.sat + 8) / 100.0), (egg.light - 4) / 100.0)
-    val mesh = sculpted("egg:${egg.hue}:${egg.sat}:${egg.light}:${egg.hue2}", "gloss", cell = 0.016, groundK = 0.03) { s ->
+    val family = egg.family
+    val pet = family == "perro" || family == "gato"
+    // Los de monstruo, con color vivo y el dibujo claro encima; los de
+    // mascota, del color de la capa y el dibujo en contraste. El verde de
+    // la familia hoja va más apagado.
+    val light = if (pet) egg.light else egg.light - 24
+    val shell = Col.hsl(egg.hue / 360.0, min(0.9, (egg.sat + (if (pet || family == "hoja") 2 else 16)) / 100.0), min(0.88, (light + 6) / 100.0))
+    val mark = if (pet) {
+        Col.hsl(egg.hue2 / 360.0, min(0.9, egg.sat / 100.0), if (light > 50) (light - 40) / 100.0 else min(0.92, (light + 50) / 100.0))
+    } else {
+        Col.hsl(egg.hue2 / 360.0, 0.85, 0.8)
+    }
+    val mesh = sculpted("egg:$family:${egg.hue}:${egg.sat}:${egg.light}:${egg.hue2}", "gloss", cell = 0.016, groundK = 0.03) { s ->
         s.add(Sh.ellipsoid(xyz(0.0, 0.5, 0.0), xyz(0.34, 0.47, 0.34)), shell, k = 0.0)
         s.add(Sh.ellipsoid(xyz(0.0, 0.33, 0.0), xyz(0.37, 0.32, 0.37)), shell, k = 0.2)
         val rng = Rng((egg.hue * 131 + egg.hue2).toLong())
-        for (i in 0 until 10) {
-            val t = rng.range(0.55, 2.4)
-            val yaw = rng.range(0.0, PI * 2)
-            val y = 0.47 - cosD(t) * 0.46
-            val r = 0.36 * sinD(t)
-            s.paint(Sh.sphere(xyz(sinD(yaw) * r, y, cosD(yaw) * r), rng.range(0.04, 0.075)), spot, soft = 0.008)
-        }
-        // Una banda en zigzag alrededor, pegada a la cáscara.
+        // Punto de la cáscara en un ángulo y una altura.
         fun at(ang: Double, y: Double) = s.project(v(sinD(ang) * 0.45, y, cosD(ang) * 0.45), 3).point.toArray()
-        for (i in 0 until 14) {
-            val a0 = (i / 14.0) * PI * 2
-            val a1 = ((i + 0.5) / 14) * PI * 2
-            val a2 = ((i + 1) / 14.0) * PI * 2
-            s.paint(Sh.capsule(at(a0, 0.6), at(a1, 0.53), 0.02), "#ffffff", soft = 0.005, amount = 0.8)
-            s.paint(Sh.capsule(at(a1, 0.53), at(a2, 0.6), 0.02), "#ffffff", soft = 0.005, amount = 0.8)
+        when (family) {
+            "pelusa" -> for (i in 0 until 6) {
+                val ang = (i / 6.0) * PI * 2 + 0.3
+                val mid = at(ang + 0.1, 0.32)
+                s.paint(Sh.cone(at(ang, 0.12), mid, 0.1, 0.06), mark, soft = 0.006)
+                s.paint(Sh.cone(mid, at(ang - 0.04, 0.55 + rng.range(0.0, 0.1)), 0.06, 0.01), mark, soft = 0.006)
+            }
+            "hoja" -> for (i in 0 until 7) {
+                val ang = (i / 7.0) * PI * 2 + rng.range(-0.2, 0.2)
+                val y = rng.range(0.22, 0.66)
+                val mid = at(ang + 0.13, y + 0.09)
+                s.paint(Sh.cone(at(ang, y), mid, 0.014, 0.085), mark, soft = 0.006)
+                s.paint(Sh.cone(mid, at(ang + 0.3, y + 0.19), 0.085, 0.012), mark, soft = 0.006)
+            }
+            "gota" -> {
+                for (i in 0 until 8) {
+                    val t = rng.range(0.7, 2.3)
+                    val yaw = rng.range(0.0, PI * 2)
+                    val p = at(yaw, 0.47 - cosD(t) * 0.46)
+                    val r = rng.range(0.035, 0.06)
+                    s.paint(Sh.sphere(p, r), mark, soft = 0.006)
+                    s.paint(Sh.sphere(p, r * 0.6), shell, soft = 0.004)
+                }
+                for (i in 0 until 28) {
+                    val a0 = (i / 28.0) * PI * 2
+                    val a1 = ((i + 1) / 28.0) * PI * 2
+                    s.paint(Sh.capsule(at(a0, 0.56 + sinD(a0 * 4) * 0.035), at(a1, 0.56 + sinD(a1 * 4) * 0.035), 0.022), "#ffffff", soft = 0.005, amount = 0.85)
+                }
+            }
+            "perro" -> for (i in 0 until 5) {
+                val ang = (i / 5.0) * PI * 2 + rng.range(-0.3, 0.3)
+                val y = rng.range(0.25, 0.68)
+                s.paint(Sh.sphere(at(ang, y), 0.066), mark, soft = 0.006)
+                for (toe in arrayOf(doubleArrayOf(-0.19, 0.085), doubleArrayOf(-0.065, 0.125), doubleArrayOf(0.065, 0.125), doubleArrayOf(0.19, 0.085))) {
+                    s.paint(Sh.sphere(at(ang + toe[0], y + toe[1]), 0.03), mark, soft = 0.006)
+                }
+            }
+            else -> for (i in 0 until 8) {
+                val ang = (i / 8.0) * PI * 2
+                val pts = listOf(at(ang, 0.16), at(ang + 0.12, 0.34), at(ang, 0.52), at(ang + 0.1, 0.7))
+                for (j in 0 until pts.size - 1) s.paint(Sh.capsule(pts[j], pts[j + 1], 0.034 - j * 0.006), mark, soft = 0.006)
+            }
         }
     }
     val g = group(mesh)

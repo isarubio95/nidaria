@@ -1,0 +1,33 @@
+- generic [ref=e1]:
+  - generic:
+    - main:
+      - generic [ref=e22]:
+        - heading "¿Qué quieres criar?" [level=1] [ref=e23]
+        - paragraph [ref=e24]: Elige una especie y te llevas su huevo.
+        - list [ref=e25]:
+          - listitem [ref=e26]:
+            - button "Perros 46 razas Leales y con ganas de jugar. El huevo esconde la raza hasta que nace." [ref=e27] [cursor=pointer]:
+              - generic [ref=e29]:
+                - generic [ref=e30]: Perros
+                - generic [ref=e31]: 46 razas
+                - generic [ref=e32]: Leales y con ganas de jugar. El huevo esconde la raza hasta que nace.
+          - listitem [ref=e33]:
+            - button "Gatos 28 razas Curiosos y muy suyos. El huevo esconde la raza hasta que nace." [ref=e34] [cursor=pointer]:
+              - generic [ref=e36]:
+                - generic [ref=e37]: Gatos
+                - generic [ref=e38]: 28 razas
+                - generic [ref=e39]: Curiosos y muy suyos. El huevo esconde la raza hasta que nace.
+          - listitem [ref=e40]:
+            - button "Monstruos 3 familias y 78 formas Criaturas de tres familias que cambian muchísimo al crecer." [ref=e41] [cursor=pointer]:
+              - generic [ref=e43]:
+                - generic [ref=e44]: Monstruos
+                - generic [ref=e45]: 3 familias y 78 formas
+                - generic [ref=e46]: Criaturas de tres familias que cambian muchísimo al crecer.
+    - dialog "Guarda tu código de recuperación" [ref=e48]:
+      - heading "Guarda tu código de recuperación" [level=2] [ref=e49]
+      - paragraph [ref=e50]: "Si un día olvidas la contraseña, podrás entrar con tu nombre y este código. Solo te lo enseñamos ahora: apúntalo o haz una captura."
+      - paragraph [ref=e51]: RXB5-DFRP-0J68-GK22
+      - generic [ref=e52]:
+        - button "Ya lo he guardado" [active] [ref=e53] [cursor=pointer]
+        - button "Copiar" [ref=e54] [cursor=pointer]
+    - status

@@ -516,7 +516,7 @@ export function createRoom(canvas) {
   }
 
   function showEggs(offer) {
-    const key = `eggs|${offer.map((egg) => `${egg.hue}-${egg.hue2}`).join('|')}`;
+    const key = `eggs|${offer.map((egg) => `${egg.family}-${egg.hue}-${egg.hue2}`).join('|')}`;
     if (key === currentKey) return;
     currentKey = key;
     clearMount();

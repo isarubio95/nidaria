@@ -153,7 +153,7 @@ export function itemThumb(itemId) {
 }
 
 export function eggThumb(egg) {
-  return cached(`egg:${egg.hue}:${egg.sat}:${egg.light}:${egg.hue2}`, () => snap(() => buildEgg(egg), [0.2, 0.18]));
+  return cached(`egg:${egg.family}:${egg.hue}:${egg.sat}:${egg.light}:${egg.hue2}`, () => snap(() => buildEgg(egg), [0.2, 0.18]));
 }
 
 // ADN de muestra de cada familia: el que se enseña en el Criadex para las

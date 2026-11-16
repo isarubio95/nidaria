@@ -189,11 +189,11 @@ private val WALLPAPERS: Map<String, Tile.() -> Unit> = mapOf(
         grain(11)
     },
     "papel-rayas" to {
-        fill("#e6f7ec")
-        box(0f, 0f, 24f, 96f, "#c8ecd6")
-        box(48f, 0f, 24f, 96f, "#c8ecd6")
-        box(34f, 0f, 4f, 96f, "#fffdf8")
-        box(82f, 0f, 4f, 96f, "#fffdf8")
+        fill("#e9e3d5")
+        box(0f, 0f, 24f, 96f, "#4f7a5c")
+        box(48f, 0f, 24f, 96f, "#4f7a5c")
+        box(34f, 0f, 4f, 96f, "#f6f1e6")
+        box(82f, 0f, 4f, 96f, "#f6f1e6")
         grain(12)
     },
     "papel-vichy" to {
@@ -204,29 +204,29 @@ private val WALLPAPERS: Map<String, Tile.() -> Unit> = mapOf(
         grain(13)
     },
     "papel-flores" to {
-        fill("#fff6e6")
-        daisy(24f, 24f, "#ffffff", "#ffd166")
-        daisy(72f, 72f, "#ffc7d8", "#ffd166")
-        dots(listOf(72f to 22f, 24f to 70f), 3f, "#b8e6c8")
+        fill("#2f5d5a")
+        daisy(24f, 24f, "#f6f1e6", "#f2b632")
+        daisy(72f, 72f, "#e9d9b8", "#e0782f")
+        dots(listOf(72f to 22f, 24f to 70f), 3f, "#5f8f7a")
         grain(14)
     },
     "papel-olas" to {
-        fill("#e1f1ff")
+        fill("#24406a")
         // Escamas de olas: cada fila tapa la parte baja de la de arriba.
         for (row in -2..6) {
             val y = row * 24f
             val shift = (((row % 2) + 2) % 2) * 48f
             for (k in -1..1) {
-                for ((r, hex) in listOf(48f to "#b7dcfa", 40f to "#e1f1ff", 30f to "#cbe6fc", 22f to "#e1f1ff")) dots(listOf((shift + k * 96f) to y), r, hex)
+                for ((r, hex) in listOf(48f to "#3a6aa0", 40f to "#24406a", 30f to "#2f5b8f", 22f to "#24406a")) dots(listOf((shift + k * 96f) to y), r, hex)
             }
         }
         grain(15)
     },
     "papel-estrellas" to {
-        fill("#ddd3f6")
-        star(24f, 28f, 9f, 4f, "#ffd166")
-        star(72f, 76f, 9f, 4f, "#ffd166")
-        dots(listOf(70f to 24f, 22f to 72f, 48f to 50f), 2.6f, "#f3efff")
+        fill("#1f2a4a")
+        star(24f, 28f, 9f, 4f, "#f2c14e")
+        star(72f, 76f, 9f, 4f, "#f2c14e")
+        dots(listOf(70f to 24f, 22f to 72f, 48f to 50f), 2.6f, "#c9d3ee")
         grain(16)
     },
 )
@@ -259,13 +259,13 @@ private class Rug(val edge: String, val layers: List<Pair<Double, String>>)
 private val RUGS = mapOf(
     "alfombra-marina" to Rug("disc", listOf(1.0 to "#2f4b72", 0.9 to "#c65a37", 0.84 to "#2f4b72", 0.62 to "#3b5c86")),
     "alfombra-rosa" to Rug("disc", listOf(1.0 to "#ff8fb1", 0.88 to "#ffb3c9", 0.78 to "#ff94b5")),
-    "alfombra-menta" to Rug("disc", listOf(1.0 to "#7ed6a5", 0.88 to "#aee8c5", 0.78 to "#84d9aa")),
-    "alfombra-flor" to Rug("flor", listOf(1.0 to "#ffd56b", 0.82 to "#fff1c4", 0.66 to "#ffc44d")),
+    "alfombra-menta" to Rug("disc", listOf(1.0 to "#3f7a5c", 0.88 to "#e8dcc2", 0.8 to "#3f7a5c")),
+    "alfombra-flor" to Rug("flor", listOf(1.0 to "#e0a32e", 0.82 to "#f6e2b0", 0.66 to "#d18f1f")),
     "alfombra-arcoiris" to Rug(
         "disc",
-        listOf(1.0 to "#ff9aa8", 0.86 to "#ffc78f", 0.72 to "#fff0a3", 0.58 to "#a8e6b8", 0.44 to "#a9cdf5"),
+        listOf(1.0 to "#c65a37", 0.86 to "#e0a32e", 0.72 to "#f0d9a8", 0.58 to "#3f9a74", 0.44 to "#2f4b80"),
     ),
-    "alfombra-nube" to Rug("nube", listOf(1.0 to "#b5d8fb", 0.84 to "#eef7ff", 0.7 to "#c9e4fd")),
+    "alfombra-nube" to Rug("nube", listOf(1.0 to "#c9ced6", 0.84 to "#f1f1ef", 0.7 to "#dde1e6")),
 )
 
 fun isRug(id: String) = id in RUGS

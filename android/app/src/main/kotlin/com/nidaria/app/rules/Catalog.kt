@@ -88,16 +88,16 @@ val ITEMS = listOf(
     wear("bufanda", "Bufanda", 85, "cuello", "Larga y a rayas."),
     wear("cascabel", "Cascabel", 100, "cuello", "Suena al andar."),
 
-    decor("papel-rayas", "Rayas de menta", 180, "pared", "Rayas finas, frescas y tranquilas."),
+    decor("papel-rayas", "Rayas verdes", 180, "pared", "Rayas de bosque sobre crudo."),
     decor("papel-vichy", "Cuadros", 240, "pared", "Como un mantel de merienda."),
-    decor("papel-flores", "Florecitas", 300, "pared", "Margaritas por todas partes."),
-    decor("papel-olas", "Olas", 360, "pared", "Para soñar con el mar."),
-    decor("papel-estrellas", "Noche de estrellas", 450, "pared", "Lila, con estrellas de oro."),
+    decor("papel-flores", "Florecitas", 300, "pared", "Margaritas sobre verde oscuro."),
+    decor("papel-olas", "Olas", 360, "pared", "Mar adentro, en azul marino."),
+    decor("papel-estrellas", "Noche de estrellas", 450, "pared", "Azul noche, con estrellas de oro."),
 
-    decor("alfombra-menta", "Alfombra menta", 180, "alfombra", "Redonda y suave."),
+    decor("alfombra-menta", "Alfombra verde", 180, "alfombra", "Redonda, con su ribete."),
     decor("alfombra-flor", "Alfombra flor", 300, "alfombra", "Con pétalos alrededor."),
-    decor("alfombra-arcoiris", "Alfombra arcoíris", 380, "alfombra", "Un color en cada vuelta."),
-    decor("alfombra-nube", "Alfombra nube", 480, "alfombra", "Mullida como una nube."),
+    decor("alfombra-arcoiris", "Alfombra retro", 380, "alfombra", "Un color en cada vuelta."),
+    decor("alfombra-nube", "Alfombra nube", 480, "alfombra", "Mullida y gris como una nube."),
 
     decor("cactus", "Cactus", 200, "ventana", "No hay que regarlo casi nunca."),
     decor("girasol", "Girasol", 280, "ventana", "Siempre mira hacia la luz."),

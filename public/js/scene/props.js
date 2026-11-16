@@ -14,10 +14,13 @@ const V = (x = 0, y = 0, z = 0) => new THREE.Vector3(x, y, z);
 const Y = V(0, 1, 0);
 const quatTo = (dir) => new THREE.Quaternion().setFromUnitVectors(Y, dir.clone().normalize());
 
+// Colores con fuerza: nada de rosa chicle ni pastel desvaído. `pink` es
+// ya un rojo ladrillo, `mint` un verde bosque y `violet` un azul marino;
+// se quedan con su nombre para no tocar cada modelo.
 const C = {
-  red: '#f2605c', apple: '#ee5252', orange: '#ff9f43', carrot: '#ff8c3a', yellow: '#ffd166', green: '#6cc47f', leaf: '#4fae7c',
-  blue: '#7fb2f0', navy: '#4d6fb8', pink: '#ff8fb1', cream: '#fff3dc', white: '#fffdf8',
-  tan: '#e2b279', crust: '#dc9a55', brown: '#a8744c', cocoa: '#6b4632', grey: '#b8c4cc', gold: '#f2c14e', mint: '#7ed6a5', violet: '#a98ee0',
+  red: '#e2483d', apple: '#e0443f', orange: '#ff9f43', carrot: '#ff8c3a', yellow: '#f2b632', green: '#4fae6a', leaf: '#3f9a6a',
+  blue: '#3f78c8', navy: '#2f4b80', pink: '#d94a3f', cream: '#fff3dc', white: '#fffdf8',
+  tan: '#e2b279', crust: '#dc9a55', brown: '#a8744c', cocoa: '#6b4632', grey: '#b8c4cc', gold: '#f2c14e', mint: '#2f9a74', violet: '#2f4b80',
   terracotta: '#e8875f',
 };
 
@@ -219,7 +222,7 @@ const BUILDERS = {
     S.add(Sh.cylinder(axis, 0.8, 0.27, 0.03), { color: '#ffe6b8', k: 0 });
     S.sub(Sh.box([axis[0] + cos(a) * 1.0, 0.3, axis[2] - sin(a) * 1.0], [1, 1, 1.5], 0, [0, a, 0]), { k: 0.01 });
     S.sub(Sh.box([axis[0] - cos(a) * 1.0, 0.3, axis[2] - sin(a) * 1.0], [1, 1, 1.5], 0, [0, PI - a, 0]), { k: 0.01 });
-    S.paint(Sh.cylinder([0, 0.24, -0.45], 0.9, 0.03, 0), { color: '#ff7f9f', soft: 0.008 });
+    S.paint(Sh.cylinder([0, 0.24, -0.45], 0.9, 0.03, 0), { color: '#c73a3a', soft: 0.008 });
     S.paint(Sh.cylinder([0, 0.4, -0.45], 0.9, 0.022, 0), { color: '#fff6ea', soft: 0.008 });
     S.paint(Sh.cylinder([0, 0.6, -0.45], 0.9, 0.06, 0), { color: '#fffaf2', soft: 0.01 });
     for (let i = 0; i < 4; i++) {
@@ -261,7 +264,7 @@ const BUILDERS = {
       const a = (i / 14) * PI * 2;
       S.sub(Sh.capsule([sin(a) * 0.215, 0.7, cos(a) * 0.215], [sin(a) * 0.215, 0.82, cos(a) * 0.215], 0.012), { k: 0.008 });
     }
-    S.paint(Sh.cylinder([0, 0.32, 0], 0.32, 0.17, 0), { color: '#ffe3ec', soft: 0.006 });
+    S.paint(Sh.cylinder([0, 0.32, 0], 0.32, 0.17, 0), { color: '#f4eee6', soft: 0.006 });
     S.paint(Sh.capsule([-0.09, 0.32, 0.3], [0.09, 0.32, 0.3], 0.03), { color: '#f2605c', soft: 0.004 });
     S.paint(Sh.capsule([0, 0.23, 0.3], [0, 0.41, 0.3], 0.03), { color: '#f2605c', soft: 0.004 });
   }, { cell: 0.012 }),
@@ -374,7 +377,7 @@ const BUILDERS = {
 
 function kiteTexture() {
   return canvasTexture(256, 256, (ctx, w, h) => {
-    const colors = ['#7fb2f0', '#ff8fb1', '#ffd166', '#7ed6a5'];
+    const colors = ['#2f63c9', '#e2483d', '#f2b632', '#2f9a74'];
     const cx = w / 2;
     const cy = h * (1 - 0.66 / 1.18);
     const quads = [[0, 0, cx, cy], [cx, 0, w, cy], [cx, cy, w, h], [0, cy, cx, h]];
@@ -443,7 +446,7 @@ const DECOR = {
       }
       for (let i = 0; i < 5; i++) {
         const a = (i / 5) * PI * 2;
-        S.add(Sh.ellipsoid([sin(a) * 0.045, 0.98, cos(a) * 0.045], [0.04, 0.025, 0.04], [0, 0, 0]), { color: '#ff8fb1', k: 0.015 });
+        S.add(Sh.ellipsoid([sin(a) * 0.045, 0.98, cos(a) * 0.045], [0.04, 0.025, 0.04], [0, 0, 0]), { color: '#e2483d', k: 0.015 });
       }
       S.add(Sh.sphere([0, 0.99, 0], 0.025), { color: C.yellow, k: 0.01 });
     }, { cell: 0.01 }),
@@ -486,8 +489,8 @@ const DECOR = {
     }), (S) => {
       S.add(Sh.cone([0, 1.1, 0], [0, 1.42, 0], 0.27, 0.15), { color: '#ffe9b8', k: 0 });
       S.sub(Sh.cone([0, 1.06, 0], [0, 1.46, 0], 0.25, 0.13), { k: 0.005 });
-      S.paint(Sh.torus([0, 1.12, 0], 0.265, 0.016), { color: '#ff9fb8', soft: 0.004 });
-      S.paint(Sh.torus([0, 1.4, 0], 0.155, 0.014), { color: '#ff9fb8', soft: 0.004 });
+      S.paint(Sh.torus([0, 1.12, 0], 0.265, 0.016), { color: '#c65a37', soft: 0.004 });
+      S.paint(Sh.torus([0, 1.4, 0], 0.155, 0.014), { color: '#c65a37', soft: 0.004 });
     }, { cell: 0.009, ao: 0.4, ground: null });
     const bulb = new THREE.Mesh(BALL, new THREE.MeshBasicMaterial({ color: '#fff3d0' }));
     bulb.scale.set(0.07, 0.08, 0.07);
@@ -658,11 +661,12 @@ const WEAR = {
       for (const side of [-1, 1]) {
         S.add(Sh.ellipsoid([side * 0.12 * s, 0.09 * s, 0], [0.12 * s, 0.085 * s, 0.05 * s], [0, 0, side * 0.25]), { color: C.pink, k: 0 });
         S.sub(Sh.ellipsoid([side * 0.13 * s, 0.09 * s, 0.05 * s], [0.06 * s, 0.035 * s, 0.03 * s], [0, 0, side * 0.25]), { k: 0.02 });
-        S.add(Sh.cone([side * 0.02 * s, 0.07 * s, 0], [side * 0.09 * s, -0.04 * s, 0.01 * s], 0.035 * s, 0.03 * s), { color: '#ff7aa3', k: 0.02 });
+        S.add(Sh.cone([side * 0.02 * s, 0.07 * s, 0], [side * 0.09 * s, -0.04 * s, 0.01 * s], 0.035 * s, 0.03 * s), { color: '#b83a31', k: 0.02 });
       }
-      S.add(Sh.sphere([0, 0.09 * s, 0.01 * s], 0.055 * s), { color: '#ff6f9c', k: 0.02 });
+      S.add(Sh.sphere([0, 0.09 * s, 0.01 * s], 0.055 * s), { color: '#c4402f', k: 0.02 });
     }, { cell: 0.006 * s, ground: null, aoReach: 0.04 });
-    return { parent: 'head', object: onHead(a, 0.55, 1.0, group(bow)) };
+    // Delante y arriba, para que no lo tapen las orejas de gatos y perros.
+    return { parent: 'head', object: onHead(a, 0.3, 1.02, group(bow)) };
   },
   gorro: (a) => {
     const s = r2(a.hat.r / 0.5);
@@ -722,7 +726,8 @@ const WEAR = {
     return { parent: 'head', object: onHead(a, -0.6, 0.98, group(flower)) };
   },
   corona: (a) => {
-    const s = r2(a.hat.r / 0.5);
+    // Nunca diminuta: en las cabezas pequeñas (perros y gatos) asoma igual.
+    const s = r2(Math.max(a.hat.r / 0.5, 0.8));
     const crown = sculpted(`corona:${s}`, 'metal', (S) => {
       S.add(Sh.cylinder([0, 0.07 * s, 0], 0.24 * s, 0.07 * s, 0.02 * s), { color: '#f6c453', k: 0 });
       S.sub(Sh.cylinder([0, 0.1 * s, 0], 0.21 * s, 0.12 * s, 0.01 * s), { k: 0.01 });
@@ -781,15 +786,15 @@ const WEAR = {
     parent: 'body',
     object: sculpted(`bufanda:${anchorKey(a)}`, 'fabric', (S) => {
       const { y, rx, rz } = a.neck;
-      ellipseRing(S, 0, y, 0, rx, rz, 0.09, C.mint, 0.05);
-      ellipseRing(S, 0, y + 0.09, 0, rx * 0.94, rz * 0.94, 0.05, C.mint, 0.05);
+      ellipseRing(S, 0, y, 0, rx, rz, 0.09, C.red, 0.05);
+      ellipseRing(S, 0, y + 0.09, 0, rx * 0.94, rz * 0.94, 0.05, C.red, 0.05);
       const x = rx * 0.45;
-      S.add(Sh.box([x, y - 0.18, rz + 0.07], [0.075, 0.16, 0.025], 0.022, [0.1, 0, 0.12]), { color: C.mint, k: 0.05 });
+      S.add(Sh.box([x, y - 0.18, rz + 0.07], [0.075, 0.16, 0.025], 0.022, [0.1, 0, 0.12]), { color: C.red, k: 0.05 });
       for (const dy of [-0.12, -0.24]) S.paint(Sh.box([x, y + dy, rz + 0.07], [0.2, 0.025, 0.1], 0, [0, 0, 0.12]), { color: C.white, soft: 0.005 });
       for (let i = 0; i < 4; i++) S.add(Sh.capsule([x - 0.05 + i * 0.033 + 0.04, y - 0.33, rz + 0.07], [x - 0.05 + i * 0.033 + 0.045, y - 0.38, rz + 0.07], 0.01), { color: C.white, k: 0.01 });
       for (let i = 0; i < 16; i++) {
         const ang = (i / 16) * PI * 2;
-        S.paint(Sh.capsule([sin(ang) * rx * 1.15, y - 0.12, cos(ang) * rz * 1.15], [sin(ang) * rx * 1.15, y + 0.14, cos(ang) * rz * 1.15], 0.012), { color: '#6cc794', soft: 0.008 });
+        S.paint(Sh.capsule([sin(ang) * rx * 1.15, y - 0.12, cos(ang) * rz * 1.15], [sin(ang) * rx * 1.15, y + 0.14, cos(ang) * rz * 1.15], 0.012), { color: '#c23c33', soft: 0.008 });
       }
     }, { cell: 0.012, ground: null, aoReach: 0.06 }),
   }),
@@ -857,31 +862,72 @@ export function buildItem(itemId) {
 
 export const isWear = (itemId) => itemId in WEAR;
 
-// Huevo: color de su ADN y motas del color secundario, pintadas sobre la
-// cáscara. `userData.shellColor` es el color de los trozos al romperse.
+// Huevo: color de su ADN y un dibujo propio de su especie o familia,
+// pintado sobre la cáscara: llamas (pelusa), hojas (hoja), olas y burbujas
+// (gota), huellas (perro) o rayas (gato). Los de perro y gato llevan el
+// color de la capa que esconden. `userData.shellColor` es el color de los
+// trozos al romperse.
 export function buildEgg(egg) {
-  const shell = new THREE.Color().setHSL(egg.hue / 360, Math.min(0.9, (egg.sat + 2) / 100), Math.min(0.88, (egg.light + 6) / 100));
-  const spot = new THREE.Color().setHSL(egg.hue2 / 360, Math.min(0.9, (egg.sat + 8) / 100), (egg.light - 4) / 100);
-  const key = `egg:${egg.hue}:${egg.sat}:${egg.light}:${egg.hue2}`;
+  const family = egg.family ?? 'pelusa';
+  const pet = family === 'perro' || family === 'gato';
+  // Los de monstruo, con color vivo y el dibujo claro encima; los de
+  // mascota, del color de la capa y el dibujo en contraste.
+  const light = pet ? egg.light : egg.light - 24;
+  // El verde vivo enseguida parece plástico: el de hoja va más apagado.
+  const shell = new THREE.Color().setHSL(egg.hue / 360, Math.min(0.9, (egg.sat + (pet || family === 'hoja' ? 2 : 16)) / 100), Math.min(0.88, (light + 6) / 100));
+  const mark = pet
+    ? new THREE.Color().setHSL(egg.hue2 / 360, Math.min(0.9, egg.sat / 100), light > 50 ? (light - 40) / 100 : Math.min(0.92, (light + 50) / 100))
+    : new THREE.Color().setHSL(egg.hue2 / 360, 0.85, 0.8);
+  const key = `egg:${family}:${egg.hue}:${egg.sat}:${egg.light}:${egg.hue2}`;
   const mesh = sculpted(key, 'gloss', (S) => {
     S.add(Sh.ellipsoid([0, 0.5, 0], [0.34, 0.47, 0.34]), { color: shell, k: 0 });
     S.add(Sh.ellipsoid([0, 0.33, 0], [0.37, 0.32, 0.37]), { color: shell, k: 0.2 });
     const rng = createRng(egg.hue * 131 + egg.hue2);
-    for (let i = 0; i < 10; i++) {
-      const t = rng.range(0.55, 2.4);
-      const yaw = rng.range(0, PI * 2);
-      const y = 0.47 - cos(t) * 0.46;
-      const r = 0.36 * sin(t);
-      S.paint(Sh.sphere([sin(yaw) * r, y, cos(yaw) * r], rng.range(0.04, 0.075)), { color: spot, soft: 0.008 });
-    }
-    // Una banda en zigzag alrededor, pegada a la cáscara.
+    // Punto de la cáscara en un ángulo y una altura.
     const at = (ang, y) => S.project(V(sin(ang) * 0.45, y, cos(ang) * 0.45), 3).point.toArray();
-    for (let i = 0; i < 14; i++) {
-      const a0 = (i / 14) * PI * 2;
-      const a1 = ((i + 0.5) / 14) * PI * 2;
-      const a2 = ((i + 1) / 14) * PI * 2;
-      S.paint(Sh.capsule(at(a0, 0.6), at(a1, 0.53), 0.02), { color: '#ffffff', soft: 0.005, amount: 0.8 });
-      S.paint(Sh.capsule(at(a1, 0.53), at(a2, 0.6), 0.02), { color: '#ffffff', soft: 0.005, amount: 0.8 });
+    const ink = { color: mark, soft: 0.006 };
+    if (family === 'pelusa') {
+      for (let i = 0; i < 6; i++) {
+        const ang = (i / 6) * PI * 2 + 0.3;
+        const mid = at(ang + 0.1, 0.32);
+        S.paint(Sh.cone(at(ang, 0.12), mid, 0.1, 0.06), ink);
+        S.paint(Sh.cone(mid, at(ang - 0.04, 0.55 + rng.range(0, 0.1)), 0.06, 0.01), ink);
+      }
+    } else if (family === 'hoja') {
+      for (let i = 0; i < 7; i++) {
+        const ang = (i / 7) * PI * 2 + rng.range(-0.2, 0.2);
+        const y = rng.range(0.22, 0.66);
+        const mid = at(ang + 0.13, y + 0.09);
+        S.paint(Sh.cone(at(ang, y), mid, 0.014, 0.085), ink);
+        S.paint(Sh.cone(mid, at(ang + 0.3, y + 0.19), 0.085, 0.012), ink);
+      }
+    } else if (family === 'gota') {
+      for (let i = 0; i < 8; i++) {
+        const t = rng.range(0.7, 2.3);
+        const yaw = rng.range(0, PI * 2);
+        const p = at(yaw, 0.47 - cos(t) * 0.46);
+        const r = rng.range(0.035, 0.06);
+        S.paint(Sh.sphere(p, r), ink);
+        S.paint(Sh.sphere(p, r * 0.6), { color: shell, soft: 0.004 });
+      }
+      for (let i = 0; i < 28; i++) {
+        const a0 = (i / 28) * PI * 2;
+        const a1 = ((i + 1) / 28) * PI * 2;
+        S.paint(Sh.capsule(at(a0, 0.56 + sin(a0 * 4) * 0.035), at(a1, 0.56 + sin(a1 * 4) * 0.035), 0.022), { color: '#ffffff', soft: 0.005, amount: 0.85 });
+      }
+    } else if (family === 'perro') {
+      for (let i = 0; i < 5; i++) {
+        const ang = (i / 5) * PI * 2 + rng.range(-0.3, 0.3);
+        const y = rng.range(0.25, 0.68);
+        S.paint(Sh.sphere(at(ang, y), 0.066), ink);
+        for (const [da, dy] of [[-0.19, 0.085], [-0.065, 0.125], [0.065, 0.125], [0.19, 0.085]]) S.paint(Sh.sphere(at(ang + da, y + dy), 0.03), ink);
+      }
+    } else {
+      for (let i = 0; i < 8; i++) {
+        const ang = (i / 8) * PI * 2;
+        const pts = [at(ang, 0.16), at(ang + 0.12, 0.34), at(ang, 0.52), at(ang + 0.1, 0.7)];
+        for (let j = 0; j < pts.length - 1; j++) S.paint(Sh.capsule(pts[j], pts[j + 1], 0.034 - j * 0.006), ink);
+      }
     }
   }, { cell: 0.016, groundK: 0.03 });
   const g = group(mesh);

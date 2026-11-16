@@ -129,7 +129,8 @@ class SculptParityTest {
 
             for (egg in golden.getValue("eggs").jsonArray) {
                 val seed = egg.jsonObject.getValue("seed").jsonPrimitive.content.toLong()
-                compareJobs("huevo $seed", egg.jsonObject.getValue("jobs").jsonArray, jobsOf { buildEgg(createGenes(seed).eggLook()) }.second)
+                val family = egg.jsonObject["family"]?.let { if (it is JsonNull) null else it.jsonPrimitive.content }
+                compareJobs("huevo $seed ${family ?: ""}", egg.jsonObject.getValue("jobs").jsonArray, jobsOf { buildEgg(createGenes(seed, family).eggLook()) }.second)
             }
 
             compareJobs("casa", golden.getValue("house").jsonArray, jobsOf { buildHouse(null) }.second)

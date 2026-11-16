@@ -89,12 +89,12 @@ const WALLPAPERS = {
     grain(ctx, w, h, 11);
   },
   'papel-rayas': (ctx, w, h) => {
-    ctx.fillStyle = '#e6f7ec';
+    ctx.fillStyle = '#e9e3d5';
     ctx.fillRect(0, 0, w, h);
-    ctx.fillStyle = '#c8ecd6';
+    ctx.fillStyle = '#4f7a5c';
     rect(ctx, 0, 0, 24, 96);
     rect(ctx, 48, 0, 24, 96);
-    ctx.fillStyle = '#fffdf8';
+    ctx.fillStyle = '#f6f1e6';
     rect(ctx, 34, 0, 4, 96);
     rect(ctx, 82, 0, 4, 96);
     grain(ctx, w, h, 12);
@@ -110,16 +110,16 @@ const WALLPAPERS = {
     grain(ctx, w, h, 13);
   },
   'papel-flores': (ctx, w, h) => {
-    ctx.fillStyle = '#fff6e6';
+    ctx.fillStyle = '#2f5d5a';
     ctx.fillRect(0, 0, w, h);
-    daisy(ctx, 24, 24, '#ffffff', '#ffd166');
-    daisy(ctx, 72, 72, '#ffc7d8', '#ffd166');
-    ctx.fillStyle = '#b8e6c8';
+    daisy(ctx, 24, 24, '#f6f1e6', '#f2b632');
+    daisy(ctx, 72, 72, '#e9d9b8', '#e0782f');
+    ctx.fillStyle = '#5f8f7a';
     dots(ctx, [[72, 22], [24, 70]], 3);
     grain(ctx, w, h, 14);
   },
   'papel-olas': (ctx, w, h) => {
-    ctx.fillStyle = '#e1f1ff';
+    ctx.fillStyle = '#24406a';
     ctx.fillRect(0, 0, w, h);
     // Escamas de olas: cada fila tapa la parte baja de la de arriba, así
     // que solo asoman los arcos. Cuatro filas por baldosa.
@@ -127,7 +127,7 @@ const WALLPAPERS = {
       const y = row * 24;
       const shift = (((row % 2) + 2) % 2) * 48;
       for (let k = -1; k <= 1; k++) {
-        for (const [r, color] of [[48, '#b7dcfa'], [40, '#e1f1ff'], [30, '#cbe6fc'], [22, '#e1f1ff']]) {
+        for (const [r, color] of [[48, '#3a6aa0'], [40, '#24406a'], [30, '#2f5b8f'], [22, '#24406a']]) {
           ctx.fillStyle = color;
           dots(ctx, [[shift + k * 96, y]], r);
         }
@@ -136,12 +136,12 @@ const WALLPAPERS = {
     grain(ctx, w, h, 15);
   },
   'papel-estrellas': (ctx, w, h) => {
-    ctx.fillStyle = '#ddd3f6';
+    ctx.fillStyle = '#1f2a4a';
     ctx.fillRect(0, 0, w, h);
-    ctx.fillStyle = '#ffd166';
+    ctx.fillStyle = '#f2c14e';
     star(ctx, 24, 28, 9, 4);
     star(ctx, 72, 76, 9, 4);
-    ctx.fillStyle = '#f3efff';
+    ctx.fillStyle = '#c9d3ee';
     dots(ctx, [[70, 24], [22, 72], [48, 50]], 2.6);
     grain(ctx, w, h, 16);
   },
@@ -184,13 +184,13 @@ const EDGES = {
 const RUGS = {
   'alfombra-marina': { edge: 'disc', layers: [[1, '#2f4b72'], [0.9, '#c65a37'], [0.84, '#2f4b72'], [0.62, '#3b5c86']] },
   'alfombra-rosa': { edge: 'disc', layers: [[1, '#ff8fb1'], [0.88, '#ffb3c9'], [0.78, '#ff94b5']] },
-  'alfombra-menta': { edge: 'disc', layers: [[1, '#7ed6a5'], [0.88, '#aee8c5'], [0.78, '#84d9aa']] },
-  'alfombra-flor': { edge: 'flor', layers: [[1, '#ffd56b'], [0.82, '#fff1c4'], [0.66, '#ffc44d']] },
+  'alfombra-menta': { edge: 'disc', layers: [[1, '#3f7a5c'], [0.88, '#e8dcc2'], [0.8, '#3f7a5c']] },
+  'alfombra-flor': { edge: 'flor', layers: [[1, '#e0a32e'], [0.82, '#f6e2b0'], [0.66, '#d18f1f']] },
   'alfombra-arcoiris': {
     edge: 'disc',
-    layers: [[1, '#ff9aa8'], [0.86, '#ffc78f'], [0.72, '#fff0a3'], [0.58, '#a8e6b8'], [0.44, '#a9cdf5']],
+    layers: [[1, '#c65a37'], [0.86, '#e0a32e'], [0.72, '#f0d9a8'], [0.58, '#3f9a74'], [0.44, '#2f4b80']],
   },
-  'alfombra-nube': { edge: 'nube', layers: [[1, '#b5d8fb'], [0.84, '#eef7ff'], [0.7, '#c9e4fd']] },
+  'alfombra-nube': { edge: 'nube', layers: [[1, '#c9ced6'], [0.84, '#f1f1ef'], [0.7, '#dde1e6']] },
 };
 
 export const isRug = (id) => id in RUGS;
