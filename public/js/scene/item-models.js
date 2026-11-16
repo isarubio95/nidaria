@@ -11,7 +11,7 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
 // Súbelo al cambiar los .glb: forma parte de la huella de las miniaturas.
-export const ITEM_MODELS_VERSION = 1;
+export const ITEM_MODELS_VERSION = 3;
 const ITEMS = new Set(['planta', 'cactus', 'girasol', 'lampara', 'pecera', 'cojin', 'mesita', 'baul', 'camita']);
 
 const loader = new GLTFLoader();
@@ -22,10 +22,12 @@ function source(id) {
     sources.set(id, loader.loadAsync(`/models/items/${id}.glb?v=${ITEM_MODELS_VERSION}`).then((gltf) => {
       gltf.scene.traverse((node) => {
         if (!node.isMesh) return;
-        // Mismo acabado mate que el resto de la habitación.
+        // Mismo acabado mate que el resto de la habitación. Por las dos
+        // caras: las mallas de TRELLIS tienen zonas giradas o abiertas que,
+        // por una sola cara, se verían como agujeros.
         const map = node.material.map;
         if (map) map.anisotropy = 4;
-        node.material = new THREE.MeshStandardMaterial({ map, roughness: 0.78, metalness: 0 });
+        node.material = new THREE.MeshStandardMaterial({ map, roughness: 0.78, metalness: 0, side: THREE.DoubleSide });
         node.material.userData.shared = true;
         node.geometry.userData.shared = true;
       });

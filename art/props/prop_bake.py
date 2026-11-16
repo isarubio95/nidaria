@@ -25,6 +25,9 @@ def opt(name, default=None, cast=float):
 HEIGHT = opt('--height')
 WIDTH = opt('--width')
 TRIS = opt('--tris', 14000, int)
+# Hasta dónde busca el horneado la malla fina (en fracción del tamaño): más
+# corto evita coger el color de lo que hay detrás (pétalos, hojas).
+REACH = opt('--reach', 0.012)
 TEX = opt('--tex', 1024, int)
 YAW = opt('--yaw', 0.0)
 PREVIEW = opt('--preview', None, str)
@@ -76,6 +79,12 @@ bpy.ops.object.select_all(action='DESELECT')
 low.select_set(True)
 bpy.context.view_layer.objects.active = low
 bpy.ops.object.modifier_apply(modifier=mod.name)
+# Normales hacia fuera: TRELLIS y la reducción dejan zonas giradas, que se
+# verían huecas (sin dibujar) y harían que el horneado mire hacia dentro.
+bpy.ops.object.mode_set(mode='EDIT')
+bpy.ops.mesh.select_all(action='SELECT')
+bpy.ops.mesh.normals_make_consistent(inside=False)
+bpy.ops.object.mode_set(mode='OBJECT')
 for attr in list(low.data.color_attributes):
     low.data.color_attributes.remove(attr)
 for p in low.data.polygons:
@@ -115,15 +124,15 @@ low.data.materials.append(mat)
 
 scene.cycles.samples = 16
 scene.render.bake.use_selected_to_active = True
-scene.render.bake.cage_extrusion = extent * 0.012
-scene.render.bake.max_ray_distance = extent * 0.04
+scene.render.bake.cage_extrusion = extent * REACH
+scene.render.bake.max_ray_distance = extent * REACH * 3
 scene.render.bake.margin = 8
 bpy.ops.object.select_all(action='DESELECT')
 high.select_set(True)
 low.select_set(True)
 bpy.context.view_layer.objects.active = low
-bpy.ops.object.bake(type='EMIT', use_selected_to_active=True, cage_extrusion=extent * 0.012,
-                    max_ray_distance=extent * 0.04, margin=8)
+bpy.ops.object.bake(type='EMIT', use_selected_to_active=True, cage_extrusion=extent * REACH,
+                    max_ray_distance=extent * REACH * 3, margin=8)
 image.pack()
 
 bpy.data.objects.remove(high)

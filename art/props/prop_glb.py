@@ -45,7 +45,31 @@ def clean(vertices, faces):
     return mesh.read()
 
 
-def vertex_colors(mesh, positions):
+def fill_weak(color, weak, faces, rounds=64):
+    """Los vértices dudosos toman la media de sus vecinos buenos, de fuera
+    adentro, siguiendo las aristas de la malla."""
+    color = color.clone()
+    known = ~weak
+    edges = torch.cat([faces[:, [0, 1]], faces[:, [1, 2]], faces[:, [2, 0]]]).long()
+    edges = torch.cat([edges, edges.flip(1)])
+    for _ in range(rounds):
+        if known.all():
+            break
+        src, dst = edges[:, 0], edges[:, 1]
+        use = known[src] & ~known[dst]
+        if not use.any():
+            break
+        sums = torch.zeros_like(color).index_add_(0, dst[use], color[src[use]])
+        count = torch.zeros(len(color), device=color.device).index_add_(0, dst[use], torch.ones(int(use.sum()), device=color.device))
+        fresh = count > 0
+        color[fresh] = sums[fresh] / count[fresh, None]
+        known = known | fresh
+    if not known.all():
+        color[~known] = color[known].mean(0)
+    return color
+
+
+def vertex_colors(mesh, positions, faces=None):
     attrs = mesh.attrs.float().cuda()
     coords = mesh.coords.cuda()
     aabb = torch.tensor([[-0.5, -0.5, -0.5], [0.5, 0.5, 0.5]], device='cuda')
@@ -60,16 +84,46 @@ def vertex_colors(mesh, positions):
         mode='trilinear',
     ).reshape(-1, feats.shape[1])
     cover = out[:, -1:].clamp(min=1e-4)
-    color = (out[:, mesh.layout['base_color']] / cover).clamp(0, 1)
-    # Donde casi no hay cobertura, el color de la media (no negro).
-    weak = cover[:, 0] < 0.35
-    if weak.any():
-        color[weak] = color[~weak].mean(0)
+    color = out[:, mesh.layout['base_color']] / cover
+    # Con poca cobertura, dividir dispara el color (manchas blancas): esos
+    # vértices toman el color de sus vecinos buenos.
+    weak = (cover[:, 0] < 0.6) | (color.max(1).values > 1.02)
+    color = color.clamp(0, 1)
+    if weak.any() and faces is not None:
+        color = fill_weak(color, weak, faces.cuda())
     return color
+
+
+class Saved:
+    """Lo que guarda torch.save de una salida de TRELLIS, con la misma forma."""
+
+    def __init__(self, data):
+        self.vertices = data['vertices'].cuda()
+        self.faces = data['faces'].cuda()
+        self.attrs = data['attrs']
+        self.coords = data['coords']
+        self.layout = data['layout']
+        self.voxel_size = data['voxel_size']
+
+
+def recolor(jobs):
+    """Rehace la malla fina y su color desde el .pt, sin volver a generar."""
+    for _src, base in jobs:
+        t0 = time.time()
+        mesh = Saved(torch.load(base + '.pt', weights_only=False))
+        vertices, faces = clean(mesh.vertices, mesh.faces)
+        color = vertex_colors(mesh, vertices.float(), faces)
+        rgba = np.concatenate([(color.cpu().numpy() * 255 + 0.5).astype(np.uint8),
+                               np.full((len(vertices), 1), 255, np.uint8)], 1)
+        trimesh.Trimesh(vertices.cpu().numpy(), faces.cpu().numpy(), vertex_colors=rgba, process=False).export(base + '-high.ply')
+        print(f'{base}: recoloreado en {time.time() - t0:.0f} s', flush=True)
 
 
 def main():
     jobs = json.loads(open(sys.argv[1]).read())
+    if len(sys.argv) > 2 and sys.argv[2] == 'recolor':
+        recolor(jobs)
+        return
     kind = sys.argv[2] if len(sys.argv) > 2 else '1024_cascade'
     seed = int(sys.argv[3]) if len(sys.argv) > 3 else 42
     common = ['sparse_structure_decoder', 'sparse_structure_flow_model', 'shape_slat_decoder', 'tex_slat_decoder']
@@ -91,7 +145,7 @@ def main():
             'coords': mesh.coords.cpu(), 'layout': mesh.layout, 'voxel_size': mesh.voxel_size,
         }, base + '.pt')
         vertices, faces = clean(mesh.vertices, mesh.faces)
-        color = vertex_colors(mesh, vertices.float())
+        color = vertex_colors(mesh, vertices.float(), faces)
         rgba = np.concatenate([(color.cpu().numpy() * 255 + 0.5).astype(np.uint8),
                                np.full((len(vertices), 1), 255, np.uint8)], 1)
         trimesh.Trimesh(vertices.cpu().numpy(), faces.cpu().numpy(), vertex_colors=rgba, process=False).export(base + '-high.ply')

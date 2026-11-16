@@ -19,8 +19,11 @@ private fun partsOf(id: String): List<Pair<Geometry, Material>> = synchronized(p
     parts.getOrPut(id) {
         Glb.parseStatic(Glb.open("items/$id.glb")).map { part ->
             val geometry = Geometry(part.positions, part.normals, part.uvs, part.indices).also { it.shared = true }
+            // Por las dos caras: las mallas de TRELLIS tienen zonas giradas o
+            // abiertas que, por una sola cara, se verían como agujeros.
             val material = Material.standard(Color(1f, 1f, 1f), 0.78f) {
                 map = part.colorImage?.let { colorTexture(it) }
+                doubleSide = true
                 shared = true
             }
             geometry to material

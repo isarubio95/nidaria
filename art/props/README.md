@@ -9,6 +9,9 @@ misma cadena que las criaturas, todo con licencias que permiten uso comercial:
    (unas 300 000 caras) con el color en los vértices. No usa nvdiffrast, que
    solo admite uso de investigación: el color se toma del volumen de
    TRELLIS con `grid_sample_3d` en los vértices.
+   Donde el volumen casi no tiene vóxeles, el color se toma de los vecinos
+   buenos (si no, salen manchas). `prop_glb.py jobs.json recolor` lo rehace
+   desde el `.pt` guardado, sin volver a generar.
 3. **Listo para el juego** con Blender: `prop_bake.py` la reduce a ~10 000
    caras, la despliega, hornea la textura (512 px) desde la malla fina y la
    deja de pie, centrada, de frente y con su tamaño en metros.
@@ -33,6 +36,9 @@ Bocetos elegidos (semilla): planta 1, cactus 2, girasol 1, lámpara 1, pecera 1,
 cojín 1, mesita 2, baúl 2 (TRELLIS a 512: a 1024 no cabía en la tarjeta),
 camita 1. Medidas: planta 0,75 m de alto, cactus 1,0, girasol 1,35, lámpara
 1,5, pecera 1,05, mesita 1,0, baúl 0,78; cojín 0,84 m y camita 0,9 m de ancho.
+
+Las mallas de TRELLIS tienen zonas abiertas o giradas: el juego dibuja los
+muebles por las dos caras.
 
 Para añadir uno: su `.glb` en `public/models/items/`, su id en
 `public/js/scene/item-models.js` y en `android/.../scene/ItemModels.kt`, y
