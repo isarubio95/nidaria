@@ -1,6 +1,6 @@
 // Criaturas de modelo (.glb hecho fuera, con su esqueleto) en vez de
-// esculpidas. De momento es una prueba detrás de un interruptor de
-// desarrollo: con él apagado, todo sigue esculpido como siempre.
+// esculpidas. Salen por defecto; el interruptor de desarrollo las apaga
+// para comparar con las esculpidas.
 //
 // La línea de prueba es la de las pelusas ("zorros de pelo encendido"):
 // la cría y la joven son `mascota` y las adultas, `brasa`. El resto de
@@ -12,21 +12,22 @@ import { MODEL_DATA } from './model-data.js';
 
 const SWITCH = 'nidaria.modelos';
 
-// Lo guarda cada navegador (Perfil > Pruebas, con DEV_TOOLS=1).
-// Fuera del navegador (pruebas y herramientas en Node) nunca hay modelos.
+// Lo guarda cada navegador (Perfil > Pruebas, con DEV_TOOLS=1): solo se
+// apunta el apagado. Fuera del navegador (pruebas y herramientas en Node)
+// nunca hay modelos.
 export function modelsEnabled() {
   if (typeof window === 'undefined') return false;
   try {
-    return window.localStorage.getItem(SWITCH) === '1';
+    return window.localStorage.getItem(SWITCH) !== '0';
   } catch {
-    return false;
+    return true;
   }
 }
 
 export function setModelsEnabled(on) {
   try {
-    if (on) window.localStorage.setItem(SWITCH, '1');
-    else window.localStorage.removeItem(SWITCH);
+    if (on) window.localStorage.removeItem(SWITCH);
+    else window.localStorage.setItem(SWITCH, '0');
   } catch {
     // Sin almacenamiento (modo privado): el interruptor no se queda puesto.
   }

@@ -172,7 +172,7 @@ class Game(context: Context, val room: RoomView, private val scope: CoroutineSco
 
     init {
         Sfx.init(app)
-        Models.enabled = app.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getBoolean(MODELS_KEY, false)
+        Models.enabled = app.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getBoolean(MODELS_KEY, true)
     }
 
     // Efectos de sonido en este teléfono.

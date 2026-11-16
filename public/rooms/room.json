@@ -1,0 +1,66 @@
+{
+ "version": 1,
+ "gamma": 2.2,
+ "maps": {
+  "floor": {
+   "file": "light-floor.webp",
+   "max": [
+    1.11122,
+    12.81546,
+    2.13844
+   ]
+  },
+  "wall": {
+   "file": "light-wall.webp",
+   "max": [
+    0.25261,
+    4.86684,
+    1.50897
+   ]
+  },
+  "atlas": {
+   "file": "light-atlas.webp",
+   "max": [
+    1.55603,
+    5.11432,
+    1.68029
+   ]
+  },
+  "trims": {
+   "file": "light-trims.webp",
+   "max": [
+    0.88066,
+    4.74509,
+    1.27484
+   ]
+  },
+  "shell": {
+   "file": "light-shell.webp",
+   "max": [
+    0.13951,
+    10.5361,
+    8.36289
+   ]
+  }
+ },
+ "floor": {
+  "x0": -5.0,
+  "x1": 5.0,
+  "z0": -2.4,
+  "z1": 7.0
+ },
+ "wall": {
+  "x0": -5.0,
+  "x1": 5.0,
+  "y0": 0,
+  "y1": 3.2
+ },
+ "skyAtCreature": 2.54244,
+ "lampAtCreature": 1.37907,
+ "skyOnWall": 1.50372,
+ "sunPeak": 0.92645,
+ "floorTexture": {
+  "file": "floor-wood.webp",
+  "meters": 1.7
+ }
+}

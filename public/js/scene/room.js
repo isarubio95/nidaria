@@ -12,7 +12,8 @@ import { clamp } from '/shared/rng.js';
 import { buildCreature, Actor } from './creature.js';
 import { buildEgg, buildItem, buildWear } from './props.js';
 import { wallpaperTexture, buildRug, BASE_DECOR, TILE_METERS } from './decor.js';
-import { buildHouse, WINDOW, WALL_Z } from './house.js';
+import { WINDOW, WALL_Z } from './house.js';
+import { createHouse } from './baked-house.js';
 import { contactShadow, LOCAL } from './materials.js';
 import { whenSculpted } from './sculpt-pool.js';
 import { sfx } from '../audio/sfx.js';
@@ -24,12 +25,10 @@ const EGG_SCALE = 1.08;
 // De día manda el sol que entra por la ventana; de noche, la luna fría
 // por la ventana y una lámpara cálida dentro.
 const DAY = {
-  wall: new THREE.Color('#ffffff'), floor: new THREE.Color('#ffffff'), trim: new THREE.Color('#ffffff'),
   key: new THREE.Color('#fff0dc'), sky: new THREE.Color('#e8f3ff'), ground: new THREE.Color('#f2d7b8'),
   back: new THREE.Color('#a9c4d6'),
 };
 const NIGHT = {
-  wall: new THREE.Color('#c6cdf0'), floor: new THREE.Color('#d2c8e2'), trim: new THREE.Color('#d8d8f0'),
   key: new THREE.Color('#a9bcff'), sky: new THREE.Color('#8090d0'), ground: new THREE.Color('#7a6a8c'),
   back: new THREE.Color('#47619f'),
 };
@@ -256,8 +255,8 @@ export function createRoom(canvas) {
   skyCanvas.height = 320;
   const skyMap = new THREE.CanvasTexture(skyCanvas);
   skyMap.colorSpace = THREE.SRGBColorSpace;
-  const house = buildHouse({ anisotropy, sky: skyMap });
-  const { wallMat, floorMat, trimMat, patchMat, beamMat } = house;
+  // La habitación horneada en Blender (ver baked-house.js); llega al cargar.
+  const house = createHouse({ anisotropy, sky: skyMap });
 
   // El papel pintado cambia con la decoración (ver setDecor). La pared usa
   // metros como coordenadas de textura.
@@ -270,7 +269,7 @@ export function createRoom(canvas) {
     }
     return wallMaps.get(id);
   }
-  wallMat.map = wallMap(BASE_DECOR.pared);
+  house.setWallpaper(wallMap(BASE_DECOR.pared));
 
   // La alfombra va dentro de `rug`, que el encuadre escala.
   const rug = new THREE.Group();
@@ -300,7 +299,7 @@ export function createRoom(canvas) {
     const want = (spot) => decor?.[spot] ?? BASE_DECOR[spot];
     if (placed.pared !== want('pared')) {
       placed.pared = want('pared');
-      wallMat.map = wallMap(placed.pared);
+      house.setWallpaper(wallMap(placed.pared));
     }
     if (placed.alfombra !== want('alfombra')) {
       placed.alfombra = want('alfombra');
@@ -906,24 +905,19 @@ export function createRoom(canvas) {
   let skyPhase = 'day';
   function applyDim() {
     const k = dim.k;
-    wallMat.color.lerpColors(DAY.wall, NIGHT.wall, k);
-    floorMat.color.lerpColors(DAY.floor, NIGHT.floor, k);
-    trimMat.color.lerpColors(DAY.trim, NIGHT.trim, k);
     scene.background.lerpColors(DAY.back, NIGHT.back, k);
     key.color.lerpColors(DAY.key, NIGHT.key, k);
     hemi.color.lerpColors(DAY.sky, NIGHT.sky, k);
     hemi.groundColor.lerpColors(DAY.ground, NIGHT.ground, k);
     // Con el cielo tapado entra menos sol por la ventana.
     const cover = GREY_SKIES.has(weather) ? 0.55 : 1;
-    const sun = skyPhase === 'day' ? 1 : skyPhase === 'night' ? 0.3 : 0.7;
     key.intensity = (3.0 * (0.55 + 0.45 * cover)) * (1 - k) + 0.75 * k;
     hemi.intensity = 0.5 - 0.16 * k;
     rim.intensity = 0.85 + 0.25 * k;
     lamp.intensity = 6.5 * k;
     scene.environmentIntensity = 0.36 - 0.24 * k;
     key.shadow.intensity = 1 - 0.35 * k;
-    patchMat.opacity = 0.22 * sun * cover * (1 - k * 0.6);
-    beamMat.opacity = 0.12 * sun * cover * (1 - k * 0.7);
+    house.setLighting({ night: k, phase: skyPhase, cover });
   }
 
   function setNight(on) {
@@ -945,8 +939,6 @@ export function createRoom(canvas) {
 
   function refreshSky() {
     drawWindow();
-    patchMat.color.set(skyPhase === 'night' ? '#b9c8ff' : skyPhase === 'day' ? '#fff2d2' : '#ffd9b0');
-    beamMat.color.copy(patchMat.color);
     applyDim();
   }
 
@@ -1152,12 +1144,14 @@ export function createRoom(canvas) {
   }
 
   // ── Bucle ──
-  // Al abrir, la habitación entera se compila en paralelo; mientras, solo
-  // se pinta el fondo.
+  // Al abrir, se espera a que llegue la habitación y se compila entera en
+  // paralelo; mientras, solo se pinta el fondo.
   const backdrop = new THREE.Scene();
   backdrop.background = scene.background;
-  let warming = parallel;
-  if (parallel) renderer.compileAsync(scene, camera).catch(() => {}).then(() => { warming = false; });
+  let warming = true;
+  house.ready
+    .then(() => (parallel ? renderer.compileAsync(scene, camera).catch(() => {}) : null))
+    .then(() => { warming = false; });
 
   let last = 0;
   let snoreAt = 0;
@@ -1228,7 +1222,7 @@ export function createRoom(canvas) {
       frame();
     },
     // Promesa de que todo lo que hay en la habitación está esculpido.
-    ready: () => Promise.all([...reveals]).then(() => whenSculpted(scene)),
+    ready: () => Promise.all([house.ready, ...reveals]).then(() => whenSculpted(scene)),
     snapshot,
     destroy() {
       clearInterval(skyTimer);

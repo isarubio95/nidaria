@@ -17,7 +17,7 @@ export const WINDOW = { x: -0.68, y: 0.98, width: 0.86, straight: 0.62, depth: 0
 const W = 60;
 const H = 24;
 
-function archShape(width, straight, cx = 0, cy = 0) {
+export function archShape(width, straight, cx = 0, cy = 0) {
   const r = width / 2;
   const s = new THREE.Shape();
   s.moveTo(cx - r, cy);
@@ -109,7 +109,7 @@ function woodFloor(anisotropy) {
   return texture;
 }
 
-function beadboard(anisotropy) {
+export function beadboard(anisotropy) {
   const texture = canvasTexture(128, 256, (ctx, w, h) => {
     ctx.fillStyle = '#fbf2e4';
     ctx.fillRect(0, 0, w, h);
@@ -158,7 +158,7 @@ function sunPatchTexture() {
 }
 
 // Haz de luz: más denso arriba, en la ventana, y se apaga hacia el suelo.
-function beamTexture() {
+export function beamTexture() {
   return canvasTexture(64, 256, (ctx, w, h) => {
     const g = ctx.createLinearGradient(0, 0, 0, h);
     g.addColorStop(0, 'rgba(255,255,255,0.9)');
@@ -176,7 +176,7 @@ function beamTexture() {
   });
 }
 
-function glassGlint() {
+export function glassGlint() {
   return canvasTexture(128, 160, (ctx, w, h) => {
     ctx.filter = 'blur(3px)';
     ctx.fillStyle = 'rgba(255,255,255,0.9)';
@@ -235,7 +235,7 @@ function curtainTexture() {
   return texture;
 }
 
-function paintingTexture() {
+export function paintingTexture() {
   return canvasTexture(256, 200, (ctx, w, h) => {
     const sky = ctx.createLinearGradient(0, 0, 0, h);
     sky.addColorStop(0, '#bfe3ff');
