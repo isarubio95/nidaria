@@ -75,9 +75,13 @@ function tintFor(model, genes, family) {
   if (home && typeof genes?.hue === 'number') {
     const middle = (home[0] + home[1]) / 2;
     // Dentro de su banda, poco; fuera, hasta el tono del ADN desde el del modelo.
+    // `hueScale` lo frena en modelos con dos colores (en las hoja el pelo
+    // castaño se volvería rosa al seguir a las hojas; en las gota, las
+    // branquias coral, amarillas).
     shift = genes.hue >= home[0] && genes.hue <= home[1]
       ? (genes.hue - middle) * 0.6
       : ((genes.hue - model.hue + 540) % 360) - 180;
+    shift *= model.hueScale ?? 1;
   }
   let sat = typeof genes?.sat === 'number' ? 0.82 + ((genes.sat - 52) / 22) * 0.33 : 1;
   let light = typeof genes?.light === 'number' ? 0.95 + ((genes.light - 62) / 12) * 0.1 : 1;

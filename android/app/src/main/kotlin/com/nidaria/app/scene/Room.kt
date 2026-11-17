@@ -567,7 +567,7 @@ class Room(private val painter: Painter, private val reduce: Boolean) {
 
     fun feed(itemId: String, reaction: String?, done: () -> Unit) {
         val a = actor ?: return done()
-        val item = buildItem(itemId)
+        val item = buildItemModel(itemId) ?: buildItem(itemId)
         val react = {
             if (reaction == "favorita") Sfx.play("encanta")
             else if (reaction == "asco") Sfx.play("puaj")
@@ -624,7 +624,7 @@ class Room(private val painter: Painter, private val reduce: Boolean) {
 
     fun playToy(itemId: String, done: () -> Unit) {
         val a = actor
-        val item = buildItem(itemId)
+        val item = buildItemModel(itemId) ?: buildItem(itemId)
         if (a != null) Sfx.play("juguete")
         if (a == null || item == null || reduce) return done()
         whenReady(item) { throwToy(item, done) }

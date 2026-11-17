@@ -17,8 +17,8 @@ class FamilyInfo(val name: String, val blurb: String, val hues: List<IntArray>, 
 
 val FAMILY_INFO = mapOf(
     "pelusa" to FamilyInfo("Pelusa", "Zorros de pelo encendido y mucho genio.", listOf(intArrayOf(4, 40), intArrayOf(196, 212)), "monstruo"),
-    "hoja" to FamilyInfo("Hoja", "Pequeños dinosaurios con hojas por cresta.", listOf(intArrayOf(78, 160)), "monstruo"),
-    "gota" to FamilyInfo("Gota", "Anfibios lisos, con aletas, de agua.", listOf(intArrayOf(186, 228), intArrayOf(232, 248)), "monstruo"),
+    "hoja" to FamilyInfo("Hoja", "Cervatillos del bosque con hojas por orejas.", listOf(intArrayOf(78, 160)), "monstruo"),
+    "gota" to FamilyInfo("Gota", "Tritones de agua con branquias de coral.", listOf(intArrayOf(186, 228), intArrayOf(232, 248)), "monstruo"),
     "perro" to FamilyInfo("Perro", "Leal y con ganas de jugar.", emptyList(), "perro"),
     "gato" to FamilyInfo("Gato", "Curioso y muy suyo.", emptyList(), "gato"),
 )

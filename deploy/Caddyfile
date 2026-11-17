@@ -2,6 +2,20 @@
 # Caddy pide y renueva el certificado solo. Para usar un dominio propio,
 # apúntalo a la IP del servidor y cambia la primera línea por ese dominio.
 62-83-125-115.sslip.io {
-	encode zstd gzip
+	# Se comprime lo que sirve el juego de la lista por defecto de Caddy y,
+	# además, los modelos .glb (model/gltf-binary no está en esa lista).
+	# Las imágenes y las fuentes ya van comprimidas.
+	encode zstd gzip {
+		match {
+			header Content-Type text/*
+			header Content-Type application/javascript*
+			header Content-Type application/json*
+			header Content-Type application/manifest+json*
+			header Content-Type application/xml*
+			header Content-Type image/svg+xml*
+			header Content-Type application/wasm*
+			header Content-Type model/gltf-binary*
+		}
+	}
 	reverse_proxy 127.0.0.1:3000
 }

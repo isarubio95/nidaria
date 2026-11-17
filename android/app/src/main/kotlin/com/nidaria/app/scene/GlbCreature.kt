@@ -97,6 +97,7 @@ private fun tintFor(spec: ModelSpec, genes: Genes, family: String): Tint {
         val middle = (home[0] + home[1]) / 2.0
         shift = if (genes.hue >= home[0] && genes.hue <= home[1]) (genes.hue - middle) * 0.6
         else ((genes.hue - spec.hue + 540) % 360) - 180
+        shift *= spec.hueScale
     }
     var sat = 0.82 + ((genes.sat - 52) / 22.0) * 0.33
     val light = 0.95 + ((genes.light - 62) / 12.0) * 0.1

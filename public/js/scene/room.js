@@ -671,7 +671,7 @@ export function createRoom(canvas) {
   function feed(itemId, reaction) {
     return new Promise((resolve) => {
       if (!actor) return resolve();
-      const item = buildItem(itemId);
+      const item = buildItemModel(itemId) ?? buildItem(itemId);
       const react = () => {
         if (reaction === 'favorita') sfx('encanta');
         else if (reaction === 'asco') sfx('puaj');
@@ -724,7 +724,7 @@ export function createRoom(canvas) {
 
   function playToy(itemId) {
     return new Promise((resolve) => {
-      const item = buildItem(itemId);
+      const item = buildItemModel(itemId) ?? buildItem(itemId);
       if (actor) sfx('juguete');
       if (!actor || !item || reduce) return resolve();
       const start = () => {

@@ -13,8 +13,8 @@ export const FAMILIES = [...MONSTER_FAMILIES, ...PET_FAMILIES];
 
 export const FAMILY_INFO = {
   pelusa: { name: 'Pelusa', blurb: 'Zorros de pelo encendido y mucho genio.', hues: [[4, 40], [196, 212]], species: 'monstruo' },
-  hoja: { name: 'Hoja', blurb: 'Pequeños dinosaurios con hojas por cresta.', hues: [[78, 160]], species: 'monstruo' },
-  gota: { name: 'Gota', blurb: 'Anfibios lisos, con aletas, de agua.', hues: [[186, 228], [232, 248]], species: 'monstruo' },
+  hoja: { name: 'Hoja', blurb: 'Cervatillos del bosque con hojas por orejas.', hues: [[78, 160]], species: 'monstruo' },
+  gota: { name: 'Gota', blurb: 'Tritones de agua con branquias de coral.', hues: [[186, 228], [232, 248]], species: 'monstruo' },
   perro: { name: 'Perro', blurb: 'Leal y con ganas de jugar.', hues: [], species: 'perro' },
   gato: { name: 'Gato', blurb: 'Curioso y muy suyo.', hues: [], species: 'gato' },
 };

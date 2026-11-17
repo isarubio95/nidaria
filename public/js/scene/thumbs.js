@@ -127,11 +127,19 @@ async function produce(key, make) {
 }
 
 // Espera a que el objeto esté esculpido y, donde se puede, a que sus
-// programas de la tarjeta gráfica se compilen sin bloquear.
+// programas de la tarjeta gráfica se compilen sin bloquear. Las texturas
+// se suben antes de dibujar: la de un .glb que se cargó antes de crear el
+// renderizador no sale en el primer dibujo, y la miniatura quedaba vacía
+// (y guardada así).
 async function drawable(object) {
   await whenSculpted(object);
   const { renderer, camera, scene, parallel } = setup();
   if (parallel) await renderer.compileAsync(object, camera, scene).catch(() => {});
+  object.traverse((node) => {
+    for (const material of [node.material ?? []].flat()) {
+      for (const value of Object.values(material)) if (value?.isTexture) renderer.initTexture(value);
+    }
+  });
 }
 
 // Construye el modelo sin prisa, espera a que se pueda dibujar y lo dibuja.

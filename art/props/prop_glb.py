@@ -139,7 +139,13 @@ def main():
             continue
         t0 = time.time()
         os.makedirs(os.path.dirname(base), exist_ok=True)
-        mesh = pipeline.run(Image.open(src), seed=seed, pipeline_type=kind)[0]
+        try:
+            mesh = pipeline.run(Image.open(src), seed=seed, pipeline_type=kind)[0]
+        except torch.cuda.OutOfMemoryError:
+            # Uno que no cabe no para el lote: se repite luego a 512.
+            print(f'{base}: NO CABE a {kind}', flush=True)
+            torch.cuda.empty_cache()
+            continue
         torch.save({
             'vertices': mesh.vertices.cpu(), 'faces': mesh.faces.cpu(), 'attrs': mesh.attrs.cpu(),
             'coords': mesh.coords.cpu(), 'layout': mesh.layout, 'voxel_size': mesh.voxel_size,

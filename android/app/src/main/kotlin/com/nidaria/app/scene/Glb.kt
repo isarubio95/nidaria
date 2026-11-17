@@ -151,7 +151,7 @@ object Glb {
             val count = acc.int("count")
             val comps = when (acc["type"]!!.jsonPrimitive.content) { "SCALAR" -> 1; "VEC2" -> 2; "VEC3" -> 3; "VEC4" -> 4; "MAT4" -> 16; else -> error("tipo") }
             val type = acc.int("componentType")
-            val size = when (type) { 5126, 5125 -> 4; 5123 -> 2; 5121 -> 1; else -> error("componente $type") }
+            val size = when (type) { 5126, 5125 -> 4; 5123, 5122 -> 2; 5121, 5120 -> 1; else -> error("componente $type") }
             val stride = view.int("byteStride", comps * size)
             val start = binStart + view.int("byteOffset") + acc.int("byteOffset")
             val normalized = acc["normalized"]?.jsonPrimitive?.content == "true"
@@ -163,6 +163,9 @@ object Glb {
                         5126 -> buf.getFloat(at)
                         5125 -> buf.getInt(at).toFloat()
                         5123 -> (buf.getShort(at).toInt() and 0xFFFF).let { if (normalized) it / 65535f else it.toFloat() }
+                        // Con signo (KHR_mesh_quantization): posiciones y normales.
+                        5122 -> buf.getShort(at).toInt().let { if (normalized) maxOf(it / 32767f, -1f) else it.toFloat() }
+                        5120 -> buf.get(at).toInt().let { if (normalized) maxOf(it / 127f, -1f) else it.toFloat() }
                         else -> (buf.get(at).toInt() and 0xFF).let { if (normalized) it / 255f else it.toFloat() }
                     }
                 }
@@ -216,14 +219,14 @@ object Glb {
 
         fun JsonObject.int(key: String, default: Int = 0): Int = this[key]?.jsonPrimitive?.int ?: default
 
-        // Un accesor como lista de Float (los enteros normalizados, a 0..1).
+        // Un accesor como lista de Float (los enteros normalizados, a 0..1 o -1..1).
         fun floats(index: Int): FloatArray {
             val acc = accessors[index].jsonObject
             val view = views[acc.int("bufferView")].jsonObject
             val count = acc.int("count")
             val comps = when (acc["type"]!!.jsonPrimitive.content) { "SCALAR" -> 1; "VEC2" -> 2; "VEC3" -> 3; "VEC4" -> 4; "MAT4" -> 16; else -> error("tipo") }
             val type = acc.int("componentType")
-            val size = when (type) { 5126, 5125 -> 4; 5123 -> 2; 5121 -> 1; else -> error("componente $type") }
+            val size = when (type) { 5126, 5125 -> 4; 5123, 5122 -> 2; 5121, 5120 -> 1; else -> error("componente $type") }
             val stride = view.int("byteStride", comps * size)
             val start = binStart + view.int("byteOffset") + acc.int("byteOffset")
             val normalized = acc["normalized"]?.jsonPrimitive?.content == "true"
@@ -235,6 +238,9 @@ object Glb {
                         5126 -> buf.getFloat(at)
                         5125 -> buf.getInt(at).toFloat()
                         5123 -> (buf.getShort(at).toInt() and 0xFFFF).let { if (normalized) it / 65535f else it.toFloat() }
+                        // Con signo (KHR_mesh_quantization): posiciones y normales.
+                        5122 -> buf.getShort(at).toInt().let { if (normalized) maxOf(it / 32767f, -1f) else it.toFloat() }
+                        5120 -> buf.get(at).toInt().let { if (normalized) maxOf(it / 127f, -1f) else it.toFloat() }
                         else -> (buf.get(at).toInt() and 0xFF).let { if (normalized) it / 255f else it.toFloat() }
                     }
                 }

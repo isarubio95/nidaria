@@ -24,7 +24,9 @@ class GlbModelTest {
 
     @Test
     fun `cada glb trae una malla con esqueleto bien formada y sus datos de atado`() {
-        for (name in listOf("mascota.glb", "brasa.glb")) {
+        val names = File("../../public/models").list()!!.filter { it.endsWith(".glb") }.sorted()
+        assertEquals(listOf("ascua", "bosque", "brasa", "brote", "chapo", "gotita", "marea", "mascota", "trepa").map { "$it.glb" }, names)
+        for (name in names) {
             val model = Glb.load(name)
             val vertices = model.positions.size / 3
             assertTrue(name, vertices > 1000)
@@ -48,15 +50,23 @@ class GlbModelTest {
     }
 
     @Test
-    fun `con el interruptor apagado no hay modelos, y encendido solo para las pelusas`() {
+    fun `con el interruptor apagado no hay modelos, y encendido un modelo por etapa de cada monstruo`() {
         val pelusa = createGenes(101, "pelusa")
         assertNull(Models.modelFor("cria-pelusa", pelusa, on = false))
         assertEquals("mascota", Models.modelFor("cria-pelusa", pelusa, on = true)?.id)
-        assertEquals("mascota", Models.modelFor("joven-pelusa-gloton", pelusa, on = true)?.id)
+        assertEquals("ascua", Models.modelFor("joven-pelusa-gloton", pelusa, on = true)?.id)
         assertEquals("brasa", Models.modelFor("adulto-pelusa-gloton-arisco", pelusa, on = true)?.id)
         assertEquals("brasa", Models.modelFor("oculta-pelusa-radiante", pelusa, on = true)?.id)
-        assertNull(Models.modelFor("cria-hoja", createGenes(202, "hoja"), on = true))
+        val hoja = createGenes(202, "hoja")
+        assertEquals("brote", Models.modelFor("cria-hoja", hoja, on = true)?.id)
+        assertEquals("trepa", Models.modelFor("joven-hoja-arisco", hoja, on = true)?.id)
+        assertEquals("bosque", Models.modelFor("oculta-hoja-gota", hoja, on = true)?.id)
+        val gota = createGenes(303, "gota")
+        assertEquals("gotita", Models.modelFor("cria-gota", gota, on = true)?.id)
+        assertEquals("chapo", Models.modelFor("joven-gota-tranquilo", gota, on = true)?.id)
+        assertEquals("marea", Models.modelFor("adulto-gota-tranquilo-gloton", gota, on = true)?.id)
         assertNull(Models.modelFor("cria-perro", createGenes(404, "perro"), on = true))
+        assertNull(Models.modelFor("cria-gato", createGenes(505, "gato"), on = true))
     }
 
     @Test
@@ -83,6 +93,24 @@ class GlbModelTest {
                 fx.mood("dormida")
                 fx.update(1f, 0.1f)
             }
+        }
+    }
+
+    @Test
+    fun `las hoja y las gota de modelo se montan enteras y el ADN mueve poco su color`() {
+        val cases = listOf("cria-hoja" to 2, "joven-hoja-gloton" to 0, "adulto-hoja-gloton-gloton" to 0,
+            "cria-gota" to 2, "joven-gota-gloton" to 2, "adulto-gota-gloton-gloton" to 2)
+        for ((formId, ears) in cases) {
+            val family = formId.split("-")[1]
+            val genes = createGenes(77, family)
+            val spec = Models.modelFor(formId, genes, on = true)!!
+            val built = buildGlbCreature(formId, genes, spec)
+            assertEquals(formId, 2, built.rig.eyes.size)
+            assertEquals(formId, ears, built.rig.ears.size)
+            assertEquals(formId, 2, built.rig.arms.size)
+            assertEquals(formId, 7, built.rig.mesh.bones.size)
+            // Con el freno de tono, nunca más de 30 grados.
+            assertTrue(formId, kotlin.math.abs(built.rig.mesh.material.tint[0]) < Math.toRadians(30.0).toFloat())
         }
     }
 }

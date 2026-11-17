@@ -1,0 +1,17 @@
+manzana --height 1.0
+zanahoria --height 1.2
+pan --width 1.1
+arroz --width 1.05
+sopa --width 1.1
+pescado --width 1.2
+galleta --width 0.92
+helado --height 1.4
+tarta --height 0.8
+festin --width 1.45
+medicina --height 0.85
+vitaminas --width 0.87
+jabon --width 0.84
+pelota --height 0.9
+peonza --height 1.1
+peluche --height 1.05
+cometa --height 1.8
